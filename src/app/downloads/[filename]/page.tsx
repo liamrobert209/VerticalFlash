@@ -45,6 +45,7 @@ import {
   TAIL_SECONDS,
 } from "@/lib/word-range";
 import type { Sentence, Word } from "@/lib/segments-schema";
+import { PlatformFinishPanel } from "@/components/render/PlatformFinishPanel";
 
 type AudioMode = "music" | "original" | "none";
 
@@ -2574,6 +2575,8 @@ function VideoViewerContent() {
                       )}
                     </div>
                     )}
+
+                    {render && videoId && <PlatformFinishPanel videoId={videoId} />}
 
                     {render && render.warnings.length > 0 && (
                       <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-2 flex flex-col gap-0.5">

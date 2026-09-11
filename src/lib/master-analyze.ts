@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import { createPartFromUri, createUserContent } from "@google/genai";
 import type { GoogleGenAI } from "@google/genai";
 import { getGeminiModel } from "./gemini";
-import { getBrandConfig } from "./config";
+import type { EffectiveProduct } from "./product-lines";
 import type { Analysis, GeminiAnalysis } from "./analysis-schema";
 import type { MasterProjectMeta, TimingSource } from "./project-meta";
 import {
@@ -79,10 +79,9 @@ export async function uploadForGemini(
   return { part: createPartFromUri(file.uri!, file.mimeType || mimeType), name };
 }
 
-function brandIntro(duration: number): string {
-  const brand = getBrandConfig();
-  return `You are studying a long recording ("master") of ${brand.name}'s own footage —
-their product is ${brand.product.description} — to find the pieces worth cutting
+function brandIntro(duration: number, product: EffectiveProduct): string {
+  return `You are studying a long recording ("master") of ${product.brandName}'s own footage —
+their product is ${product.description} — to find the pieces worth cutting
 into short vertical videos (TikTok). The master is ${duration.toFixed(1)} seconds
 long. Someone is usually talking to camera about the product; there may also be
 silent product footage.`;
@@ -111,8 +110,8 @@ VIDEO-LEVEL fields:
   closest of "background_music", "voiceover_over_music", "sound_effect_driven"
 - music_usage_note: one sentence`;
 
-function wordModePrompt(duration: number, transcript: string, wordCount: number): string {
-  return `${brandIntro(duration)}
+function wordModePrompt(duration: number, transcript: string, wordCount: number, product: EffectiveProduct): string {
+  return `${brandIntro(duration, product)}
 
 The attached video is the footage. The transcript below was produced by a
 word-level aligner and is the ONLY source of timing: refer to words by their
@@ -132,8 +131,8 @@ Return JSON matching the schema:
 ${SEGMENT_FIELDS}`;
 }
 
-function timeModePrompt(duration: number): string {
-  return `${brandIntro(duration)}
+function timeModePrompt(duration: number, product: EffectiveProduct): string {
+  return `${brandIntro(duration, product)}
 
 Watch and listen to the ENTIRE attached video. Return JSON matching the
 schema:
@@ -358,7 +357,8 @@ export async function analyzeMaster(
   videoPath: string,
   videoId: string,
   meta: MasterProjectMeta,
-  duration: number
+  duration: number,
+  product: EffectiveProduct
 ): Promise<MasterAnalysisResult> {
   const dryRun = storyboardDryRun();
   const choice = await resolveTimingEngine(meta.timingEngine ?? null);
@@ -428,7 +428,7 @@ export async function analyzeMaster(
         const { result, usage: u } = await callGemini(
           ai!,
           [part],
-          wordModePrompt(duration, numbered, words.length),
+          wordModePrompt(duration, numbered, words.length, product),
           geminiWordSegmentsResponseSchema,
           (raw) => GeminiWordSegmentsZ.parse(JSON.parse(raw))
         );
@@ -446,7 +446,7 @@ export async function analyzeMaster(
         const { result, usage: u } = await callGemini(
           ai!,
           [part],
-          timeModePrompt(duration),
+          timeModePrompt(duration, product),
           geminiTimeSegmentsResponseSchema,
           (raw) => GeminiTimeSegmentsZ.parse(JSON.parse(raw))
         );
@@ -519,10 +519,11 @@ export async function analyzeAndStoreMaster(
   videoPath: string,
   videoId: string,
   project: MasterProjectMeta,
-  duration: number
+  duration: number,
+  product: EffectiveProduct
 ): Promise<Analysis> {
   await fs.mkdir(ANALYSIS_DIR, { recursive: true });
-  const { analysis, shots, segments } = await analyzeMaster(ai, videoPath, videoId, project, duration);
+  const { analysis, shots, segments } = await analyzeMaster(ai, videoPath, videoId, project, duration, product);
   await extractScreenshots(videoPath, videoId, shots, duration);
   const stored: Analysis = {
     videoId,

@@ -30,6 +30,13 @@ export const TIKHUB_CACHE_PATH = join(DATA_ROOT, "tikhub-cache.json");
 export const TIKTOK_TOKEN_PATH = join(DATA_ROOT, "tiktok-token.json");
 export const AGENT_SETTINGS_PATH = join(DATA_ROOT, "agent-settings.json");
 
+// Competitor/saved-accounts data, content records, and brand-asset metadata
+// live in Postgres (Supabase) now, not on disk — see src/lib/db.ts. The
+// actual asset/image files still live here on the Railway volume; only
+// their metadata rows move to Postgres.
+export const BRAND_ASSETS_DIR = join(DATA_ROOT, "brand-assets");
+export const PRODUCT_IMAGES_DIR = join(DATA_ROOT, "product-images");
+
 export const DATA_DIRS = [
   DOWNLOADS_DIR,
   STORYBOARDS_DIR,
@@ -40,6 +47,8 @@ export const DATA_DIRS = [
   MUSIC_DIR,
   BENCHMARKS_DIR,
   LIBRARY_DIR,
+  BRAND_ASSETS_DIR,
+  PRODUCT_IMAGES_DIR,
 ] as const;
 
 // Per-video sidecar files under analysis/

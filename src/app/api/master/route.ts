@@ -7,6 +7,8 @@ import { assembleMaster } from "@/lib/master-assemble";
 import { createMasterJob, runMasterJob } from "@/lib/master-jobs";
 import { MasterJobStatusZ } from "@/lib/master-job-schema";
 import { findLibraryFile } from "@/lib/library-store";
+import { getActiveProductLineIdFromRequest } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 // Joining several long clips is a full re-encode
 export const maxDuration = 600;
@@ -75,6 +77,9 @@ export async function POST(request: NextRequest) {
         }
       }
       const job = await createMasterJob({ clips, title, timingEngine, model });
+      // Pin the product line now, from the ambient cookie, while the request
+      // context still exists — the job itself runs later with no request.
+      await writeProjectProductLineIfAbsent(job.videoId, getActiveProductLineIdFromRequest(request));
       after(() => runMasterJob(job.videoId));
       return NextResponse.json(MasterJobStatusZ.parse(job), { status: 202 });
     }

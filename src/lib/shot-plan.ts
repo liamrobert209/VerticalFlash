@@ -12,9 +12,10 @@ import {
 } from "./analysis-schema";
 import { validateShots } from "./shot-timing";
 import { loadLibrary } from "./library-store";
-import { getBrandConfig } from "./config";
+import { clipMatchesProductLine } from "./library-schema";
 import type { BriefProjectMeta } from "./project-meta";
 import { musicPath } from "./music-library";
+import type { EffectiveProduct } from "./product-lines";
 
 // Shot planning for projects that start from a brief (a song and/or a
 // prompt) instead of a TikTok video. Gemini gets the creative brief, the
@@ -32,10 +33,10 @@ export interface CatalogSummary {
   tags: string[];
 }
 
-export async function loadCatalogSummary(): Promise<CatalogSummary[]> {
+export async function loadCatalogSummary(productLineId: string): Promise<CatalogSummary[]> {
   const library = await loadLibrary();
   return library.videos
-    .filter((v) => v.analysis)
+    .filter((v) => v.analysis && clipMatchesProductLine(v, productLineId))
     .map((v) => ({
       filename: v.filename,
       description: v.analysis!.description,
@@ -80,7 +81,8 @@ function buildPrompt(
   meta: BriefProjectMeta,
   duration: number,
   catalog: CatalogSummary[],
-  hasAudio: boolean
+  hasAudio: boolean,
+  product: EffectiveProduct
 ): string {
   const brief = meta.prompt.trim();
   const music = meta.music;
@@ -96,9 +98,8 @@ function buildPrompt(
       })`
     : "none — the video is silent or gets a song later";
 
-  const brand = getBrandConfig();
-  return `You are planning a short-form TikTok video for "${brand.name}" — a brand whose
-product is ${brand.product.description}. The video will be cut together from the team's own
+  return `You are planning a short-form TikTok video for "${product.brandName}" — a brand whose
+product is ${product.description}. The video will be cut together from the team's own
 footage library, so plan shots that this footage can actually fill.
 
 TARGET LENGTH: exactly ${duration.toFixed(1)} seconds.
@@ -115,7 +116,7 @@ the drop at 7.4s").`
     : `There is no soundtrack to listen to — pace the shots for a punchy,
 scroll-stopping rhythm (shorter shots up front).`
 }
-CREATIVE BRIEF: ${brief || "(none given — choose a proven, fun format for the brand: a POV, a reveal, a montage, or a mini-skit featuring ${brand.product.shortName})"}
+CREATIVE BRIEF: ${brief || `(none given — choose a proven, fun format for the brand: a POV, a reveal, a montage, or a mini-skit featuring ${product.shortName})`}
 
 FOOTAGE LIBRARY (what exists; plan shots these clips can play):
 ${JSON.stringify(catalog, null, 0)}
@@ -159,9 +160,11 @@ export interface ShotPlanResult {
 export async function planShotsFromBrief(
   ai: GoogleGenAI,
   meta: BriefProjectMeta,
-  duration: number
+  duration: number,
+  productLineId: string,
+  product: EffectiveProduct
 ): Promise<ShotPlanResult> {
-  const catalog = await loadCatalogSummary();
+  const catalog = await loadCatalogSummary(productLineId);
 
   // Music projects: hand Gemini the real soundtrack
   let uploadedName: string | undefined;
@@ -196,7 +199,7 @@ export async function planShotsFromBrief(
       }
     }
 
-    const basePrompt = buildPrompt(meta, duration, catalog, audioPart != null);
+    const basePrompt = buildPrompt(meta, duration, catalog, audioPart != null, product);
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       const prompt =

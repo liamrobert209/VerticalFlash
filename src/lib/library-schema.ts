@@ -83,11 +83,23 @@ export const LibraryClipZ = z.object({
   source: z.string().optional().nullable(),
   duration: z.number().optional().nullable(),
   analysis: ClipAnalysisZ.optional().nullable(),
+  // Which of the 8 product lines this clip is usable for. Empty = usable
+  // for every product line (the default for untagged/legacy footage, so
+  // tagging can happen gradually without breaking existing matching).
+  // Set manually in the library UI, never guessed by Gemini — a clip is
+  // cataloged before anyone knows which product it's for, and privacy-filter
+  // vs. plain screen-protector footage often looks identical on camera.
+  productLines: z.array(z.string()).default([]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 
 export type LibraryClip = z.infer<typeof LibraryClipZ>;
+
+// The one predicate everywhere clips get filtered by active product line.
+export function clipMatchesProductLine(clip: LibraryClip, productLineId: string): boolean {
+  return clip.productLines.length === 0 || clip.productLines.includes(productLineId);
+}
 
 export const ClipLibraryZ = z.object({
   videos: z.array(LibraryClipZ),

@@ -24,6 +24,10 @@ import { findDownloadFile } from "@/lib/download-files";
 import { classifyGeminiError, getGeminiClient } from "@/lib/gemini";
 import { ANALYSIS_DIR } from "@/lib/paths";
 import type { Word } from "@/lib/segments-schema";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 // The short's B-roll track: voice-anchored segments over the speaker.
 // GET/PUT store it; POST runs the Gemini stages (suggest, match, moment).
@@ -150,6 +154,10 @@ export async function POST(
   const ctx = await loadContext(videoId);
   if (!ctx) return NextResponse.json({ error: "No analysis found for this video" }, { status: 404 });
 
+  const productLineId = await resolveProductLineForVideo(videoId, request);
+  await writeProjectProductLineIfAbsent(videoId, productLineId);
+  const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+
   let ai: GoogleGenAI;
   try {
     ai = getGeminiClient();
@@ -171,7 +179,7 @@ export async function POST(
       const existing = resolveBrollTrack(track, ctx.analysis.shots, ctx.words)
         .filter((r) => r.valid)
         .map((r) => ({ segment: byId(track.segments).get(r.id)!, resolved: r }));
-      const fresh = await suggestBrollMoments(ai, ctx.analysis, ctx.words, existing);
+      const fresh = await suggestBrollMoments(ai, ctx.analysis, ctx.words, existing, product);
       // Drop suggestions that collide with anything already on the track
       const trial = [...track.segments, ...fresh];
       const resolvedTrial = resolvedMap(trial);
@@ -192,7 +200,7 @@ export async function POST(
     } else {
       const wanted = new Set(body.segment_ids ?? []);
       const resolved = resolvedMap(track.segments);
-      const catalog = await loadBrollCatalog();
+      const catalog = await loadBrollCatalog(productLineId);
       const durations = new Map(catalog.map((c) => [c.filename, c.duration]));
       for (const s of track.segments) {
         if (!wanted.has(s.id) || !s.clip) continue;
@@ -213,7 +221,7 @@ export async function POST(
     }
 
     if (toMatch.length) {
-      const catalog = await loadBrollCatalog();
+      const catalog = await loadBrollCatalog(productLineId);
       if (catalog.length === 0) {
         return NextResponse.json(
           { error: "No analyzed clips to match against — analyze clips in the library first" },
@@ -224,7 +232,7 @@ export async function POST(
       const targets = toMatch
         .map((segment) => ({ segment, resolved: resolved.get(segment.id)! }))
         .filter((t) => t.resolved?.valid);
-      const candidates = await matchBrollSegments(ai, ctx.analysis, targets, catalog);
+      const candidates = await matchBrollSegments(ai, ctx.analysis, targets, catalog, product);
       for (const s of track.segments) {
         const found = candidates.get(s.id);
         if (!found) continue;

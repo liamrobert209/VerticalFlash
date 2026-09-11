@@ -7,6 +7,13 @@ import {
   type BrandConfig,
   type PublicBrandConfig,
 } from "./brand";
+import {
+  ProductLinesConfigZ,
+  DEFAULT_PRODUCT_LINES_CONFIG,
+  toPublicProductLines,
+  type ProductLinesConfig,
+  type PublicProductLine,
+} from "./product-lines";
 
 // NOTE: server-side only (reads the filesystem); client components may
 // import types from ./brand but must never import this module.
@@ -70,4 +77,61 @@ export function getBrandConfig(): BrandConfig {
 
 export function getPublicBrand(): PublicBrandConfig {
   return toPublicBrand(getBrandConfig());
+}
+
+const PRODUCT_LINES_CONFIG_FILENAME = "product-lines.config.json";
+
+function productLinesConfigPath(): string {
+  const fromEnv = process.env.PRODUCT_LINES_CONFIG;
+  if (fromEnv) {
+    return isAbsolute(fromEnv) ? fromEnv : resolve(process.cwd(), fromEnv);
+  }
+  return join(DATA_ROOT, PRODUCT_LINES_CONFIG_FILENAME);
+}
+
+let cachedProductLines: ProductLinesConfig | undefined;
+
+// Read once per process, same idiom as getBrandConfig(). Restart the server
+// after editing product-lines.config.json.
+export function getProductLinesConfig(): ProductLinesConfig {
+  if (cachedProductLines) return cachedProductLines;
+
+  const path = productLinesConfigPath();
+  let raw: string;
+  try {
+    raw = readFileSync(path, "utf8");
+  } catch {
+    const g = globalThis as { __productLinesWarned?: boolean };
+    if (!g.__productLinesWarned) console.warn(
+      `[product-lines] No ${PRODUCT_LINES_CONFIG_FILENAME} found at ${path} — using a generic placeholder product line. ` +
+        `Copy product-lines.config.example.json to ${PRODUCT_LINES_CONFIG_FILENAME} and describe your products.`
+    );
+    g.__productLinesWarned = true;
+    cachedProductLines = DEFAULT_PRODUCT_LINES_CONFIG;
+    return cachedProductLines;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `[product-lines] ${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  const parsed = ProductLinesConfigZ.safeParse(json);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("\n");
+    throw new Error(`[product-lines] ${path} failed validation:\n${issues}`);
+  }
+
+  cachedProductLines = parsed.data;
+  return cachedProductLines;
+}
+
+export function getPublicProductLines(): PublicProductLine[] {
+  return toPublicProductLines(getProductLinesConfig());
 }

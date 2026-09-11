@@ -26,6 +26,7 @@ import { readBrollTrack } from "@/lib/broll-store";
 import { resolveBrollTrack } from "@/lib/broll-resolve";
 import { readMasterSegments } from "@/lib/master-analyze";
 import type { BrollRenderSegment } from "@/lib/render-remake";
+import { recordContentFromRender } from "@/lib/content-record-store";
 
 // Encoding ~15 segments plus any on-demand Gemini trim calls takes a while
 export const maxDuration = 300;
@@ -197,6 +198,7 @@ export async function POST(
       broll,
     });
 
+    await recordContentFromRender(videoId);
     return NextResponse.json(manifest);
   } catch (error) {
     console.error("render failed:", error);

@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { filename, date, tags, description, source, duration } = body;
+    const { filename, date, tags, description, source, duration, productLines } = body;
 
     if (!filename || typeof filename !== "string") {
       return NextResponse.json(
@@ -45,6 +45,11 @@ export async function POST(request: NextRequest) {
       ...(source && { source }),
       ...(duration !== undefined && {
         duration: typeof duration === "number" ? duration : undefined,
+      }),
+      ...(productLines !== undefined && {
+        productLines: Array.isArray(productLines)
+          ? productLines.filter((p): p is string => typeof p === "string")
+          : [],
       }),
       updatedAt: new Date().toISOString(),
     };

@@ -212,6 +212,7 @@ export async function analyzeLibraryClip(
       duration: existing?.duration ?? duration,
       description: existing?.description || analysis.description,
       tags: mergedTags,
+      productLines: existing?.productLines ?? [],
       analysis: {
         ...analysis,
         analyzedAt: now,

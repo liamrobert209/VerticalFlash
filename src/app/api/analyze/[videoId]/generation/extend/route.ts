@@ -23,6 +23,10 @@ import {
   executeGenerationAttempt,
   generationErrorResponse,
 } from "@/lib/generation-run";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 import { ANALYSIS_DIR, LIBRARY_DIR } from "@/lib/paths";
 
 export const maxDuration = 600;
@@ -178,6 +182,10 @@ export async function POST(
       ]);
     }
 
+    const productLineId = await resolveProductLineForVideo(videoId, request);
+    await writeProjectProductLineIfAbsent(videoId, productLineId);
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+
     const outcome = await executeGenerationAttempt({
       videoId,
       shotIndex,
@@ -193,6 +201,7 @@ export async function POST(
           shotIndex,
           attempt,
           kind: "extend",
+          product,
           prompt,
           sourceClipPath: scratchPath,
           targetSeconds: shotDuration,

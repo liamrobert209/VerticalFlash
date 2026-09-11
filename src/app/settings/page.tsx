@@ -3,6 +3,9 @@ import Link from "next/link";
 import { ArrowDownToLine, BarChart3, Check, FileText, Monitor, Plug, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AgentSettingsBoard } from "@/components/settings/AgentSettingsBoard";
+import { CompetitorsBoard } from "@/components/settings/CompetitorsBoard";
+import { BrandAssetsBoard } from "@/components/settings/BrandAssetsBoard";
+import { ProductImagesBoard } from "@/components/settings/ProductImagesBoard";
 import { AGENT_GUIDES, AGENT_KIT_VERSION, agentDownloadHref } from "@/lib/agent-kit-catalog";
 
 export const metadata: Metadata = { title: "Settings · VerticalFlash" };
@@ -17,6 +20,12 @@ export default function SettingsPage() {
       </header>
 
       <AgentSettingsBoard />
+
+      <CompetitorsBoard />
+
+      <BrandAssetsBoard />
+
+      <ProductImagesBoard />
 
       <section aria-labelledby="benchmarks" className="rounded-lg border border-border bg-card p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">

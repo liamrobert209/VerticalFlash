@@ -29,6 +29,10 @@ import { writeCutdownArtifacts } from "@/lib/cutdown-build";
 import { extractScreenshots } from "@/lib/analysis-screenshots";
 import { ANALYSIS_DIR } from "@/lib/paths";
 import { findDownloadFile } from "@/lib/download-files";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 // Gemini upload + video analysis can take a while; a master also runs
 // WhisperX first
@@ -424,6 +428,9 @@ export async function POST(
   try {
     const duration = await getVideoDuration(videoPath);
 
+    const productLineId = await resolveProductLineForVideo(videoId, request);
+    await writeProjectProductLineIfAbsent(videoId, productLineId);
+
     if (project?.kind === "cutdown") {
       const analysis = await writeCutdownArtifacts(videoPath, videoId, project, duration);
       return NextResponse.json(analysis);
@@ -432,14 +439,17 @@ export async function POST(
     let analysis: GeminiAnalysis;
     let shots: GeminiAnalysis["shots"];
     let usage: Record<string, unknown> | undefined;
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
     if (project?.kind === "master") {
-      return NextResponse.json(await analyzeAndStoreMaster(ai, videoPath, videoId, project, duration));
+      return NextResponse.json(await analyzeAndStoreMaster(ai, videoPath, videoId, project, duration, product));
     }
     if (project) {
       ({ analysis, shots, usage } = await planShotsFromBrief(
         ai!,
         project,
-        duration
+        duration,
+        productLineId,
+        product
       ));
     } else {
       // Upload via Files API and poll until the file is ACTIVE

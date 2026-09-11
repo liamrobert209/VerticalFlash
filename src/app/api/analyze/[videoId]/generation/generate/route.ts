@@ -10,6 +10,8 @@ import { shotDurationSeconds } from "@/lib/generation-prompts";
 import {
   pickReferenceClips,
   prepareReferenceMedia,
+  prepareProductImageReferences,
+  MAX_REFERENCE_CLIPS,
   runGeneration,
 } from "@/lib/generate-clip";
 import {
@@ -17,6 +19,10 @@ import {
   generationErrorResponse,
 } from "@/lib/generation-run";
 import { ANALYSIS_DIR } from "@/lib/paths";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 
 // Video generation takes minutes (upload refs, generate, download 1080p)
@@ -88,7 +94,13 @@ export async function POST(
     }
   }
 
-  // Character references: real library clips that show the product
+  const productLineId = await resolveProductLineForVideo(videoId, request);
+  await writeProjectProductLineIfAbsent(videoId, productLineId);
+  const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+
+  // Character references: real library clips that show the product, topped
+  // up with product reference photos (Settings -> Product images) when
+  // there's room left in the Omni model's 3-reference cap.
   let referenceFiles: string[] = [];
   let referencePaths: string[] = [];
   if (useReferences) {
@@ -96,6 +108,13 @@ export async function POST(
     referenceFiles = pickReferenceClips(library, shot);
     if (!dryRun && referenceFiles.length) {
       referencePaths = await prepareReferenceMedia(referenceFiles);
+    }
+    if (!dryRun && referencePaths.length < MAX_REFERENCE_CLIPS) {
+      const imageRefs = await prepareProductImageReferences(
+        productLineId,
+        MAX_REFERENCE_CLIPS - referencePaths.length
+      );
+      referencePaths = [...referencePaths, ...imageRefs];
     }
   }
 
@@ -115,6 +134,7 @@ export async function POST(
           shotIndex,
           attempt,
           kind: "generate",
+          product,
           prompt,
           referencePaths,
           targetSeconds: shotDurationSeconds(shot),

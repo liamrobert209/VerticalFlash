@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
       source: "upload",
       duration: duration ?? existing?.duration ?? null,
       tags: existing?.tags ?? [],
+      productLines: existing?.productLines ?? [],
       updatedAt: now,
     };
     if (existingIndex !== -1) {

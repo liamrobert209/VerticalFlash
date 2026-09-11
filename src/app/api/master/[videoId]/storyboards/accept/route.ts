@@ -6,6 +6,8 @@ import { readStoryboards, recordStoryboardEdit } from "@/lib/storyboard-store";
 import { readProjectMeta } from "@/lib/project-meta";
 import { findDownloadFile } from "@/lib/download-files";
 import { buildCutdown } from "@/lib/cutdown-build";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 // Cutting the beats is a re-encode of a short's worth of video
 export const maxDuration = 300;
@@ -82,6 +84,12 @@ export async function POST(
     });
     // Remember which short came from this storyboard
     await recordStoryboardEdit(videoId, storyboard, result.filename);
+    // Pin the new cutdown to whatever product line the master itself is
+    // pinned to, right at creation — don't wait for whichever downstream
+    // endpoint (analyze/generation) happens to touch this videoId first,
+    // since the ambient cookie could have changed by then.
+    const masterProductLineId = await resolveProductLineForVideo(videoId, request);
+    await writeProjectProductLineIfAbsent(result.videoId, masterProductLineId);
     return NextResponse.json(result);
   } catch (error) {
     console.error("storyboard accept failed:", error);

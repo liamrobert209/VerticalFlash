@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBrandConfig } from "@/lib/config";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct, type EffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 import { loadLibrary } from "@/lib/library-store";
+import { clipMatchesProductLine } from "@/lib/library-schema";
 import { promises as fs } from "fs";
 import { join, basename } from "path";
 import { getGeminiClient, GEMINI_MODEL } from "@/lib/gemini";
@@ -69,12 +73,13 @@ async function loadAnalysis(videoId: string): Promise<Analysis | null> {
   }
 }
 
-// Only clips that have been through Gemini analysis are matchable
-async function loadCatalog(): Promise<CatalogClip[]> {
+// Only clips that have been through Gemini analysis, and match the active
+// product line, are matchable
+async function loadCatalog(productLineId: string): Promise<CatalogClip[]> {
   try {
     const library = await loadLibrary();
     return library.videos
-      .filter((v) => v.analysis)
+      .filter((v) => v.analysis && clipMatchesProductLine(v, productLineId))
       .map((v) => ({
         filename: v.filename,
         duration: v.duration ?? null,
@@ -179,7 +184,7 @@ function tagOverlap(shotTags: string[], clipTags: string[]): string[] {
   );
 }
 
-function buildPrompt(analysis: Analysis, catalog: CatalogClip[]): string {
+function buildPrompt(analysis: Analysis, catalog: CatalogClip[], product: EffectiveProduct): string {
   const shots = analysis.shots.map((s) => ({
     shot_index: s.index,
     duration_s: Math.round((s.end_time - s.start_time) * 10) / 10,
@@ -201,13 +206,12 @@ function buildPrompt(analysis: Analysis, catalog: CatalogClip[]): string {
     tags: c.tags,
   }));
 
-  const brand = getBrandConfig();
   return `You are helping a content team remake a successful TikTok video using
 their own raw footage library. The original video is a "${analysis.format}"
 format: ${analysis.summary}
 
 Below are (A) the original video's shot list and (B) the team's footage
-library ("${brand.name}" brand — ${brand.product.description}).
+library ("${product.brandName}" brand — ${product.description}).
 
 For EVERY shot in list A, recommend clips from list B that could play the
 same role in a remake. Judge a match primarily on:
@@ -245,9 +249,10 @@ ${JSON.stringify(clips, null, 1)}`;
 async function generateMatches(
   ai: GoogleGenAI,
   analysis: Analysis,
-  catalog: CatalogClip[]
+  catalog: CatalogClip[],
+  product: EffectiveProduct
 ): Promise<{ matches: GeminiMatches; usage: Record<string, unknown> | undefined }> {
-  const basePrompt = buildPrompt(analysis, catalog);
+  const basePrompt = buildPrompt(analysis, catalog, product);
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -524,7 +529,11 @@ export async function POST(
     );
   }
 
-  const catalog = await loadCatalog();
+  const productLineId = await resolveProductLineForVideo(videoId, request);
+  await writeProjectProductLineIfAbsent(videoId, productLineId);
+  const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+
+  const catalog = await loadCatalog(productLineId);
   if (catalog.length === 0) {
     return NextResponse.json(
       {
@@ -546,7 +555,7 @@ export async function POST(
   }
 
   try {
-    const { matches, usage } = await generateMatches(ai, analysis, catalog);
+    const { matches, usage } = await generateMatches(ai, analysis, catalog, product);
     const shots = mergeRecommendations(analysis, catalog, matches);
 
     // Re-matching must not wipe the user's confirmed clip choices: carry

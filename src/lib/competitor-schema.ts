@@ -1,0 +1,84 @@
+import { z } from "zod";
+
+// Matches your competitor doc's own six categories. Bulbs and red-light
+// therapy aren't among the 8 active Ocushield product lines — they're kept
+// as watchable competitors, not forced into the product-line enum.
+export const COMPETITOR_CATEGORY_IDS = [
+  "glasses",
+  "screen_protectors",
+  "privacy_filters",
+  "supplements",
+  "bulbs",
+  "red_light_therapy",
+] as const;
+
+export type CompetitorCategoryId = (typeof COMPETITOR_CATEGORY_IDS)[number];
+
+// Documented, non-enforced starting point for seeding — editable per
+// account afterward, since real overlap isn't always this clean (e.g.
+// Belkin sits under both screen protectors and privacy filters).
+export const CATEGORY_TO_PRODUCT_LINES: Record<CompetitorCategoryId, string[]> = {
+  glasses: ["anti_blue_light_glasses"],
+  screen_protectors: ["phone_screen_protector", "ipad_screen_protector"],
+  privacy_filters: ["macbook_privacy_filter", "monitor_privacy_filter"],
+  supplements: ["eye_health_supplements"],
+  bulbs: [],
+  red_light_therapy: [],
+};
+
+export const COMPETITOR_REGIONS = ["uk", "eu", "us"] as const;
+export type CompetitorRegion = (typeof COMPETITOR_REGIONS)[number];
+
+export const TIKTOK_STATUSES = ["confirmed", "present_unconfirmed", "not_found"] as const;
+export type TikTokStatus = (typeof TIKTOK_STATUSES)[number];
+
+export const CompetitorAccountZ = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  region: z.enum(COMPETITOR_REGIONS),
+  website: z.string().nullable(),
+  instagramHandle: z.string().nullable(),
+  instagramFollowers: z.number().int().nullable(),
+  facebookHandle: z.string().nullable(),
+  facebookFollowers: z.number().int().nullable(),
+  tiktokHandle: z.string().nullable(),
+  tiktokStatus: z.enum(TIKTOK_STATUSES),
+  positioning: z.string().nullable(),
+  crossCategoryFlag: z.boolean(),
+  notes: z.string().nullable(),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+  categories: z.array(z.enum(COMPETITOR_CATEGORY_IDS)).default([]),
+  productLineIds: z.array(z.string()).default([]),
+});
+
+export type CompetitorAccount = z.infer<typeof CompetitorAccountZ>;
+
+// Input shape for creating/updating an account — id/timestamps are server-assigned
+export const CompetitorAccountInputZ = z.object({
+  name: z.string().min(1),
+  region: z.enum(COMPETITOR_REGIONS),
+  website: z.string().nullable().optional(),
+  instagramHandle: z.string().nullable().optional(),
+  instagramFollowers: z.number().int().nullable().optional(),
+  facebookHandle: z.string().nullable().optional(),
+  facebookFollowers: z.number().int().nullable().optional(),
+  tiktokHandle: z.string().nullable().optional(),
+  tiktokStatus: z.enum(TIKTOK_STATUSES).default("not_found"),
+  positioning: z.string().nullable().optional(),
+  crossCategoryFlag: z.boolean().default(false),
+  notes: z.string().nullable().optional(),
+  categories: z.array(z.enum(COMPETITOR_CATEGORY_IDS)).default([]),
+  productLineIds: z.array(z.string()).default([]),
+});
+
+export type CompetitorAccountInput = z.infer<typeof CompetitorAccountInputZ>;
+
+export const CompetitorQueryZ = z.object({
+  category: z.enum(COMPETITOR_CATEGORY_IDS).optional(),
+  region: z.enum(COMPETITOR_REGIONS).optional(),
+  productLineId: z.string().optional(),
+  scanReady: z.coerce.boolean().optional(),
+});
+
+export type CompetitorQuery = z.infer<typeof CompetitorQueryZ>;

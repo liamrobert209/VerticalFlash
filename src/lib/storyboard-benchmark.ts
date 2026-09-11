@@ -7,7 +7,9 @@ import {
   sidecarPath,
   STORYBOARDS_DIR,
 } from "./paths";
-import { getBrandConfig } from "./config";
+import { getBrandConfig, getProductLinesConfig } from "./config";
+import { resolveEffectiveProduct } from "./product-lines";
+import { readProjectProductLine } from "./project-product-line";
 import { modelGenerator, assertModelAvailable } from "./models/providers";
 import {
   modelId,
@@ -73,6 +75,13 @@ interface Prepared {
   hashes: Record<string, string>;
   brandHash: string;
 }
+// Benchmarks have no request/cookie context (they're a background job, not
+// a live page view) — fall back to the master's own pinned product line, or
+// the config default if it isn't pinned yet.
+async function benchmarkProductLineId(masterId: string): Promise<string> {
+  return (await readProjectProductLine(masterId)) ?? getProductLinesConfig().defaultProductLineId;
+}
+
 async function checkInputs(p: Prepared) {
   if (digest(JSON.stringify(getBrandConfig())) !== p.brandHash)
     throw new Error("Brand settings changed; start a new benchmark");
@@ -98,13 +107,13 @@ export async function createStoryboardBenchmark(
       );
     getGeminiClient(); // Shared transcript preparation is explicitly Gemini-backed.
     await ensureFfmpeg();
-    const catalog = await loadCatalogSummary();
+    const masterId = `master-${input.requestId}`;
+    const catalog = await loadCatalogSummary(await benchmarkProductLineId(masterId));
     for (const clip of [...input.clips, ...input.brollClips]) {
       if (!(await findLibraryFile(clip)))
         throw new Error(`Clip not found: ${clip}`);
     }
     const now = new Date().toISOString();
-    const masterId = `master-${input.requestId}`;
     const variants = input.models
       .map((choice) => ({ choice, random: randomUUID() }))
       .sort((a, b) => a.random.localeCompare(b.random))
@@ -203,12 +212,14 @@ async function prepare(run: BenchmarkRun): Promise<Prepared> {
   if (meta?.kind !== "master") throw new Error("Master metadata is missing");
   let segments = await readMasterSegments(masterId);
   if (!segments) {
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), await benchmarkProductLineId(masterId));
     await analyzeAndStoreMaster(
       getGeminiClient(),
       masterPath,
       masterId,
       meta,
       duration,
+      product,
     );
     segments = await readMasterSegments(masterId);
   }
@@ -220,7 +231,7 @@ async function prepare(run: BenchmarkRun): Promise<Prepared> {
       continue;
     const { analyzeLibraryClip } = await import("./library-analyze");
     await analyzeLibraryClip(filename);
-    const clip = (await loadCatalogSummary()).find(
+    const clip = (await loadCatalogSummary(await benchmarkProductLineId(masterId))).find(
       (c) => c.filename === filename,
     );
     if (!clip)
@@ -313,12 +324,14 @@ async function executeVariant(
     };
     if (!variant.artifact?.storyboard) {
       await update("storyboarding");
+      const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), await benchmarkProductLineId(p.master.videoId));
       const doc = await generateStoryboards(
         null,
         p.segments,
         run.execution!.input.request,
         p.master.duration,
         p.catalog,
+        product,
         generate,
         modelId(choice),
       );

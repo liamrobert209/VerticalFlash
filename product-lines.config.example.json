@@ -1,0 +1,71 @@
+{
+  "$comment": "Copy to product-lines.config.json and describe your own product lines and ICPs. This example continues the Duckla placeholder brand from brand.config.example.json. Read once per process — restart the server after editing.",
+  "defaultProductLineId": "duckla_classic",
+  "productLines": [
+    {
+      "id": "duckla_classic",
+      "label": "Duckla Classic",
+      "shortName": "the classic duck",
+      "description": "the original small yellow duck plush car accessory",
+      "presenceRule": "true ONLY if the classic yellow duck plush is visible in the frame at any point",
+      "icpRef": "commuter_buyer"
+    },
+    {
+      "id": "duckla_mini",
+      "label": "Duckla Mini",
+      "shortName": "the mini duck",
+      "description": "a smaller keychain-sized version of the duck plush",
+      "presenceRule": "true ONLY if the mini duck keychain is visible in the frame at any point",
+      "icpRef": "gift_buyer"
+    }
+  ],
+  "icps": [
+    {
+      "id": "commuter_buyer",
+      "label": "Commuter Buyer",
+      "problemsSolved": [
+        { "label": "Making a dull commute more fun", "surveyPct": 40.0, "reviewsPct": 20.0 },
+        { "label": "Personalizing their car", "surveyPct": 30.0, "reviewsPct": 15.0 }
+      ],
+      "loves": [
+        { "label": "How it looks on the dash", "reviewsPct": 20.0 },
+        { "label": "Build quality", "reviewsPct": 15.0 }
+      ],
+      "hates": [
+        { "label": "Slides around while driving", "reviewsPct": 10.0 },
+        { "label": "Slow delivery", "reviewsPct": 5.0 }
+      ],
+      "purchaseDrivers": [
+        { "label": "Saw it on social media", "reviewsPct": 35.0 },
+        { "label": "Positive reviews", "reviewsPct": 25.0 }
+      ],
+      "nearMissObjections": [
+        { "label": "Price", "reviewsPct": 20.0 },
+        { "label": "Unsure it will fit their dashboard", "reviewsPct": 10.0 }
+      ],
+      "demographic": "Example placeholder demographic notes for this ICP — replace with your own research.",
+      "representativeQuote": "Example placeholder customer quote for this ICP."
+    },
+    {
+      "id": "gift_buyer",
+      "label": "Gift Buyer",
+      "problemsSolved": [
+        { "label": "Finding a fun, affordable small gift", "surveyPct": 50.0, "reviewsPct": 25.0 }
+      ],
+      "loves": [
+        { "label": "Cute packaging", "reviewsPct": 18.0 }
+      ],
+      "hates": [
+        { "label": "Wishes it came in more colors", "reviewsPct": 8.0 }
+      ],
+      "purchaseDrivers": [
+        { "label": "Bought as a gift for someone else", "reviewsPct": 40.0 }
+      ],
+      "nearMissObjections": [
+        { "label": "Wanted a bigger size option", "reviewsPct": 12.0 }
+      ],
+      "demographic": "Example placeholder demographic notes for this ICP — replace with your own research.",
+      "representativeQuote": "Example placeholder customer quote for this ICP."
+    }
+  ]
+}

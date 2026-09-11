@@ -3,10 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronRight, ClipboardCheck, Film, Home, Menu, RotateCcw, Search, Settings2, Trash2, X } from "lucide-react";
+import { BarChart3, ChevronRight, ClipboardCheck, FileClock, Film, Home, Megaphone, Menu, RotateCcw, Search, Settings2, Sparkles, Trash2, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
+import { ProductLineSwitcher } from "@/components/nav/ProductLineSwitcher";
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
+      {children}
+    </p>
+  );
+}
 
 export function HistorySidebar() {
   const { scans, currentScanId, deleteScan } = useScanHistory();
@@ -96,12 +105,25 @@ export function HistorySidebar() {
         }}>
           <button onClick={closeMobile} aria-label="Close navigation" title="Close navigation"
             className="ml-auto flex size-8 items-center justify-center md:hidden"><X className="size-4" /></button>
-          <div className="space-y-1">
+
+          <ProductLineSwitcher />
+
+          <div className="space-y-1 border-t border-border pt-4">
+            <SectionLabel>Create</SectionLabel>
             <Link href="/" className={navClass}><Home className="size-4 shrink-0" />Start</Link>
             <Link href="/scan" className={navClass}><Search className="size-4 shrink-0" />New scan</Link>
+            <Link href="/iterate" className={navClass}><RotateCcw className="size-4 shrink-0" />Iterate on a top video</Link>
+            <Link href="/create-ad-hoc?origin=creator" className={navClass}><Sparkles className="size-4 shrink-0" />Iterate creator content</Link>
+            <Link href="/create-ad-hoc?origin=ad" className={navClass}><Megaphone className="size-4 shrink-0" />Iterate ad content</Link>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <SectionLabel>Library</SectionLabel>
+            <Link href="/library" className={navClass}><Film className="size-4 shrink-0" />Clip library</Link>
           </div>
 
           <section className="border-t border-border pt-4">
+            <SectionLabel>Projects</SectionLabel>
             <button onClick={() => setOpen((value) => ({ ...value, scans: !value.scans }))}
               aria-expanded={open.scans} aria-controls="sidebar-scans" className="flex w-full items-center gap-2 text-left text-sm font-semibold">
               <ChevronRight className={`size-3.5 shrink-0 ${open.scans ? "rotate-90" : ""}`} />Scan History
@@ -135,7 +157,7 @@ export function HistorySidebar() {
             const entries = files.filter((file) => projectStage(file) === stage)
               .sort((a, b) => (b.lastEditedAt ?? b.modified) - (a.lastEditedAt ?? a.modified));
             const href = stage === "storyboarding" ? "/storyboards" : "/editing";
-            return <section key={stage} className="space-y-2 border-t border-border pt-4">
+            return <section key={stage} className="space-y-2 pt-2">
               <div className="flex min-h-5 items-center gap-2">
                 <button onClick={() => setOpen((value) => ({ ...value, [stage]: !value[stage] }))}
                   aria-expanded={open[stage]} aria-controls={`sidebar-${stage}`} aria-label={`Toggle ${title}`} title={`Toggle ${title}`}
@@ -172,15 +194,14 @@ export function HistorySidebar() {
             <button onClick={loadProjects} className="flex items-center gap-1"><RotateCcw className="size-3" />Retry</button>
           </div>}
 
-          <div className="border-t border-border pt-4">
-            <Link href="/library" className={navClass}><Film className="size-4 shrink-0" />Clip library</Link>
-          </div>
           <div className="space-y-2 border-t border-border pt-4">
+            <SectionLabel>Insights</SectionLabel>
+            <Link href="/content-history" className={navClass}><FileClock className="size-4 shrink-0" />Content history</Link>
             <Link href="/analytics" className={navClass}><BarChart3 className="size-4 shrink-0" />TikTok analytics</Link>
-            <Link href="/iterate" className={navClass}><RotateCcw className="size-4 shrink-0" />Iterate on a top video</Link>
             <Link href="/benchmarks" className={navClass}><ClipboardCheck className="size-4 shrink-0" />Benchmarks</Link>
           </div>
           <div className="border-t border-border pt-4">
+            <SectionLabel>Settings</SectionLabel>
             <Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}
               className={`${navClass} ${pathname === "/settings" ? "text-primary" : ""}`}><Settings2 className="size-4 shrink-0" />Settings</Link>
           </div>

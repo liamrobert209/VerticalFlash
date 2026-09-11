@@ -48,6 +48,9 @@ agent-settings.json
 # Your brand description (copy brand.config.example.json)
 brand.config.json
 
+# Product lines + ICP data (copy product-lines.config.example.json)
+product-lines.config.json
+
 # Local tooling
 .gstack/
 .context/

@@ -1,8 +1,7 @@
 import { createUserContent } from "@google/genai";
 import type { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODEL } from "./gemini";
-import { getBrandConfig } from "./config";
-import { productCharacter } from "./brand";
+import type { EffectiveProduct } from "./product-lines";
 import type { Analysis } from "./analysis-schema";
 import {
   GeminiGenPromptsZ,
@@ -15,20 +14,10 @@ export function shotDurationSeconds(shot: AnalysisShot): number {
   return Math.round((shot.end_time - shot.start_time) * 10) / 10;
 }
 
-// The fixed character sentence comes from brand.config.json: every prompt
-// that shows the product must describe the same subject or the generated
-// shots won't cut together.
-function character(): string {
-  return productCharacter(getBrandConfig());
-}
-
-function brandName(): string {
-  return getBrandConfig().name;
-}
-
 function draftInstruction(
   analysis: Analysis,
-  shots: AnalysisShot[]
+  shots: AnalysisShot[],
+  product: EffectiveProduct
 ): string {
   const shotList = shots.map((s) => ({
     shot_index: s.index,
@@ -43,12 +32,12 @@ function draftInstruction(
 
   return `You write prompts for an AI text-to-video model. A content team is
 remaking a successful TikTok ("${analysis.format}" format: ${analysis.summary})
-using their own footage of the ${brandName()} product — ${character()}. For shots
+using their own footage of the ${product.brandName} product — ${product.character}. For shots
 where no real footage fits, an AI clip will be generated from your prompt.
 
 For EACH shot below, write ONE self-contained video-generation prompt:
-- Recast the shot's subject and action around the ${brandName()} product where the
-  shot features a product; describe ${character()} verbatim in those
+- Recast the shot's subject and action around the ${product.brandName} product where the
+  shot features a product; describe ${product.character} verbatim in those
   prompts so every generated shot shows the same character.
 - Name the camera work explicitly (e.g. "static locked-off shot",
   "slow handheld push-in", "smooth pan left") matching the shot's
@@ -72,6 +61,7 @@ ${JSON.stringify(shotList, null, 1)}`;
 export async function generateShotPrompts(
   ai: GoogleGenAI,
   analysis: Analysis,
+  product: EffectiveProduct,
   shotIndexes?: number[]
 ): Promise<{
   prompts: Map<number, string>;
@@ -83,7 +73,7 @@ export async function generateShotPrompts(
     return { prompts: new Map(), usage: undefined };
   }
 
-  const basePrompt = draftInstruction(analysis, shots);
+  const basePrompt = draftInstruction(analysis, shots, product);
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -150,12 +140,12 @@ captions, or logos.`;
 
 // Appended server-side when reference clips ride along; users never see or
 // manage the <VIDEO_REF_N> tags.
-export function referencePreamble(count: number): string {
+export function referencePreamble(count: number, product: EffectiveProduct): string {
   if (count <= 0) return "";
   const tags = Array.from({ length: count }, (_, i) => `<VIDEO_REF_${i}>`).join(
     ", "
   );
-  return `\n\nThe attached reference clips (${tags}) show the real ${brandName()} product —
-${character()}. Match its exact appearance, colors, and proportions in the
+  return `\n\nThe attached reference clips (${tags}) show the real ${product.brandName} product —
+${product.character}. Match its exact appearance, colors, and proportions in the
 generated video.`;
 }

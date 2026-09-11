@@ -110,6 +110,7 @@ export async function scanLibrary(): Promise<ClipLibrary> {
         description: undefined,
         source: undefined,
         duration: undefined,
+        productLines: [],
         createdAt: now,
         updatedAt: now,
       }

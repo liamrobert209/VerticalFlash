@@ -1,12 +1,13 @@
 import { randomUUID } from "crypto";
 import { createUserContent } from "@google/genai";
 import type { GoogleGenAI } from "@google/genai";
-import { getBrandConfig } from "./config";
 import { GEMINI_MODEL } from "./gemini";
 import { loadLibrary } from "./library-store";
+import { clipMatchesProductLine } from "./library-schema";
 import { generateTrimWindows, type TrimTarget } from "./trim-windows";
 import type { Analysis } from "./analysis-schema";
 import type { Word } from "./segments-schema";
+import type { EffectiveProduct } from "./product-lines";
 import {
   GeminiBrollMatchesZ,
   GeminiBrollMomentsOffsetZ,
@@ -35,11 +36,12 @@ export interface CatalogClip {
   tags: string[];
 }
 
-// Only clips that have been through Gemini analysis are matchable
-export async function loadBrollCatalog(): Promise<CatalogClip[]> {
+// Only clips that have been through Gemini analysis, and match the active
+// product line (or are untagged and so match everything), are matchable.
+export async function loadBrollCatalog(productLineId: string): Promise<CatalogClip[]> {
   const library = await loadLibrary();
   return library.videos
-    .filter((v) => v.analysis)
+    .filter((v) => v.analysis && clipMatchesProductLine(v, productLineId))
     .map((v) => ({
       filename: v.filename,
       duration: v.duration ?? null,
@@ -96,7 +98,8 @@ export async function matchBrollSegments(
   ai: GoogleGenAI,
   analysis: Analysis,
   targets: MatchTarget[],
-  catalog: CatalogClip[]
+  catalog: CatalogClip[],
+  product: EffectiveProduct
 ): Promise<Map<string, BrollCandidate[]>> {
   const out = new Map<string, BrollCandidate[]>();
   if (targets.length === 0 || catalog.length === 0) return out;
@@ -123,13 +126,12 @@ export async function matchBrollSegments(
     description: c.description,
     tags: c.tags,
   }));
-  const brand = getBrandConfig();
   const prompt = `You are picking B-roll for a short talking-head video. The speaker
 stays audible; each segment below is a PHRASE they say that will be covered
 by a library clip while they say it. The video is a "${analysis.format}"
 format: ${analysis.summary}
 
-The library belongs to the "${brand.name}" brand (${brand.product.description}).
+The library belongs to the "${product.brandName}" brand (${product.description}).
 
 For EVERY segment in list A, recommend clips from list B that visually
 illustrate the phrase (and the "wants" note when present). Judge on:
@@ -233,10 +235,10 @@ export async function suggestBrollMoments(
   ai: GoogleGenAI,
   analysis: Analysis,
   words: Word[] | null,
-  existing: Array<{ segment: BrollSegment; resolved: ResolvedBroll }>
+  existing: Array<{ segment: BrollSegment; resolved: ResolvedBroll }>,
+  product: EffectiveProduct
 ): Promise<BrollSegment[]> {
   const total = analysis.shots[analysis.shots.length - 1]?.end_time ?? 0;
-  const brand = getBrandConfig();
   const now = new Date().toISOString();
   const lastIndex = analysis.shots.length - 1;
   const rules = `Rules:
@@ -249,8 +251,8 @@ export async function suggestBrollMoments(
 - Keep total coverage under 35% of the ${total.toFixed(0)}s video.
 - Do not overlap the already-covered ranges listed.
 - description: ONE concrete sentence of what the B-roll should show, in
-  terms a footage library could match (the ${brand.name} product is
-  ${brand.product.description}).`;
+  terms a footage library could match (the ${product.brandName} product is
+  ${product.description}).`;
 
   const wordMode = !!words?.length && analysis.shots.every((s) => s.source_start != null);
   if (wordMode) {

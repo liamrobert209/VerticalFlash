@@ -75,6 +75,7 @@ test(
             filename: "core.mp4",
             duration: 6,
             tags: [],
+            productLines: [],
             createdAt: now,
             updatedAt: now,
           },
@@ -82,6 +83,7 @@ test(
             filename: "broll.mp4",
             duration: 6,
             tags: [],
+            productLines: [],
             createdAt: now,
             updatedAt: now,
             analysis: {

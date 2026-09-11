@@ -4,9 +4,11 @@ import { LibraryUpload } from "@/components/form/LibraryUpload";
 import { useEffect, useRef, useState } from "react";
 import type { LibraryClip, ClipLibrary } from "@/lib/library-schema";
 import { useBrand } from "@/app/context/brand";
+import { useActiveProduct } from "@/app/context/active-product";
 
 export default function LibraryPage() {
   const brand = useBrand();
+  const { options: productLineOptions } = useActiveProduct();
   const [library, setLibrary] = useState<ClipLibrary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function LibraryPage() {
       tags: video.tags || [],
       description: video.description,
       source: video.source,
+      productLines: video.productLines || [],
     });
   };
 
@@ -249,6 +252,33 @@ export default function LibraryPage() {
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground mt-1">No tags</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Product lines
+                        </p>
+                        {selectedVideo.productLines.length === 0 ? (
+                          <p className="text-sm mt-1">
+                            <span className="text-muted-foreground">Usable for every product</span>
+                            {selectedVideo.analysis?.product_present && (
+                              <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 text-xs font-medium">
+                                needs tagging
+                              </span>
+                            )}
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {selectedVideo.productLines.map((id) => (
+                              <span
+                                key={id}
+                                className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-medium"
+                              >
+                                {productLineOptions.find((p) => p.id === id)?.label ?? id}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
 
@@ -449,6 +479,39 @@ export default function LibraryPage() {
 
                     <div>
                       <label className="text-xs font-semibold uppercase text-muted-foreground">
+                        Product lines
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">
+                        Leave everything unchecked to keep this clip usable for every product.
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {productLineOptions.map((option) => {
+                          const checked = editForm.productLines?.includes(option.id) ?? false;
+                          return (
+                            <label key={option.id} className="flex items-center gap-2 text-sm text-foreground">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const current = editForm.productLines ?? [];
+                                  setEditForm({
+                                    ...editForm,
+                                    productLines: e.target.checked
+                                      ? [...current, option.id]
+                                      : current.filter((id) => id !== option.id),
+                                  });
+                                }}
+                                className="size-4 rounded border-input accent-primary"
+                              />
+                              {option.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-muted-foreground">
                         Source
                       </label>
                       <input
@@ -566,6 +629,11 @@ export default function LibraryPage() {
                           <p className="text-[10px] font-mono text-muted-foreground truncate">
                             {video.filename}
                           </p>
+                          {video.productLines.length === 0 && video.analysis?.product_present && (
+                            <span className="self-start px-1 py-0 rounded text-[8px] bg-amber-500/15 text-amber-600 font-medium">
+                              needs tagging
+                            </span>
+                          )}
                           {video.tags && video.tags.length > 0 && (
                             <div className="flex flex-wrap gap-0.5">
                               {video.tags.slice(0, 2).map((tag) => (

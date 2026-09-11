@@ -1,0 +1,2752 @@
+[
+  {
+    "name": "Barner",
+    "region": "uk",
+    "website": "https://barnerbrand.com",
+    "instagramHandle": "barnerbrand",
+    "instagramFollowers": 147000,
+    "facebookHandle": null,
+    "facebookFollowers": 39000,
+    "tiktokHandle": "barnerbrand",
+    "tiktokStatus": "confirmed",
+    "positioning": "Scandinavian-designed, fashion-forward blue light glasses; strong D2C lifestyle brand (Spain-based, big UK presence).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #1 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Gunnar Optiks",
+    "region": "uk",
+    "website": "https://gunnar.com",
+    "instagramHandle": "gunnaroptiks",
+    "instagramFollowers": 58000,
+    "facebookHandle": null,
+    "facebookFollowers": 154000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "The original gaming/esports eyewear brand; performance lenses for gamers and screen-heavy pros.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #2 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Bon Charge",
+    "region": "uk",
+    "website": "https://boncharge.com",
+    "instagramHandle": "boncharge_",
+    "instagramFollowers": 55000,
+    "facebookHandle": null,
+    "facebookFollowers": 11000,
+    "tiktokHandle": "boncharge",
+    "tiktokStatus": "confirmed",
+    "positioning": "Wellness/biohacking brand — blue-light glasses plus red-light, EMF and circadian sleep focus.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #3 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Baxter Blue",
+    "region": "uk",
+    "website": "https://baxterblueglasses.com",
+    "instagramHandle": "baxterblue_",
+    "instagramFollowers": 71000,
+    "facebookHandle": null,
+    "facebookFollowers": 28000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Stylish, affordable blue-light glasses; fashion + eye-comfort, gives back via eye-care donations (Australia).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #4 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Ambr Eyewear",
+    "region": "uk",
+    "website": "https://ambreyewear.com",
+    "instagramHandle": "everambr",
+    "instagramFollowers": 18000,
+    "facebookHandle": null,
+    "facebookFollowers": 2000,
+    "tiktokHandle": "ambr_eyewear",
+    "tiktokStatus": "confirmed",
+    "positioning": "UK design-led ‘move, sleep, focus’ blue-light + performance eyewear.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #5 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Swanwick (Swannies)",
+    "region": "uk",
+    "website": "https://swanwicksleep.com",
+    "instagramHandle": "swanwick",
+    "instagramFollowers": 32000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Sleep-focused amber blue-blockers; ‘block blue light, sleep better’ (US/AU, sold intl).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #6 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "IZIPIZI",
+    "region": "uk",
+    "website": "https://izipizi.com",
+    "instagramHandle": "izipizi",
+    "instagramFollowers": 376000,
+    "facebookHandle": null,
+    "facebookFollowers": 210000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Playful, affordable French fashion eyewear incl. a ‘Screen’ blue-light range; mass lifestyle brand.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #7 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Gamer Advantage",
+    "region": "uk",
+    "website": "https://gameradvantage.com",
+    "instagramHandle": "gameradvantage",
+    "instagramFollowers": 12000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Gaming glasses with patented ‘Rezme’ lens; streamer/esports partnerships (‘Play hard. Sleep hard.’).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #8 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Cyxus",
+    "region": "uk",
+    "website": "https://cyxus.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Low-cost, high-volume blue-light/computer glasses; heavy Amazon UK presence (China).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #9 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Felix Gray / Pixel",
+    "region": "uk",
+    "website": "https://pixeleyewear.com",
+    "instagramHandle": "pixeleyewear",
+    "instagramFollowers": 8500,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US premium computer-eyewear names; limited UK retail — watch only if they expand.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #10 in UK for glasses (source doc, 2026)."
+  },
+  {
+    "name": "IZIPIZI",
+    "region": "eu",
+    "website": "https://izipizi.com",
+    "instagramHandle": "izipizi",
+    "instagramFollowers": 376000,
+    "facebookHandle": null,
+    "facebookFollowers": 210000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Big, playful French lifestyle eyewear; blue-light ‘Screen’ range within a broad readers/sunglasses line (France).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #1 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Barner",
+    "region": "eu",
+    "website": "https://barnerbrand.com",
+    "instagramHandle": "barnerbrand",
+    "instagramFollowers": 147000,
+    "facebookHandle": null,
+    "facebookFollowers": 39000,
+    "tiktokHandle": "barnerbrand",
+    "tiktokStatus": "confirmed",
+    "positioning": "Design-led Scandinavian-aesthetic blue-light eyewear; pan-European D2C category leader (Spain/Barcelona).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #2 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Bon Charge",
+    "region": "eu",
+    "website": "https://boncharge.com",
+    "instagramHandle": "boncharge_",
+    "instagramFollowers": 55000,
+    "facebookHandle": null,
+    "facebookFollowers": 11000,
+    "tiktokHandle": "boncharge",
+    "tiktokStatus": "confirmed",
+    "positioning": "Wellness/circadian brand — blue blockers + red light + EMF; strong EU e-commerce.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #3 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Gunnar Optiks",
+    "region": "eu",
+    "website": "https://gunnar.com",
+    "instagramHandle": "gunnaroptiks",
+    "instagramFollowers": 58000,
+    "facebookHandle": null,
+    "facebookFollowers": 154000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Gaming/computer eyewear pioneer; strong in German/Nordic gaming markets (US brand, EU distribution).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #4 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Horus X",
+    "region": "eu",
+    "website": "https://horus-x.com",
+    "instagramHandle": "horusx",
+    "instagramFollowers": 11000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "French gaming + anti-blue-light brand; playful, gamer/creator-focused, strong content/SEO (France).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #5 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Nooz Optics",
+    "region": "eu",
+    "website": "https://nooz-optics.com",
+    "instagramHandle": "nooz_optics",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Ultra-slim, foldable French reading + blue-light screen glasses; design/travel-friendly (France).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #6 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "PRiSMA (Innovative Eyewear)",
+    "region": "eu",
+    "website": "https://innovative-eyewear.de",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "German-engineered high-filter (up to ~99%) blue-light blockers; functional/medical angle incl. gamer variants.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #7 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Baxter Blue",
+    "region": "eu",
+    "website": "https://baxterblueglasses.com",
+    "instagramHandle": "baxterblue_",
+    "instagramFollowers": 71000,
+    "facebookHandle": null,
+    "facebookFollowers": 28000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Affordable stylish blue-light glasses; sells into EU (Australia).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #8 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Ambr Eyewear",
+    "region": "eu",
+    "website": "https://ambreyewear.com",
+    "instagramHandle": "everambr",
+    "instagramFollowers": 18000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Move, sleep, focus’ performance + blue-light eyewear; active across EU (UK-founded).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #9 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Cyxus",
+    "region": "eu",
+    "website": "https://cyxus.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Budget computer/blue-light glasses at scale across EU marketplaces (China).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #10 in EU for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Warby Parker",
+    "region": "us",
+    "website": "https://warbyparker.com",
+    "instagramHandle": "warbyparker",
+    "instagramFollowers": 608000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Category-defining DTC eyewear; blue-light filter offered as a lens upgrade. Huge US omnichannel presence. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #1 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "DIFF Eyewear",
+    "region": "us",
+    "website": "https://diffeyewear.com",
+    "instagramHandle": "diffeyewear",
+    "instagramFollowers": 781000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Fashion/charitable eyewear; strong influencer engine; offers blue-light lenses. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #2 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Zenni Optical",
+    "region": "us",
+    "website": "https://zennioptical.com",
+    "instagramHandle": "zennioptical",
+    "instagramFollowers": 415000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Ultra-low-cost prescription eyewear giant; ‘Blokz’ blue-light lenses. Massive US volume. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #3 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "EyeBuyDirect",
+    "region": "us",
+    "website": "https://eyebuydirect.com",
+    "instagramHandle": "eyebuydirect",
+    "instagramFollowers": 448000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Budget online eyewear; blue-light add-on at checkout. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #4 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Pair Eyewear",
+    "region": "us",
+    "website": "https://paireyewear.com",
+    "instagramHandle": "paireyewear",
+    "instagramFollowers": 425000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Fast-growing DTC with swappable magnetic toppers; blue-light lens option; strong Gen-Z traction. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #5 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Privé Revaux",
+    "region": "us",
+    "website": "https://priverevaux.com",
+    "instagramHandle": "priverevaux",
+    "instagramFollowers": 239000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Affordable celebrity-backed fashion eyewear; blue-light styles. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #6 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Peepers",
+    "region": "us",
+    "website": "https://peepers.com",
+    "instagramHandle": "peepers",
+    "instagramFollowers": 109000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Affordable readers + blue-light ‘Focus’ lenses; strong with 40+ US women. (General + BL option)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #7 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Gunnar Optiks",
+    "region": "us",
+    "website": "https://gunnar.com",
+    "instagramHandle": "gunnaroptiks",
+    "instagramFollowers": 58000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "The original gaming/computer eyewear specialist; performance/gamer positioning. (Specialist)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #8 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Baxter Blue",
+    "region": "us",
+    "website": "https://baxterblue.com",
+    "instagramHandle": "baxterblue_",
+    "instagramFollowers": 67000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "AU-origin blue-light specialist with US site; ‘sleep better / screens’ wellness angle. (Specialist)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #9 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Felix Gray",
+    "region": "us",
+    "website": "https://felixgray.com",
+    "instagramHandle": "felixgrays",
+    "instagramFollowers": 47000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Premium US blue-light pioneer; sleek design, ‘made for screens’, digital eye-strain focus. (Specialist)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "glasses"
+    ],
+    "notes": "Rank #10 in US for glasses (source doc, 2026)."
+  },
+  {
+    "name": "Spigen",
+    "region": "uk",
+    "website": "https://spigen.com",
+    "instagramHandle": "spigen",
+    "instagramFollowers": 1000000,
+    "facebookHandle": null,
+    "facebookFollowers": 600000,
+    "tiktokHandle": "spigen",
+    "tiktokStatus": "confirmed",
+    "positioning": "Huge Korean accessory brand; mass-market tempered glass incl. some anti-blue/privacy films; dominant on Amazon.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #1 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Belkin",
+    "region": "uk",
+    "website": "https://belkin.com",
+    "instagramHandle": "belkin",
+    "instagramFollowers": 123500,
+    "facebookHandle": null,
+    "facebookFollowers": 600000,
+    "tiktokHandle": "belkin",
+    "tiktokStatus": "confirmed",
+    "positioning": "ScreenForce protectors incl. anti-blue/‘eye-safe’ treatments; trusted mainstream tech brand.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #2 in UK for screen_protectors (source doc, 2026). Rank #5 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "PanzerGlass",
+    "region": "uk",
+    "website": "https://panzerglass.com",
+    "instagramHandle": "panzerglass",
+    "instagramFollowers": 18300,
+    "facebookHandle": null,
+    "facebookFollowers": 289000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Danish premium glass; ‘Anti-Bluelight’ glass alongside flagship clear/privacy glass; wide EU retail.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #3 in UK for screen_protectors (source doc, 2026). Rank #6 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "ZAGG / InvisibleShield",
+    "region": "uk",
+    "website": "https://invisibleshield.com",
+    "instagramHandle": "invisibleshield",
+    "instagramFollowers": 6100,
+    "facebookHandle": null,
+    "facebookFollowers": 200000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "InvisibleShield ‘VisionGuard’ line filters high-energy blue light; premium warranty-backed glass.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #4 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "EyeJust",
+    "region": "uk",
+    "website": "https://eyejust.com",
+    "instagramHandle": "eyejust",
+    "instagramFollowers": 14600,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Fashion/wellness blue-light protectors; sleep & skin-ageing angle (US-origin, ships UK; now Ocushield group).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #5 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Reticare",
+    "region": "uk",
+    "website": "https://reticare.com",
+    "instagramHandle": "reticare",
+    "instagramFollowers": 1200,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Spain; science/research-led blue-light filters, sold across EU/UK online.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #6 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Celicious",
+    "region": "uk",
+    "website": "https://celicious.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Made-to-fit films for almost any device incl. anti-blue-light variants; long-tail device coverage.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #7 in UK for screen_protectors (source doc, 2026). Rank #9 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Whitestone (Dome Glass)",
+    "region": "uk",
+    "website": "https://whitestonedome.com",
+    "instagramHandle": "whitestonedomeglass_official",
+    "instagramFollowers": 3500,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Premium liquid-adhesive tempered glass; mostly ultra-clear, enthusiast following.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #8 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Kensington",
+    "region": "uk",
+    "website": "https://kensington.com",
+    "instagramHandle": "kensingtonaccessories",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Better known for privacy; anti-glare/blue-light options via IT channel.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #9 in UK for screen_protectors (source doc, 2026). Rank #2 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Tech Armor / RetinaGuard",
+    "region": "uk",
+    "website": null,
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Budget anti-blue-light film ranges sold heavily via Amazon UK.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #10 in UK for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "PanzerGlass",
+    "region": "eu",
+    "website": "https://panzerglass.com",
+    "instagramHandle": "panzerglass",
+    "instagramFollowers": 18300,
+    "facebookHandle": null,
+    "facebookFollowers": 289000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Biggest EU-native premium glass brand; Anti-Bluelight range; wide retail distribution (Denmark).",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #1 in EU for screen_protectors (source doc, 2026). Rank #6 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Spigen",
+    "region": "eu",
+    "website": "https://spigen.com",
+    "instagramHandle": "spigen",
+    "instagramFollowers": 1000000,
+    "facebookHandle": null,
+    "facebookFollowers": 600000,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Dominant mass-market accessory/glass brand across EU (Korea).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #2 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Belkin",
+    "region": "eu",
+    "website": "https://belkin.com",
+    "instagramHandle": "belkin",
+    "instagramFollowers": 123500,
+    "facebookHandle": null,
+    "facebookFollowers": 600000,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Mainstream tech accessory brand, EU-wide retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #3 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Displex",
+    "region": "eu",
+    "website": "https://displex.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Designed in Germany’ glass/film incl. privacy; strong DACH retail (Germany).",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #4 in EU for screen_protectors (source doc, 2026). Rank #9 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Reticare",
+    "region": "eu",
+    "website": "https://reticare.com",
+    "instagramHandle": "reticare",
+    "instagramFollowers": 1200,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Research-led blue-light filters; EU home market Spain.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #5 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "ZAGG / InvisibleShield",
+    "region": "eu",
+    "website": "https://invisibleshield.com",
+    "instagramHandle": "invisibleshield",
+    "instagramFollowers": 6100,
+    "facebookHandle": null,
+    "facebookFollowers": 200000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "VisionGuard blue-light glass; sold via EU carriers/retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #6 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Hama",
+    "region": "eu",
+    "website": "https://hama.com",
+    "instagramHandle": "hama",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Big German accessories house; broad screen-protection range incl. filtered options.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #7 in EU for screen_protectors (source doc, 2026). Rank #8 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Artwizz",
+    "region": "eu",
+    "website": "https://artwizz.com",
+    "instagramHandle": "artwizz",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Berlin design-led accessories incl. glass protectors (Germany).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #8 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Celicious",
+    "region": "eu",
+    "website": "https://celicious.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Made-to-fit anti-blue-light films; long-tail device coverage.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #9 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "EyeJust",
+    "region": "eu",
+    "website": "https://eyejust.com",
+    "instagramHandle": "eyejust",
+    "instagramFollowers": 14600,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Blue-light protectors with sleep/skin angle; ships EU (Ocushield group).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #10 in EU for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Spigen",
+    "region": "us",
+    "website": "https://spigen.com",
+    "instagramHandle": "spigen",
+    "instagramFollowers": 549000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Global phone-accessory leader; tempered glass incl. blue-light (GlasTR) variants. Dominant US Amazon + retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #1 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Belkin",
+    "region": "us",
+    "website": "https://belkin.com",
+    "instagramHandle": "belkin",
+    "instagramFollowers": 123000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Premium accessories; ScreenForce protectors incl. anti-blue-light options.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #2 in US for screen_protectors (source doc, 2026). Rank #2 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "ZAGG / InvisibleShield",
+    "region": "us",
+    "website": "https://zagg.com",
+    "instagramHandle": "zagg",
+    "instagramFollowers": 60000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US-HQ (Utah) screen-protection leader; ‘Glass Elite VisionGuard’ = blue-light filtering. Wide US retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #3 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "TORRAS",
+    "region": "us",
+    "website": "https://torraslife.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "DTC phone protection incl. anti-blue-light & privacy ‘GlassGo’; strong US Amazon + own-site.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "screen_protectors",
+      "privacy_filters"
+    ],
+    "notes": "Rank #4 in US for screen_protectors (source doc, 2026). Rank #6 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "PerfectSight",
+    "region": "us",
+    "website": "https://perfectsight.co",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Medical-grade’ anti-blue-light tempered glass for iPad/Mac/iPhone; Amazon + DTC, eye-care angle.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #5 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "amFilm",
+    "region": "us",
+    "website": "https://theamfilm.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "High-volume Amazon tempered-glass brand; some blue-light SKUs; price/value.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #6 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Reticare",
+    "region": "us",
+    "website": "https://reticare.com",
+    "instagramHandle": "reticare",
+    "instagramFollowers": 1200,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Science/eye-health-led blue-light filters (born from university research); B2B + consumer.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #7 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Ailun",
+    "region": "us",
+    "website": "https://ailun.com",
+    "instagramHandle": "ailunofficial",
+    "instagramFollowers": 300,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Amazon best-seller tempered glass; occasional blue-light SKUs; pure price/volume play.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #8 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "Supershieldz",
+    "region": "us",
+    "website": null,
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Amazon-native budget protector brand; blue-light variants; no meaningful brand/social.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #9 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "JETech",
+    "region": "us",
+    "website": "https://jetech.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Amazon-native accessories/protectors; value positioning; minimal social.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "screen_protectors"
+    ],
+    "notes": "Rank #10 in US for screen_protectors (source doc, 2026)."
+  },
+  {
+    "name": "3M",
+    "region": "uk",
+    "website": "https://3m.com",
+    "instagramHandle": "3m",
+    "instagramFollowers": 3000000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Market leader & category inventor; the ‘gold standard’ privacy filter, now bundling Eyesafe blue-light filtration.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #1 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Targus",
+    "region": "uk",
+    "website": "https://targus.com",
+    "instagramHandle": "targus",
+    "instagramFollowers": 15000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘4Vu’ privacy screens for laptops/monitors; strong corporate/IT reseller channel.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #3 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Fellowes",
+    "region": "uk",
+    "website": "https://fellowes.com",
+    "instagramHandle": "fellowes_inc",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘PrivaScreen’ blackout privacy filters; strong in office-supply/ergonomics channel.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #4 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Startech.com",
+    "region": "uk",
+    "website": "https://startech.com",
+    "instagramHandle": "startech_com",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Monitor/laptop privacy screens aimed at IT procurement.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #7 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "V7",
+    "region": "uk",
+    "website": "https://v7-world.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Value privacy filters for corporate/education buyers.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #8 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Mobilis",
+    "region": "uk",
+    "website": "https://mobiliscase.com",
+    "instagramHandle": "mobilis_case",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "French pro-mobility brand; frameless privacy filters for enterprise (also sold UK).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #10 in UK for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "3M",
+    "region": "eu",
+    "website": "https://3m.com",
+    "instagramHandle": "3m",
+    "instagramFollowers": 3000000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Dominant privacy-filter brand across Europe; Eyesafe blue-light integration.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #1 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Kensington",
+    "region": "eu",
+    "website": "https://kensington.com",
+    "instagramHandle": "kensingtonaccessories",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Magnetic privacy filters + Eyesafe; strong EU corporate distribution.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #2 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Targus",
+    "region": "eu",
+    "website": "https://targus.com",
+    "instagramHandle": "targus",
+    "instagramFollowers": 15000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "4Vu privacy screens; global brand with strong EU reseller presence.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #3 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Mobilis",
+    "region": "eu",
+    "website": "https://mobiliscase.com",
+    "instagramHandle": "mobilis_case",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "French pro-mobility brand; frameless laptop/monitor privacy filters for enterprise (France).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #4 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Fellowes",
+    "region": "eu",
+    "website": "https://fellowes.com/uk",
+    "instagramHandle": "fellowes_inc",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "PrivaScreen blackout filters; strong EU office-supply distribution.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #5 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Durable",
+    "region": "eu",
+    "website": "https://durable.eu",
+    "instagramHandle": "durable_official",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "German office-equipment brand; monitor privacy filters in workplace ranges (Germany).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #7 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Startech.com",
+    "region": "eu",
+    "website": "https://startech.com",
+    "instagramHandle": "startech_com",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Monitor/laptop privacy screens for IT procurement; sold EU-wide.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #10 in EU for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "3M",
+    "region": "us",
+    "website": "https://3m.com",
+    "instagramHandle": "3m",
+    "instagramFollowers": 3000000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US-HQ inventor of the privacy filter; the category benchmark, incl. blue-light + gold/black options. B2B + retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #1 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Kensington",
+    "region": "us",
+    "website": "https://kensington.com",
+    "instagramHandle": "kensington_tech",
+    "instagramFollowers": 8200,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Major office/IT security & ergonomics brand; broad MagPro/privacy filter line; strong enterprise/reseller channel.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #3 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Targus",
+    "region": "us",
+    "website": "https://targus.com",
+    "instagramHandle": "targus",
+    "instagramFollowers": 15000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Corporate mobility/accessories brand; 2- & 4-way privacy screens; strong B2B + retail.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #4 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Fellowes",
+    "region": "us",
+    "website": "https://fellowes.com",
+    "instagramHandle": "fellowesbrands",
+    "instagramFollowers": 2200,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Office-products brand; PrivaScreen privacy filters; office-supply channel (Staples/Office Depot).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #5 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Tech Armor",
+    "region": "us",
+    "website": "https://techarmor.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Amazon-era protector brand; 4-way privacy + blue-light filters; value/consumer.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #7 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "StarTech.com",
+    "region": "us",
+    "website": "https://startech.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "IT-connectivity brand; monitor/laptop privacy filters; pure B2B/reseller.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #8 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Kapsolo",
+    "region": "us",
+    "website": "https://kapsolo.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Privacy-filter specialist (EU-origin, sells US); broad device fitment; channel/B2B.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #9 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "Photodon",
+    "region": "us",
+    "website": "https://photodon.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US niche specialist in custom-cut screen films incl. privacy & anti-blue-light; enthusiast/DIY.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "privacy_filters"
+    ],
+    "notes": "Rank #10 in US for privacy_filters (source doc, 2026)."
+  },
+  {
+    "name": "MacuShield",
+    "region": "uk",
+    "website": "https://uk.macushield.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": 50000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Markets as ‘the UK’s No.1 eye health supplement’; lutein/zeaxanthin/meso-zeaxanthin macular carotenoids. Closest direct eye incumbent (Alliance Pharma).",
+    "crossCategoryFlag": true,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #1 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Vitabiotics (Visionace)",
+    "region": "uk",
+    "website": "https://vitabiotics.com",
+    "instagramHandle": "vitabioticsofficial",
+    "instagramFollowers": 120000,
+    "facebookHandle": null,
+    "facebookFollowers": 1000000,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "UK’s biggest vitamin company; Visionace is a mainstream lutein + vitamin eye range with wide pharmacy/grocery distribution.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #2 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Nutravita",
+    "region": "uk",
+    "website": "https://nutravita.com",
+    "instagramHandle": "nutravita_uk",
+    "instagramFollowers": 60000,
+    "facebookHandle": null,
+    "facebookFollowers": 800000,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "High-volume Amazon-native vitamin brand; dedicated Eye Complex (lutein, zeaxanthin, bilberry). Direct value-priced eye competitor.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #3 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Wiley’s Finest (Bold Vision)",
+    "region": "uk",
+    "website": "https://wileysfinest.co.uk",
+    "instagramHandle": "wileysfinestuk",
+    "instagramFollowers": 20000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Omega-3 fish-oil specialist; ‘Bold Vision’ pairs omega-3/7 with lutein, zeaxanthin, astaxanthin, bilberry — premium eye angle.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #4 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Performance Lab (Vision)",
+    "region": "uk",
+    "website": "https://performancelab.com",
+    "instagramHandle": "performancelab",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Premium ‘clean’ nootropic brand; ‘Vision’ explicitly positioned for screen users / digital eye strain — closest to Ocushield’s screen-fatigue angle.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #5 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "The Nue Co.",
+    "region": "uk",
+    "website": "https://thenueco.com",
+    "instagramHandle": "thenue_co",
+    "instagramFollowers": 220000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Design-led London wellness brand; sleep/stress products with strong screen-generation branding.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #6 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Wild Nutrition",
+    "region": "uk",
+    "website": "https://wildnutrition.com",
+    "instagramHandle": "wildnutritionltd",
+    "instagramFollowers": 120000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "~£40m ‘Food-Grown’ natural supplement brand; dedicated sleep support range. Sleep/lifestyle overlap.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #7 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Puresport",
+    "region": "uk",
+    "website": "https://puresport.co",
+    "instagramHandle": "puresport",
+    "instagramFollowers": 100000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "puresport",
+    "tiktokStatus": "confirmed",
+    "positioning": "UK performance/recovery brand (mushrooms, CBD, sleep); natural Sleep range around stress & recovery. Strong DTC/social.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #8 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Nutrition Geeks",
+    "region": "uk",
+    "website": "https://nutritiongeeks.co",
+    "instagramHandle": "nutritiongeeks",
+    "instagramFollowers": 50000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "nutritiongeeksofficial",
+    "tiktokStatus": "confirmed",
+    "positioning": "Fast-growing value brand with a dedicated Sleep Bundle; heavy TikTok Shop presence.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #9 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Heights",
+    "region": "uk",
+    "website": "https://heights.com",
+    "instagramHandle": "yourheights",
+    "instagramFollowers": 70000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Science-backed brain/gut subscription supplements (Vitals⁺, Sleep support); premium screen/knowledge-worker audience.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #10 in UK for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Nutrof Total (Théa)",
+    "region": "eu",
+    "website": "https://thea-pharmaceuticals.co.uk",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Marketed as ‘Europe’s No.1 eye health supplement’; lutein, zeaxanthin, omega-3, antioxidants. Pharma-backed, ophthalmologist-channel leader (France).",
+    "crossCategoryFlag": true,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #1 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Sunday Natural",
+    "region": "eu",
+    "website": "https://sunday.de",
+    "instagramHandle": "sunday_natural",
+    "instagramFollowers": 150000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Leading German premium ‘clean/high-purity’ brand; broad range incl. eye (lutein/zeaxanthin) & sleep/melatonin. Major DACH player (Germany).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #2 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Sundt Nutrition",
+    "region": "eu",
+    "website": "https://sundtnutrition.com",
+    "instagramHandle": "sundtnutrition",
+    "instagramFollowers": 200000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Premium Spanish/EU natural brand with strong design/social; eye-support (lutein) + sleep/melatonin. Big Southern-Europe DTC (Spain).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #3 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "New Nordic (Blue Berry)",
+    "region": "eu",
+    "website": "https://newnordic.com",
+    "instagramHandle": "newnordicglobal",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Scandinavian herbal brand; ‘Blue Berry’ is a long-established macular/eye vitamin (lutein + wild blueberry) sold across Europe.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #4 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Bausch + Lomb (PreserVision / Ocuvite)",
+    "region": "eu",
+    "website": "https://preservision.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Global eye-health pharma; AREDS2 macular-support vitamins. Clinical/ophthalmology authority across EU pharmacies.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #5 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "MacuHealth",
+    "region": "eu",
+    "website": "https://macuhealth.com",
+    "instagramHandle": "macuhealth",
+    "instagramFollowers": 25000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Clinically-positioned triple-carotenoid macular-pigment supplement, sold via eye-care professionals across Europe/US.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #6 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Puori",
+    "region": "eu",
+    "website": "https://puori.com",
+    "instagramHandle": "puorilife",
+    "instagramFollowers": 70000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Danish premium ‘pure/tested’ brand (omega-3, vitamins); wellness/longevity positioning. Premium-clean DTC overlap (Denmark).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #7 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "The Nue Co.",
+    "region": "eu",
+    "website": "https://thenueco.com",
+    "instagramHandle": "thenue_co",
+    "instagramFollowers": 220000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Design-led wellness with sleep/stress focus; sells across Europe via Sephora/DTC.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #8 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "DIRTEA",
+    "region": "eu",
+    "website": "https://dirteaworld.com",
+    "instagramHandle": "dirteaworld",
+    "instagramFollowers": 250000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "High-growth functional-mushroom brand expanding across Europe; sleep/relaxation & focus with heavy influencer/social.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #9 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Vitabiotics (Visionace)",
+    "region": "eu",
+    "website": "https://vitabiotics.com",
+    "instagramHandle": "vitabioticsofficial",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Visionace distributed widely across EU/EMEA; the largest-scale mainstream eye-supplement line pan-region.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #10 in EU for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Moon Juice",
+    "region": "us",
+    "website": "https://moonjuice.com",
+    "instagramHandle": "moonjuice",
+    "instagramFollowers": 466000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "moonjuice",
+    "tiktokStatus": "confirmed",
+    "positioning": "Adaptogenic wellness/beauty; ‘Magnesi-Om’ & sleep/stress angle. (Sleep/wellness overlap)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #1 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Ritual",
+    "region": "us",
+    "website": "https://ritual.com",
+    "instagramHandle": "ritual",
+    "instagramFollowers": 451000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Transparent, traceable-ingredient daily vitamins (subscription). (General wellness)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #2 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "OLLY",
+    "region": "us",
+    "website": "https://olly.com",
+    "instagramHandle": "ollywellness",
+    "instagramFollowers": 279000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "ollywellness",
+    "tiktokStatus": "confirmed",
+    "positioning": "Mass-retail gummies; ‘Sleep’ (melatonin + L-theanine) hero line. (Sleep)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #3 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "HUM Nutrition",
+    "region": "us",
+    "website": "https://humnutrition.com",
+    "instagramHandle": "humnutrition",
+    "instagramFollowers": 274000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "humnutrition",
+    "tiktokStatus": "confirmed",
+    "positioning": "Beauty-from-within; ‘Beauty zzZz’ sleep + eye/skin range. (Sleep + eye/skin)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #4 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Vimergy",
+    "region": "us",
+    "website": "https://vimergy.com",
+    "instagramHandle": "vimergy",
+    "instagramFollowers": 253000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Clean, high-potency single-ingredient supplements. (General wellness)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #5 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Nordic Naturals",
+    "region": "us",
+    "website": "https://nordic.com",
+    "instagramHandle": "nordicnaturals",
+    "instagramFollowers": 223000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Omega-3 leader; eye/vision omega positioning. (Eye-adjacent)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #6 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Beam",
+    "region": "us",
+    "website": "https://shopbeam.com",
+    "instagramHandle": "beam",
+    "instagramFollowers": 186000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "beam",
+    "tiktokStatus": "confirmed",
+    "positioning": "‘Dream Powder’ hero sleep product, screen-fatigue/wind-down marketing. (Sleep)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #7 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "Life Extension",
+    "region": "us",
+    "website": "https://lifeextension.com",
+    "instagramHandle": "lifeextension",
+    "instagramFollowers": 92000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Science/longevity; dedicated macular & vision formulas. (Eye – clinical)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #8 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "EyePromise",
+    "region": "us",
+    "website": "https://eyepromise.com",
+    "instagramHandle": "eyepromise_official",
+    "instagramFollowers": 12000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Lutein/zeaxanthin eye vitamins; ‘Screen Shield Teen’ is their screen-fatigue SKU; optometrist channel. (Eye – direct)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #9 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "PreserVision / Ocuvite (Bausch+Lomb)",
+    "region": "us",
+    "website": "https://preservision.com",
+    "instagramHandle": "bauschlomb",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "#1 doctor-recommended AREDS2 macular formula; Ocuvite ‘Eye Performance’ targets screen/digital users. (Eye – incumbent)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "supplements"
+    ],
+    "notes": "Rank #10 in US for supplements (source doc, 2026)."
+  },
+  {
+    "name": "BlockBlueLight ⚑",
+    "region": "uk",
+    "website": "https://blockbluelight.co.uk",
+    "instagramHandle": "blockbluelight",
+    "instagramFollowers": 50000,
+    "facebookHandle": null,
+    "facebookFollowers": 25000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Closest direct competitor: full sleep-lighting range (amber/red/sleep bulbs) + glasses + red light. UK-based.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "bulbs",
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in UK for bulbs (source doc, 2026). Rank #5 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Bon Charge ⚑",
+    "region": "uk",
+    "website": "https://boncharge.com",
+    "instagramHandle": "boncharge_",
+    "instagramFollowers": 55000,
+    "facebookHandle": null,
+    "facebookFollowers": 40000,
+    "tiktokHandle": "boncharge",
+    "tiktokStatus": "confirmed",
+    "positioning": "Broad biohacking brand; blue-light-blocking bulbs, glasses, red light. Premium, science-led.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "bulbs",
+      "red_light_therapy"
+    ],
+    "notes": "Rank #2 in UK for bulbs (source doc, 2026). Rank #4 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Lumie",
+    "region": "uk",
+    "website": "https://lumie.com",
+    "instagramHandle": "lumie.lights",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": 40000,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "UK heritage brand; wake-up/SAD/dawn-simulation lighting (circadian-adjacent rather than strictly low-blue).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #3 in UK for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "ShieldYourBody (SYB)",
+    "region": "uk",
+    "website": "https://shieldyourbody.com",
+    "instagramHandle": "shieldyourbody",
+    "instagramFollowers": 15000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "EMF + blue-light wellness; sells low-blue bulbs, ships UK.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #4 in UK for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Hooga Health",
+    "region": "uk",
+    "website": "https://hoogahealth.com",
+    "instagramHandle": "hoogahealth",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Value-priced amber/low-blue bulbs + red light; ships UK.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #5 in UK for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Bedtime Bulb",
+    "region": "uk",
+    "website": "https://bedtimebulb.com",
+    "instagramHandle": "bedtimebulb",
+    "instagramFollowers": 3000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Single-product specialist: one warm low-blue bulb for sleep/baby (US, ships intl).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #6 in UK for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Drift / Lighting Science (legacy)",
+    "region": "uk",
+    "website": null,
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Original ‘sunset-mimicking’ bedtime bulb (GoodNight/Drift); largely discontinued — verify UK availability.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #7 in UK for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Bon Charge ⚑",
+    "region": "eu",
+    "website": "https://boncharge.com",
+    "instagramHandle": "boncharge_",
+    "instagramFollowers": 55000,
+    "facebookHandle": null,
+    "facebookFollowers": 40000,
+    "tiktokHandle": "boncharge",
+    "tiktokStatus": "confirmed",
+    "positioning": "Ships EU; broad biohacking range incl. blue-light bulbs.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "bulbs",
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in EU for bulbs (source doc, 2026). Rank #4 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "BlockBlueLight ⚑",
+    "region": "eu",
+    "website": "https://blockbluelight.com",
+    "instagramHandle": "blockbluelight",
+    "instagramFollowers": 50000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Ships EU; full sleep-lighting range (amber/red/sleep bulbs) + glasses + red light.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #2 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Lumie",
+    "region": "eu",
+    "website": "https://lumie.com",
+    "instagramHandle": "lumie.lights",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Sold across EU (Boots/Amazon); circadian wake-up lighting (adjacent).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #3 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Chroma",
+    "region": "eu",
+    "website": "https://getchroma.co",
+    "instagramHandle": "getchroma.co",
+    "instagramFollowers": 20000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Premium biohacker lighting incl. low-blue/circadian bulbs (US, ships intl).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #4 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "BioLight",
+    "region": "eu",
+    "website": "https://biolight.shop",
+    "instagramHandle": "biolight.shop",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Mitochondrial-wellness lighting brand (Ari Whitten); bulbs + red light.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #5 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Norb Lighting",
+    "region": "eu",
+    "website": "https://norblighting.com",
+    "instagramHandle": "norblighting",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "High-CRI low-blue sleep bulbs (NorbSLEEP); US, ships EU.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #6 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Healthe / Lighting Science",
+    "region": "eu",
+    "website": "https://healthelighting.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Legacy circadian LED pioneer (GoodNight); limited consumer retail now.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #7 in EU for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Bon Charge ⚑",
+    "region": "us",
+    "website": "https://boncharge.com",
+    "instagramHandle": "boncharge_",
+    "instagramFollowers": 222000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "boncharge",
+    "tiktokStatus": "confirmed",
+    "positioning": "Biohacking lifestyle; blue-blocking bulbs, red lamps, glasses, red light.",
+    "crossCategoryFlag": true,
+    "categories": [
+      "bulbs",
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in US for bulbs (source doc, 2026). Rank #5 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "BioLight",
+    "region": "us",
+    "website": "https://biolight.shop",
+    "instagramHandle": "biolight.shop",
+    "instagramFollowers": 134000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Mitochondrial wellness’; circadian/red bulbs + panels, founder-led content.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #2 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "BlockBlueLight ⚑",
+    "region": "us",
+    "website": "https://blockbluelight.com",
+    "instagramHandle": "blockbluelight_official",
+    "instagramFollowers": 63000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Sleep-focused; SweetDreams low-blue bulbs, twilight/red sleep bulbs, glasses.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #3 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Hooga Health",
+    "region": "us",
+    "website": "https://hoogahealth.com",
+    "instagramHandle": "hoogahealth",
+    "instagramFollowers": 28000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Value biohacking; red/amber sleep bulbs alongside RLT panels.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #4 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Chroma",
+    "region": "us",
+    "website": "https://getchroma.co",
+    "instagramHandle": "getchroma.co",
+    "instagramFollowers": 7000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Engineer-founded high-CRI circadian bulbs & ‘Sky Portal’ lamps; premium.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #5 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Bedtime Bulb",
+    "region": "us",
+    "website": "https://bedtimebulb.com",
+    "instagramHandle": "bedtimebulb",
+    "instagramFollowers": 2000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Single-product low-blue amber sleep bulb; healthy-sleep niche.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #6 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Norb Lighting",
+    "region": "us",
+    "website": "https://norblighting.com",
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Nutri-Orb’ wellness bulbs; NorbSLEEP low-blue evening bulbs.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #7 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "BIOS Lighting",
+    "region": "us",
+    "website": "https://bioslighting.com",
+    "instagramHandle": "bios_plant",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "NASA-derived circadian (‘SkyBlue’) lighting; architectural/commercial focus.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #8 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "Healthe / GoodNight",
+    "region": "us",
+    "website": null,
+    "instagramHandle": null,
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Original ‘GoodNight’ low-blue A19 bulb; largely legacy/retail-distributed.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #9 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "TCP Lighting",
+    "region": "us",
+    "website": "https://tcpi.com",
+    "instagramHandle": "tcplighting",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Mass-market bulbs incl. sleep/circadian SKUs; not wellness-positioned.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "bulbs"
+    ],
+    "notes": "Rank #10 in US for bulbs (source doc, 2026)."
+  },
+  {
+    "name": "CurrentBody ⚑",
+    "region": "uk",
+    "website": "https://currentbody.com",
+    "instagramHandle": "currentbody",
+    "instagramFollowers": 200000,
+    "facebookHandle": null,
+    "facebookFollowers": 100000,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "UK’s leading beauty-tech retailer + own-brand LED masks (Skin Series). Clinical, premium, mass-market. Biggest threat if Ocushield enters red light.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Omnilux",
+    "region": "uk",
+    "website": "https://omniluxled.com",
+    "instagramHandle": "omniluxled",
+    "instagramFollowers": 120000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Medical-grade LED masks; dermatologist/FDA-cleared, celebrity-driven.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #2 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Red Light Rising",
+    "region": "uk",
+    "website": "https://redlightrising.com",
+    "instagramHandle": "redlightrising",
+    "instagramFollowers": 25000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "UK-founded biohacker panels/handhelds/wraps; community/education-led.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #3 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Infraredi",
+    "region": "uk",
+    "website": "https://infraredi.co.uk",
+    "instagramHandle": "infraredi",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "AU-origin, strong UK presence; mid-premium panels.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #6 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Lumaflex",
+    "region": "uk",
+    "website": "https://lumaflex.com",
+    "instagramHandle": "lumaflex",
+    "instagramFollowers": 25000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "FDA-cleared flexible/portable wearable red light; body & joints.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #7 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Kineon",
+    "region": "uk",
+    "website": "https://kineon.io",
+    "instagramHandle": "kineon_labs",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Wearable laser+LED (MOVE+) targeted at joint pain/recovery.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #8 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Rojo Light Therapy",
+    "region": "uk",
+    "website": "https://rojolighttherapy.uk",
+    "instagramHandle": "rojolighttherapy",
+    "instagramFollowers": null,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "UK-based at-home panels; value/mid positioning.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #9 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Luminette",
+    "region": "uk",
+    "website": "https://myluminette.com",
+    "instagramHandle": "myluminette",
+    "instagramFollowers": 20000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Light-therapy glasses (blue-enriched, circadian/SAD) — adjacent to red light.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #10 in UK for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "CurrentBody ⚑",
+    "region": "eu",
+    "website": "https://currentbody.com",
+    "instagramHandle": "currentbody",
+    "instagramFollowers": 200000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Pan-European beauty-tech leader; localised EU sites; own-brand LED masks.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Omnilux",
+    "region": "eu",
+    "website": "https://omniluxled.com",
+    "instagramHandle": "omniluxled",
+    "instagramFollowers": 120000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Medical-grade masks sold across EU.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #2 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Joovv",
+    "region": "eu",
+    "website": "https://joovv.com",
+    "instagramHandle": "joovvsocial",
+    "instagramFollowers": 100000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US premium full-body panels; the category’s aspirational benchmark, ships EU.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #3 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Mito Red Light",
+    "region": "eu",
+    "website": "https://mitoredlight.com",
+    "instagramHandle": "mitoredlightofficial",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US premium panels with a dedicated EU arm (MITO LIGHT Europe).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #5 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Luminousred",
+    "region": "eu",
+    "website": "https://luminousred.com",
+    "instagramHandle": "luminousred.light",
+    "instagramFollowers": 25000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Germany-based premium design-led panels; core EU-native brand (Germany).",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #6 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Infraredi",
+    "region": "eu",
+    "website": "https://infraredi.com",
+    "instagramHandle": "infraredi",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "AU-origin, EU/UK distribution; mid-premium panels.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #7 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Vital Red Light",
+    "region": "eu",
+    "website": "https://vitalredlight.com",
+    "instagramHandle": "vitalredlight",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US mid-market panels/handhelds; ships EU.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #8 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "PlatinumLED",
+    "region": "eu",
+    "website": "https://platinumtherapylights.com",
+    "instagramHandle": "platinumledtherapylightssocial",
+    "instagramFollowers": 40000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "High-irradiance premium panels (BioMax); ships EU.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #9 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Hooga Health",
+    "region": "eu",
+    "website": "https://hoogahealth.com",
+    "instagramHandle": "hoogahealth",
+    "instagramFollowers": 30000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "Value-priced panels/masks; broad EU reach via Amazon.",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #10 in EU for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "CurrentBody Skin ⚑",
+    "region": "us",
+    "website": "https://currentbody.us",
+    "instagramHandle": "currentbody",
+    "instagramFollowers": 416000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "currentbody",
+    "tiktokStatus": "confirmed",
+    "positioning": "Beauty-tech retailer + own LED masks; mainstream skincare RLT. (Beauty-led)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #1 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Solawave",
+    "region": "us",
+    "website": "https://solawave.co",
+    "instagramHandle": "solawave",
+    "instagramFollowers": 308000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "solawave",
+    "tiktokStatus": "confirmed",
+    "positioning": "Affordable 4-in-1 red light skincare wand; mass beauty. (Beauty-led)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #2 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "HigherDOSE",
+    "region": "us",
+    "website": "https://higherdose.com",
+    "instagramHandle": "higherdose",
+    "instagramFollowers": 290000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "higherdose",
+    "tiktokStatus": "confirmed",
+    "positioning": "Trendy wellness/biohacking; red light face mask, sauna blanket. (Beauty/wellness)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #3 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Omnilux",
+    "region": "us",
+    "website": "https://omniluxled.com",
+    "instagramHandle": "omniluxled",
+    "instagramFollowers": 286000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘Medical-grade’, FDA-cleared flexible LED masks; clinically-backed. (Beauty – clinical)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #4 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "LUMEBOX",
+    "region": "us",
+    "website": "https://thelumebox.com",
+    "instagramHandle": "lumeboxpro",
+    "instagramFollowers": 215000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "present_unconfirmed",
+    "positioning": "Portable/travel red light panel; affordability + accessibility. (Panel)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #6 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Joovv",
+    "region": "us",
+    "website": "https://joovv.com",
+    "instagramHandle": "joovvsocial",
+    "instagramFollowers": 163000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "US category leader; premium modular full-body panels, clinical authority. (Panel – benchmark)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #7 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Mito Red Light",
+    "region": "us",
+    "website": "https://mitoredlight.com",
+    "instagramHandle": "mitoredlightofficial",
+    "instagramFollowers": 61000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "High-spec panels, third-party irradiance testing; value-premium. (Panel)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #8 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "PlatinumLED",
+    "region": "us",
+    "website": "https://platinumtherapylights.com",
+    "instagramHandle": "platinumledtherapylightssocial",
+    "instagramFollowers": 54000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": null,
+    "tiktokStatus": "not_found",
+    "positioning": "‘BIOMAX’ high-irradiance panels; performance/spec-led. (Panel)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #9 in US for red_light_therapy (source doc, 2026)."
+  },
+  {
+    "name": "Vital Red Light",
+    "region": "us",
+    "website": "https://vitalredlight.com",
+    "instagramHandle": "vitalredlight",
+    "instagramFollowers": 53000,
+    "facebookHandle": null,
+    "facebookFollowers": null,
+    "tiktokHandle": "vitalredlight",
+    "tiktokStatus": "confirmed",
+    "positioning": "Accessible award-winning at-home panels; recently launched app. (Panel)",
+    "crossCategoryFlag": false,
+    "categories": [
+      "red_light_therapy"
+    ],
+    "notes": "Rank #10 in US for red_light_therapy (source doc, 2026)."
+  }
+]

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBrandConfig } from "@/lib/config";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct, type EffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
 import { promises as fs } from "fs";
 import { join } from "path";
 import { createUserContent } from "@google/genai";
@@ -76,7 +78,8 @@ const MAX_CONCEPT_LENGTH = 2000;
 function buildPrompt(
   analysis: Analysis,
   meta: VideoMetadata,
-  concept: string | null
+  concept: string | null,
+  product: EffectiveProduct
 ): string {
   const originalTags =
     meta.coTags?.map((t) => `#${t.name}`).join(" ") || "(not available)";
@@ -85,10 +88,9 @@ function buildPrompt(
     .map((s) => `- ${s.on_screen_text}`)
     .join("\n");
 
-  const brand = getBrandConfig();
   return `You are writing the TikTok caption for a REMAKE of a successful video.
-The remake is posted by the ${brand.name} brand account (${brand.name}'s product is
-${brand.product.description}) and recreates the original shot-for-shot with ${brand.name}
+The remake is posted by the ${product.brandName} brand account (${product.brandName}'s product is
+${product.description}) and recreates the original shot-for-shot with ${product.brandName}
 footage.
 
 THE ORIGINAL VIDEO (a "${analysis.format}" format):
@@ -112,12 +114,12 @@ ${concept}
 }
 Return JSON matching the schema:
 
-1. captions: 3-4 caption options for the ${brand.name} remake, each with a
+1. captions: 3-4 caption options for the ${product.brandName} remake, each with a
    different angle. Rules:
    - Sound like a real TikTok creator, NOT a brand ad — lowercase is fine,
      emoji welcome where natural, no corporate voice, no "Check out our…".
    - Match the energy and framing that made the original work (study its
-     caption), but make it about ${brand.name} / ${brand.product.shortName}.
+     caption), but make it about ${product.brandName} / ${product.shortName}.
    - Keep each under 150 characters. Do NOT include hashtags in the text.
    - angle: 2-4 word label for the approach.
 
@@ -135,12 +137,13 @@ async function generateCaptions(
   ai: GoogleGenAI,
   analysis: Analysis,
   meta: VideoMetadata,
-  concept: string | null
+  concept: string | null,
+  product: EffectiveProduct
 ): Promise<{
   result: GeminiCaptions;
   usage: Record<string, unknown> | undefined;
 }> {
-  const basePrompt = buildPrompt(analysis, meta, concept);
+  const basePrompt = buildPrompt(analysis, meta, concept, product);
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -327,7 +330,9 @@ export async function POST(
     );
   }
 
-  // Optional { concept } body — the creator's direction for the captions
+  // Optional { concept } body — the creator's direction for the captions.
+  // Falls back to the iterate-on-content tool's new angle when no explicit
+  // concept was given and this project came from that tool.
   let concept: string | null = null;
   try {
     const body = await request.json();
@@ -335,16 +340,23 @@ export async function POST(
       concept = body.concept.trim().slice(0, MAX_CONCEPT_LENGTH) || null;
     }
   } catch {
-    // No body (or not JSON) — captions come from the analysis alone
+    // No body (or not JSON) — fall through to the ad-hoc brief, if any
+  }
+  if (!concept) {
+    const { readAdhocBriefConcept } = await import("@/lib/adhoc-brief-schema");
+    concept = await readAdhocBriefConcept(videoId);
   }
 
   try {
     const meta = await readMetadata(videoId);
+    const productLineId = await resolveProductLineForVideo(videoId, request);
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
     const { result, usage } = await generateCaptions(
       ai,
       analysis,
       meta,
-      concept
+      concept,
+      product
     );
     const { hashtags, tikhubChecked } = await pickHashtags(result, meta);
 

@@ -6,6 +6,9 @@ import { STORYBOARDS_DIR } from "./paths";
 import { TIMING_SOURCES } from "./project-kinds";
 import { MasterJobStatusZ } from "./master-job-schema";
 import type { AssembleMasterInput } from "./master-assemble";
+import { getBrandConfig, getProductLinesConfig } from "./config";
+import { resolveEffectiveProduct } from "./product-lines";
+import { readProjectProductLine } from "./project-product-line";
 
 const JobZ = MasterJobStatusZ.extend({
   workerId: z.string(),
@@ -84,7 +87,9 @@ export async function runMasterJob(videoId: string) {
     if (project?.kind !== "master") throw new Error("Could not read the storyboard project");
     job = { ...job, status: "analyzing", error: null };
     await writeJob(job);
-    await analyzeAndStoreMaster(storyboardDryRun() ? null : getGeminiClient(job.input.model), videoPath, videoId, project, duration);
+    const productLineId = (await readProjectProductLine(videoId)) ?? getProductLinesConfig().defaultProductLineId;
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+    await analyzeAndStoreMaster(storyboardDryRun() ? null : getGeminiClient(job.input.model), videoPath, videoId, project, duration, product);
     await writeJob({ ...job, status: "ready" });
   } catch (error) {
     console.error("Storyboard processing failed:", error);

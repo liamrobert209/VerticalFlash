@@ -20,6 +20,10 @@ import { probeDuration } from "@/lib/master-assemble";
 import { loadCatalogSummary } from "@/lib/shot-plan";
 import { updateSavedStoryboard } from "@/lib/storyboard-store";
 import { resolveWordBeat } from "@/lib/word-range";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
 
 export const maxDuration = 300;
 
@@ -117,14 +121,17 @@ export async function POST(
   inFlight.add(videoId);
   try {
     const duration = Math.max((await probeDuration(file.path)) ?? 0, ...segments.segments.map((segment) => segment.end_time));
+    const productLineId = await resolveProductLineForVideo(videoId, request);
+    await writeProjectProductLineIfAbsent(videoId, productLineId);
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
     // B-roll candidates: the analyzed library minus the master's own clips
     let catalog = null;
     if (req.allow_broll) {
       const own = new Set(meta.sourceClips.map((c) => c.filename));
-      const all = await loadCatalogSummary();
+      const all = await loadCatalogSummary(productLineId);
       catalog = all.filter((c) => !own.has(c.filename));
     }
-    const doc = await generateStoryboards(ai, segments, req, duration, catalog);
+    const doc = await generateStoryboards(ai, segments, req, duration, catalog, product);
     return NextResponse.json(await writeStoryboards(doc));
   } catch (error) {
     console.error("storyboard generation failed:", error);

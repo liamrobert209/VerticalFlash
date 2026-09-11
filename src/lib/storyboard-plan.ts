@@ -2,7 +2,7 @@ import type { StructuredGenerator } from "./models/schema";
 import { createUserContent } from "@google/genai";
 import type { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODEL, getGeminiModel } from "./gemini";
-import { getBrandConfig } from "./config";
+import type { EffectiveProduct } from "./product-lines";
 import type { CatalogSummary } from "./shot-plan";
 import {
   GeminiTimeStoryboardsZ,
@@ -69,9 +69,9 @@ function buildPrompt(
   segments: MasterSegments,
   request: StoryboardRequest,
   lengths: number[],
-  catalog: CatalogSummary[] | null
+  catalog: CatalogSummary[] | null,
+  product: EffectiveProduct
 ): string {
-  const brand = getBrandConfig();
   const wordMode = segments.timing_source === "whisperx" && segments.segments.every((segment) => segment.start_word != null && segment.end_word != null);
   const bounds = PACING_BOUNDS[request.pacing];
   const ideaLines = lengths
@@ -98,7 +98,7 @@ show="source". The library (what exists): ${JSON.stringify(catalog ?? [], null, 
 broll_tags=[] on every beat.`;
 
   return `You are cutting short vertical videos (TikTok) from a long recording of
-"${brand.name}" — their product is ${brand.product.description}. The recording
+"${product.brandName}" — their product is ${product.description}. The recording
 has been transcribed and split into timed segments with a role and a
 hook_score (0-10, how well the segment opens a video for a stranger).
 
@@ -305,6 +305,7 @@ export async function generateStoryboards(
   request: StoryboardRequest,
   duration: number,
   catalog: CatalogSummary[] | null,
+  product: EffectiveProduct,
   generator?: StructuredGenerator,
   selectedModel?: string
 ): Promise<MasterStoryboards> {
@@ -319,7 +320,7 @@ export async function generateStoryboards(
     storyboards = heuristicStoryboards(segments, request, lengths);
   } else {
     if (!ai && !generator) throw new Error("Model is not configured");
-    const basePrompt = buildPrompt(segments, request, lengths, catalog);
+    const basePrompt = buildPrompt(segments, request, lengths, catalog, product);
     let lastError: unknown;
     let parsed:
       | { mode: "word"; data: ReturnType<typeof GeminiWordStoryboardsZ.parse> }

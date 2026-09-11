@@ -5,6 +5,7 @@ import { join, extname } from "path";
 import type { GoogleGenAI } from "@google/genai";
 import { GEMINI_VIDEO_MODEL } from "./gemini";
 import { referencePreamble } from "./generation-prompts";
+import type { EffectiveProduct } from "./product-lines";
 import {
   GENERATED_DIR,
   generatedClipDir,
@@ -13,8 +14,10 @@ import {
 import type { ClipLibrary } from "./library-schema";
 import type { Analysis } from "./analysis-schema";
 import { LIBRARY_DIR } from "./paths";
+import { listProductImages, productImagePath } from "./product-images-store";
 
 const REFS_DIR = join(GENERATED_DIR, ".refs");
+const IMAGE_REFS_DIR = join(GENERATED_DIR, ".image-refs");
 
 // Omni limits: reference clips max 3 × 3s; extend input ≤10s
 export const MAX_REFERENCE_CLIPS = 3;
@@ -160,12 +163,64 @@ export async function prepareReferenceMedia(
   return out;
 }
 
+// Product reference photos (Settings -> Product images) ground generated
+// shots the same way library reference clips do — the Omni model only takes
+// video references, so each still photo becomes a short static-frame "video"
+// through the exact same reference-block mechanism already in use, rather
+// than guessing at an unverified image-input API shape.
+export async function prepareProductImageReferences(
+  productLineId: string,
+  maxCount: number
+): Promise<string[]> {
+  const images = (await listProductImages(productLineId)).slice(0, maxCount);
+  if (images.length === 0) return [];
+  await fs.mkdir(IMAGE_REFS_DIR, { recursive: true });
+  const out: string[] = [];
+  for (const filename of images) {
+    const src = productImagePath(productLineId, filename);
+    const dst = join(IMAGE_REFS_DIR, `${productLineId}__${filename}.3s.mp4`);
+    try {
+      await fs.access(dst);
+      out.push(dst);
+      continue;
+    } catch {
+      // not cached yet
+    }
+    try {
+      await execFileAsync("ffmpeg", [
+        "-y",
+        "-loop",
+        "1",
+        "-i",
+        src,
+        "-t",
+        String(REFERENCE_SECONDS),
+        "-vf",
+        "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "23",
+        dst,
+      ]);
+      out.push(dst);
+    } catch (error) {
+      console.error(`product image reference failed for ${filename}:`, error);
+    }
+  }
+  return out;
+}
+
 export interface RunGenerationOptions {
   ai: GoogleGenAI;
   videoId: string;
   shotIndex: number;
   attempt: number;
   kind: "generate" | "extend";
+  product: EffectiveProduct;
   // The creative prompt (reference preamble is appended here)
   prompt: string;
   // Local paths of prepared ≤3s reference excerpts
@@ -248,7 +303,7 @@ export async function runGeneration(
 
     const promptText =
       opts.kind === "generate"
-        ? opts.prompt + referencePreamble(refPaths.length)
+        ? opts.prompt + referencePreamble(refPaths.length, opts.product)
         : opts.prompt;
 
     let interaction = await ai.interactions.create({

@@ -12,6 +12,10 @@ import {
   getOrCreateShot,
 } from "@/lib/generation-store";
 import { ANALYSIS_DIR } from "@/lib/paths";
+import { getBrandConfig, getProductLinesConfig } from "@/lib/config";
+import { resolveEffectiveProduct } from "@/lib/product-lines";
+import { resolveProductLineForVideo } from "@/lib/active-product";
+import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
 
 const ERROR_STATUS: Record<string, number> = {
@@ -87,7 +91,10 @@ export async function POST(
   }
 
   try {
-    const { prompts, usage } = await generateShotPrompts(ai, analysis, targets);
+    const productLineId = await resolveProductLineForVideo(videoId, request);
+    await writeProjectProductLineIfAbsent(videoId, productLineId);
+    const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
+    const { prompts, usage } = await generateShotPrompts(ai, analysis, product, targets);
     for (const [index, prompt] of prompts) {
       const shot = getOrCreateShot(generations, index);
       shot.prompt = prompt;
