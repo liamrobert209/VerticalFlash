@@ -74,10 +74,10 @@ export default function ScanPage() {
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">TikTok Niche Scanner</h1>
+          <h1 className="text-2xl font-bold">Find content for inspiration</h1>
           <p className="mt-2 text-muted-foreground">
-            Analyze hashtags, keywords, and competitors to discover niche
-            opportunities
+            Scan hashtags, keywords, or specific company accounts to find
+            their best-performing content — not to discover new companies
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export default function ScanPage() {
 
           <div className="space-y-2">
             <label htmlFor="competitors" className="text-sm font-medium">
-              Competitor Accounts
+              Company accounts
             </label>
             <input
               id="competitors"
@@ -144,7 +144,7 @@ export default function ScanPage() {
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
-              Enter @handles, separated by commas
+              Enter @handles to scan their content for inspiration, separated by commas
             </p>
           </div>
 
@@ -152,7 +152,7 @@ export default function ScanPage() {
             <div className="space-y-2 rounded-lg border border-border p-3">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">
-                  Or pick from saved accounts
+                  Or pick from your saved company accounts
                 </label>
                 {selectedSavedHandles.size > 0 && (
                   <span className="text-xs text-muted-foreground">
@@ -217,10 +217,10 @@ export default function ScanPage() {
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Scanning...
+                Finding content...
               </span>
             ) : (
-              "Scan Niche"
+              "Find inspiration"
             )}
           </Button>
         </form>

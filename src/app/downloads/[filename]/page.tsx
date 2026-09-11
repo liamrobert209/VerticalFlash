@@ -1895,6 +1895,45 @@ function VideoViewerContent() {
     </div>
   );
 
+  // Derives an overall progress indicator from existing state rather than
+  // tracking a separate "current step" variable — stays correct automatically
+  // as analysis/recs/render change instead of needing to be kept in sync.
+  const allShotsAssigned =
+    !!analysis && analysis.shots.every((s) => !!selectedByShot.get(s.index));
+  const workflowSteps: { label: string; status: "done" | "current" | "upcoming" }[] = [
+    { label: "Analyze", status: analysis ? "done" : "current" },
+    {
+      label: "Add footage",
+      status: allShotsAssigned ? "done" : analysis ? "current" : "upcoming",
+    },
+    {
+      label: "Render",
+      status: render && !renderStale ? "done" : allShotsAssigned ? "current" : "upcoming",
+    },
+    { label: "Finish & post", status: render ? "current" : "upcoming" },
+  ];
+  const workflowBar = (
+    <div className="flex items-center gap-1.5 flex-wrap" aria-label="Editing progress">
+      {workflowSteps.map((step, i) => (
+        <div key={step.label} className="flex items-center gap-1.5">
+          {i > 0 && <span className="text-muted-foreground/40 text-xs">›</span>}
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1 ${
+              step.status === "done"
+                ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                : step.status === "current"
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground/60"
+            }`}
+          >
+            {step.status === "done" && "✓ "}
+            {i + 1}. {step.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
   // The Gemini analysis summary (format, hook, tags, music, cost)
   const analysisCard = analysis && (
     <div className="rounded-lg border border-border p-4 flex flex-col gap-3">
@@ -1953,6 +1992,7 @@ function VideoViewerContent() {
         {analysis && (
           <div className="flex flex-col gap-3 -mb-2">
             {titleBlock}
+            {workflowBar}
             {tabBar}
           </div>
         )}
@@ -2027,7 +2067,11 @@ function VideoViewerContent() {
                 {/* Shots: one card per shot — time, section, what
                     happens, the fix note, and the text on/under the shot */}
                 {panelTab === "shots" && (
-                  <div className="flex gap-3 overflow-x-auto pb-2 items-stretch">
+                  <>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      What Gemini detected for each shot. Click a shot to select it — your pick carries over to the Clips tab, where you assign its footage.
+                    </p>
+                    <div className="flex gap-3 overflow-x-auto pb-2 items-stretch">
                     {analysis.shots.map((s) => {
                       const section = sectionForShot(s.index);
                       const spoken = s.spoken_text.trim();
@@ -2094,30 +2138,91 @@ function VideoViewerContent() {
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
+                  </>
                 )}
 
+                {panelTab === "clips" && (
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Give each shot its footage — from your library, or AI-generated. Select ▸ one clip per shot, then move to Render.
+                  </p>
+                )}
                 {panelTab === "clips" &&
                   (!recs ? (
-                    <div className="rounded-lg border border-border p-4 flex flex-col gap-3 items-start">
-                      <p className="text-sm text-muted-foreground">
-                        No B-roll matches yet — match this video&apos;s shots
-                        against the analyzed clip library to get recommended
-                        B-roll, text, and visual treatments per shot.
-                      </p>
-                      <button
-                        onClick={handleMatch}
-                        disabled={matching}
-                        className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-                      >
-                        {matching
-                          ? "Matching recommended B-roll clips…"
-                          : "Match recommended B-roll clips"}
-                      </button>
-                      {matchError && (
-                        <p className="text-xs text-red-500 break-words">
-                          {matchError}
+                    <div className="flex flex-col gap-3">
+                      <div className="rounded-lg border border-border p-4 flex flex-col gap-3 items-start">
+                        <p className="text-sm text-muted-foreground">
+                          No B-roll matches yet — match this video&apos;s shots
+                          against your analyzed clip library to get recommended
+                          B-roll, text, and visual treatments per shot. If your
+                          library is empty (or has nothing that fits), skip
+                          this and AI-generate footage per shot below instead.
                         </p>
+                        <button
+                          onClick={handleMatch}
+                          disabled={matching}
+                          className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                        >
+                          {matching
+                            ? "Matching recommended B-roll clips…"
+                            : "Match recommended B-roll clips"}
+                        </button>
+                        {matchError && (
+                          <p className="text-xs text-red-500 break-words">
+                            {matchError}
+                          </p>
+                        )}
+                      </div>
+                      {analysis && (
+                        <div className="rounded-lg border border-border p-3 flex flex-col gap-2">
+                          <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                            AI-generate footage for segment #{selectedShot + 1}
+                          </p>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {analysis.shots.map((s) => (
+                              <button
+                                key={s.index}
+                                onClick={() => selectShot(s.index)}
+                                className={`size-7 rounded-md border text-xs font-semibold transition-colors ${
+                                  s.index === selectedShot
+                                    ? "border-primary bg-primary/15 text-primary"
+                                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                }`}
+                                title={`Shot ${s.index + 1}`}
+                              >
+                                {s.index + 1}
+                              </button>
+                            ))}
+                          </div>
+                          {videoId && shot && (
+                            <GenerationPanel
+                              videoId={videoId}
+                              shotIndex={selectedShot}
+                              shotDuration={shot.end_time - shot.start_time}
+                              gap={gapForShot(selectedShot)}
+                              generation={generation}
+                              selectedRec={null}
+                              onGeneration={setGeneration}
+                              onAccept={(g, newRecs) => {
+                                setGeneration(g);
+                                const parsed = newRecs as ShotRecommendations;
+                                setRecs(parsed);
+                                const rec = parsed.shots
+                                  .find((s) => s.shot_index === selectedShot)
+                                  ?.recommendations.find(
+                                    (r) => r.source === "generated"
+                                  );
+                                if (rec) {
+                                  setPreviewClip({
+                                    filename: rec.filename,
+                                    start: rec.trim_start ?? null,
+                                    end: rec.trim_end ?? null,
+                                  });
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -2484,6 +2589,9 @@ function VideoViewerContent() {
                     settings, the analysis summary, and the render output */}
                 {panelTab === "render" && (
                   <div className="flex flex-col gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Render the video using each shot&apos;s selected footage, then send it to TikTok drafts or finish it for another platform below.
+                    </p>
                     {render && (
                     <div className="rounded-lg border border-border p-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2822,6 +2930,9 @@ function VideoViewerContent() {
                     the hero before a run and a compact action after */}
                 {panelTab === "captions" && (
                   <div className="rounded-lg border border-border p-4 flex flex-col gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Optional — generate caption and hashtag options for the finished video. This doesn&apos;t change the video itself.
+                    </p>
                     {captions && (
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <p className="text-xs font-bold text-foreground uppercase tracking-wide">
