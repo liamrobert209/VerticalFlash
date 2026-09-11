@@ -1,3 +1,4 @@
+import type postgres from "postgres";
 import { getDb } from "./db";
 import {
   ScrapedContentZ,
@@ -33,7 +34,7 @@ export async function recordContentSighting(
       ${sighting.mediaUrl ?? null}, ${sighting.thumbnailUrl ?? null},
       ${sighting.viewCount ?? null}, ${sighting.likeCount ?? null},
       ${sighting.commentCount ?? null}, ${sighting.shareCount ?? null},
-      ${sighting.tags}, ${sighting.raw ? JSON.stringify(sighting.raw) : null}::jsonb
+      ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null}
     )
     on conflict (platform_id, external_content_id) do update set
       account_id = coalesce(excluded.account_id, scraped_content.account_id),
@@ -78,6 +79,39 @@ export async function listScrapedContent(
     limit ${parsed.limit}
   `;
   return rows.map(parseContent);
+}
+
+// Same reasoning as ads-store.ts's listActiveAdsGroupedByProductLine: one
+// windowed query across every product line instead of a separate query per
+// product line, which is what the Weekly Content/Creators digests actually
+// need (N parallel per-product queries very quickly saturates a pooled
+// connection limit as product lines grow).
+export async function listScrapedContentGroupedByProductLine(
+  accountType: "brand" | "creator",
+  sort: "newest" | "top_performing",
+  limitPerGroup: number
+): Promise<Map<string, ScrapedContent[]>> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from (
+      select sc.*, row_number() over (
+        partition by sc.product_line_id
+        order by ${sort === "newest" ? sql`sc.posted_at desc nulls last` : sql`coalesce(sc.view_count, 0) desc`}
+      ) as rn
+      from scraped_content sc
+      join competitor_accounts a on a.id = sc.account_id and a.account_type = ${accountType}
+      where sc.product_line_id is not null
+    ) ranked
+    where rn <= ${limitPerGroup}
+  `;
+  const byProductLine = new Map<string, ScrapedContent[]>();
+  for (const row of rows) {
+    const item = parseContent(row);
+    const list = byProductLine.get(row.productLineId) ?? [];
+    list.push(item);
+    byProductLine.set(row.productLineId, list);
+  }
+  return byProductLine;
 }
 
 export async function getScrapedContent(id: string): Promise<ScrapedContent | null> {

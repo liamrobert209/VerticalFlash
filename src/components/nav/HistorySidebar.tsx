@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronRight, ClipboardCheck, FileClock, Film, Home, Megaphone, Menu, RotateCcw, Search, Settings2, Sparkles, Trash2, X } from "lucide-react";
+import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Megaphone, Menu, Newspaper, RotateCcw, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
 import { ProductLineSwitcher } from "@/components/nav/ProductLineSwitcher";
+import { ANALYTICS_CHANNELS } from "@/lib/analytics-channels";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -21,7 +22,7 @@ export function HistorySidebar() {
   const { scans, currentScanId, deleteScan } = useScanHistory();
   const pathname = usePathname();
   const [files, setFiles] = useState<DownloadEntry[]>([]);
-  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true });
+  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,9 +196,35 @@ export function HistorySidebar() {
           </div>}
 
           <div className="space-y-2 border-t border-border pt-4">
+            <SectionLabel>Weekly Digest</SectionLabel>
+            <Link href="/weekly-ads" className={navClass}><CalendarClock className="size-4 shrink-0" />Weekly ads</Link>
+            <Link href="/weekly-content" className={navClass}><Newspaper className="size-4 shrink-0" />Weekly content</Link>
+            <Link href="/weekly-creators" className={navClass}><Users className="size-4 shrink-0" />Weekly creators</Link>
+          </div>
+          <div className="space-y-2 border-t border-border pt-4">
             <SectionLabel>Insights</SectionLabel>
             <Link href="/content-history" className={navClass}><FileClock className="size-4 shrink-0" />Content history</Link>
-            <Link href="/analytics" className={navClass}><BarChart3 className="size-4 shrink-0" />TikTok analytics</Link>
+            <div className="flex min-h-7 items-center gap-2">
+              <button onClick={() => setOpen((value) => ({ ...value, analytics: !value.analytics }))}
+                aria-expanded={open.analytics} aria-controls="sidebar-analytics" aria-label="Toggle Analytics" title="Toggle Analytics"
+                className="flex size-5 shrink-0 items-center justify-center">
+                <ChevronRight className={`size-3.5 ${open.analytics ? "rotate-90" : ""}`} />
+              </button>
+              <Link href="/analytics" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+                <BarChart3 className="size-4 shrink-0" />Analytics
+              </Link>
+            </div>
+            {open.analytics && (
+              <div id="sidebar-analytics" className="ml-5 space-y-1">
+                {ANALYTICS_CHANNELS.map((channel) => (
+                  <Link key={channel.id} href={`/analytics/${channel.id}`}
+                    className={`${navClass} text-xs`}>
+                    {channel.label}
+                    {!channel.connected && <span className="ml-auto text-muted-foreground/60">·</span>}
+                  </Link>
+                ))}
+              </div>
+            )}
             <Link href="/benchmarks" className={navClass}><ClipboardCheck className="size-4 shrink-0" />Benchmarks</Link>
           </div>
           <div className="border-t border-border pt-4">

@@ -1,3 +1,4 @@
+import type postgres from "postgres";
 import { getDb } from "./db";
 import { AdZ, AdQueryZ, type Ad, type AdSighting, type AdQuery } from "./ads-schema";
 
@@ -25,7 +26,7 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
       ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
       ${sighting.externalAdId}, ${sighting.headline ?? null}, ${sighting.bodyText ?? null},
       ${sighting.creativeUrl ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
-      ${sighting.tags}, ${sighting.raw ? JSON.stringify(sighting.raw) : null}::jsonb
+      ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null}
     )
     on conflict (platform_id, external_ad_id) do update set
       account_id = coalesce(excluded.account_id, ads.account_id),
@@ -78,6 +79,39 @@ export async function listAds(query: AdQuery): Promise<Ad[]> {
     limit ${parsed.limit}
   `;
   return rows.map(parseAd);
+}
+
+// One query covering every product line at once (row_number() window,
+// capped per group) instead of a separate query per product line — the
+// Weekly Ads digest was originally built as N parallel listAds() calls
+// (2 per product line), which is exactly the kind of fan-out that blows
+// through a pooled connection limit as soon as there are more than a
+// handful of product lines. Grouped by productLineId in JS afterward since
+// the caller wants per-product sections, not a flat list.
+export async function listActiveAdsGroupedByProductLine(
+  sort: "newest" | "longest_running",
+  limitPerGroup: number
+): Promise<Map<string, Ad[]>> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from (
+      select *, row_number() over (
+        partition by product_line_id
+        order by ${sort === "newest" ? sql`coalesce(launch_date, first_seen_at) desc` : sql`(last_seen_at - coalesce(launch_date, first_seen_at)) desc`}
+      ) as rn
+      from ads
+      where is_active = true and product_line_id is not null
+    ) ranked
+    where rn <= ${limitPerGroup}
+  `;
+  const byProductLine = new Map<string, Ad[]>();
+  for (const row of rows) {
+    const ad = parseAd(row);
+    const list = byProductLine.get(row.productLineId) ?? [];
+    list.push(ad);
+    byProductLine.set(row.productLineId, list);
+  }
+  return byProductLine;
 }
 
 export async function getAd(id: string): Promise<Ad | null> {

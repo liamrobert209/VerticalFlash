@@ -69,11 +69,21 @@ function CreateAdHocInner() {
   const referenceOrigin: ReferenceOrigin = searchParams.get("origin") === "ad" ? "ad" : "creator";
 
   const { options: productLineOptions, activeId } = useActiveProduct();
-  const [productLineId, setProductLineId] = useState(activeId);
-  const [platformId, setPlatformId] = useState(DEFAULT_PLATFORM_ID);
+  // Weekly Ads' "Generate Ocushield version" link pre-fills these from the
+  // specific ad the user clicked (see WeeklyAdsBoard) — all optional, so
+  // navigating here directly (from the sidebar) still starts blank/default.
+  const prefillProductLineId = searchParams.get("productLineId");
+  const prefillPlatformId = searchParams.get("platformId");
+  const prefillUrl = searchParams.get("url");
+  const [productLineId, setProductLineId] = useState(
+    prefillProductLineId && productLineOptions.some((p) => p.id === prefillProductLineId)
+      ? prefillProductLineId
+      : activeId
+  );
+  const [platformId, setPlatformId] = useState(prefillPlatformId || DEFAULT_PLATFORM_ID);
 
   const [sourceMode, setSourceMode] = useState<"url" | "upload">("url");
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(prefillUrl ?? "");
   const [file, setFile] = useState<File | null>(null);
 
   const [angleOptions, setAngleOptions] = useState<AngleOption[]>([]);
