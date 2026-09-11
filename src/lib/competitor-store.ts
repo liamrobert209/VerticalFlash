@@ -56,6 +56,7 @@ export async function listCompetitors(query: CompetitorQuery): Promise<Competito
     ${selectWithJoins(sql)}
     where 1=1
     ${query.region ? sql`and a.region = ${query.region}` : sql``}
+    ${query.accountType ? sql`and a.account_type = ${query.accountType}` : sql``}
     ${query.scanReady ? sql`and a.tiktok_status = 'confirmed'` : sql``}
     ${
       query.category
@@ -115,11 +116,11 @@ export async function createCompetitor(input: CompetitorAccountInput): Promise<C
   return sql.begin(async (tx) => {
     await tx`
       insert into competitor_accounts (
-        id, name, region, website, instagram_handle, instagram_followers,
+        id, name, account_type, region, website, instagram_handle, instagram_followers,
         facebook_handle, facebook_followers, tiktok_handle, tiktok_status,
         positioning, cross_category_flag, notes, created_at, updated_at
       ) values (
-        ${id}, ${input.name}, ${input.region}, ${input.website ?? null},
+        ${id}, ${input.name}, ${input.accountType}, ${input.region}, ${input.website ?? null},
         ${input.instagramHandle ?? null}, ${input.instagramFollowers ?? null},
         ${input.facebookHandle ?? null}, ${input.facebookFollowers ?? null},
         ${input.tiktokHandle ?? null}, ${input.tiktokStatus},
@@ -152,6 +153,7 @@ export async function updateCompetitor(
     await tx`
       update competitor_accounts set
         name = ${input.name ?? existing.name},
+        account_type = ${input.accountType ?? existing.accountType},
         region = ${input.region ?? existing.region},
         website = ${input.website !== undefined ? input.website : existing.website},
         instagram_handle = ${input.instagramHandle !== undefined ? input.instagramHandle : existing.instagramHandle},

@@ -32,9 +32,18 @@ export type CompetitorRegion = (typeof COMPETITOR_REGIONS)[number];
 export const TIKTOK_STATUSES = ["confirmed", "present_unconfirmed", "not_found"] as const;
 export type TikTokStatus = (typeof TIKTOK_STATUSES)[number];
 
+// Brand accounts source Weekly Ads + Weekly Content; creator/affiliate
+// accounts source Weekly Creators (see content-record-schema.ts's
+// referenceOrigin, which draws the same distinction on OUR generated
+// content). Existing rows default to "brand" — every account seeded from
+// the original competitor doc was a company, not a creator.
+export const ACCOUNT_TYPES = ["brand", "creator"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
 export const CompetitorAccountZ = z.object({
   id: z.string(),
   name: z.string().min(1),
+  accountType: z.enum(ACCOUNT_TYPES).default("brand"),
   region: z.enum(COMPETITOR_REGIONS),
   website: z.string().nullable(),
   instagramHandle: z.string().nullable(),
@@ -57,6 +66,7 @@ export type CompetitorAccount = z.infer<typeof CompetitorAccountZ>;
 // Input shape for creating/updating an account — id/timestamps are server-assigned
 export const CompetitorAccountInputZ = z.object({
   name: z.string().min(1),
+  accountType: z.enum(ACCOUNT_TYPES).default("brand"),
   region: z.enum(COMPETITOR_REGIONS),
   website: z.string().nullable().optional(),
   instagramHandle: z.string().nullable().optional(),
@@ -78,6 +88,7 @@ export const CompetitorQueryZ = z.object({
   category: z.enum(COMPETITOR_CATEGORY_IDS).optional(),
   region: z.enum(COMPETITOR_REGIONS).optional(),
   productLineId: z.string().optional(),
+  accountType: z.enum(ACCOUNT_TYPES).optional(),
   scanReady: z.coerce.boolean().optional(),
 });
 

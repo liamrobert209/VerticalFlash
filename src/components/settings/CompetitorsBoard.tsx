@@ -4,9 +4,11 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Plus, RotateCcw, Save, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  ACCOUNT_TYPES,
   COMPETITOR_CATEGORY_IDS,
   COMPETITOR_REGIONS,
   TIKTOK_STATUSES,
+  type AccountType,
   type CompetitorAccount,
   type CompetitorAccountInput,
   type CompetitorCategoryId,
@@ -24,6 +26,11 @@ const CATEGORY_LABELS: Record<CompetitorCategoryId, string> = {
   red_light_therapy: "Red light therapy",
 };
 
+const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
+  brand: "Brand",
+  creator: "Creator / affiliate",
+};
+
 const STATUS_LABELS: Record<TikTokStatus, string> = {
   confirmed: "Scan-ready",
   present_unconfirmed: "Unconfirmed handle",
@@ -38,6 +45,7 @@ const STATUS_COLORS: Record<TikTokStatus, string> = {
 
 const EMPTY_FORM: CompetitorAccountInput = {
   name: "",
+  accountType: "brand",
   region: "uk",
   website: null,
   instagramHandle: null,
@@ -109,6 +117,20 @@ function AccountForm({
           >
             {COMPETITOR_REGIONS.map((r) => (
               <option key={r} value={r}>{r.toUpperCase()}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Account type
+          </span>
+          <select
+            value={form.accountType}
+            onChange={(e) => setForm({ ...form, accountType: e.target.value as AccountType })}
+            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          >
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t} value={t}>{ACCOUNT_TYPE_LABELS[t]}</option>
             ))}
           </select>
         </label>
@@ -240,6 +262,7 @@ export function CompetitorsBoard() {
   const [error, setError] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState<CompetitorRegion | "">("");
   const [categoryFilter, setCategoryFilter] = useState<CompetitorCategoryId | "">("");
+  const [accountTypeFilter, setAccountTypeFilter] = useState<AccountType | "">("");
   const [scanReadyOnly, setScanReadyOnly] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -252,6 +275,7 @@ export function CompetitorsBoard() {
       const params = new URLSearchParams();
       if (regionFilter) params.set("region", regionFilter);
       if (categoryFilter) params.set("category", categoryFilter);
+      if (accountTypeFilter) params.set("accountType", accountTypeFilter);
       if (scanReadyOnly) params.set("scanReady", "true");
       const res = await fetch(`/api/competitors?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
@@ -267,7 +291,7 @@ export function CompetitorsBoard() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regionFilter, categoryFilter, scanReadyOnly]);
+  }, [regionFilter, categoryFilter, accountTypeFilter, scanReadyOnly]);
 
   const remove = async (id: string) => {
     if (!confirm("Remove this competitor from your saved accounts?")) return;
@@ -331,6 +355,16 @@ export function CompetitorsBoard() {
             <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
           ))}
         </select>
+        <select
+          value={accountTypeFilter}
+          onChange={(e) => setAccountTypeFilter(e.target.value as AccountType | "")}
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="">Brands + creators</option>
+          {ACCOUNT_TYPES.map((t) => (
+            <option key={t} value={t}>{ACCOUNT_TYPE_LABELS[t]}</option>
+          ))}
+        </select>
         <label className="flex items-center gap-1.5 text-sm">
           <input
             type="checkbox"
@@ -382,6 +416,9 @@ export function CompetitorsBoard() {
                   <td className="px-5 py-3 align-top">
                     <div className="font-medium text-foreground">
                       {account.name}
+                      {account.accountType === "creator" && (
+                        <span className="ml-1.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400">creator</span>
+                      )}
                       {account.crossCategoryFlag && (
                         <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">cross-category</span>
                       )}
@@ -443,6 +480,7 @@ export function CompetitorsBoard() {
                         id={account.id}
                         initial={{
                           name: account.name,
+                          accountType: account.accountType,
                           region: account.region,
                           website: account.website,
                           instagramHandle: account.instagramHandle,

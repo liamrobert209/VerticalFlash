@@ -1,0 +1,87 @@
+import { getDb } from "./db";
+import { AdZ, AdQueryZ, type Ad, type AdSighting, type AdQuery } from "./ads-schema";
+
+// postgres.js does not auto-decode jsonb columns into objects (unlike some
+// other Postgres clients) — it hands back the raw JSON text, so `raw` needs
+// an explicit parse before it reaches AdZ's z.record() check.
+function parseAd(row: Record<string, unknown>): Ad {
+  const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
+  return AdZ.parse({ ...row, raw });
+}
+
+// Upsert one observed ad: first sighting inserts a fresh row (is_active,
+// first_seen_at/last_seen_at all set now); every later sighting bumps
+// last_seen_at, flips is_active back on (an ad can stop and restart
+// between syncs), and refreshes the mutable creative fields — but
+// launch_date/first_seen_at are never overwritten once set, since they're
+// "when this ad actually started", not "when we last saw it".
+export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
+  const sql = getDb();
+  const rows = await sql`
+    insert into ads (
+      account_id, platform_id, product_line_id, external_ad_id,
+      headline, body_text, creative_url, landing_url, launch_date, tags, raw
+    ) values (
+      ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
+      ${sighting.externalAdId}, ${sighting.headline ?? null}, ${sighting.bodyText ?? null},
+      ${sighting.creativeUrl ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
+      ${sighting.tags}, ${sighting.raw ? JSON.stringify(sighting.raw) : null}::jsonb
+    )
+    on conflict (platform_id, external_ad_id) do update set
+      account_id = coalesce(excluded.account_id, ads.account_id),
+      product_line_id = coalesce(excluded.product_line_id, ads.product_line_id),
+      headline = coalesce(excluded.headline, ads.headline),
+      body_text = coalesce(excluded.body_text, ads.body_text),
+      creative_url = coalesce(excluded.creative_url, ads.creative_url),
+      landing_url = coalesce(excluded.landing_url, ads.landing_url),
+      launch_date = coalesce(ads.launch_date, excluded.launch_date),
+      tags = case when array_length(excluded.tags, 1) > 0 then excluded.tags else ads.tags end,
+      raw = coalesce(excluded.raw, ads.raw),
+      last_seen_at = now(),
+      is_active = true,
+      updated_at = now()
+    returning *
+  `;
+  return parseAd(rows[0]);
+}
+
+// Call once per platform after a sync batch completes: any ad not in
+// `seenExternalIds` wasn't found this round, so it's no longer running.
+export async function markStaleAdsInactive(
+  platformId: string,
+  seenExternalIds: string[]
+): Promise<number> {
+  const sql = getDb();
+  const result = await sql`
+    update ads set is_active = false, updated_at = now()
+    where platform_id = ${platformId}
+      and is_active = true
+      and external_ad_id != all(${seenExternalIds})
+  `;
+  return result.count;
+}
+
+export async function listAds(query: AdQuery): Promise<Ad[]> {
+  const sql = getDb();
+  const parsed = AdQueryZ.parse(query);
+  const rows = await sql`
+    select * from ads
+    where 1=1
+    ${parsed.platformId ? sql`and platform_id = ${parsed.platformId}` : sql``}
+    ${parsed.productLineId ? sql`and product_line_id = ${parsed.productLineId}` : sql``}
+    ${parsed.isActive !== undefined ? sql`and is_active = ${parsed.isActive}` : sql``}
+    ${
+      parsed.sort === "newest"
+        ? sql`order by coalesce(launch_date, first_seen_at) desc`
+        : sql`order by (last_seen_at - coalesce(launch_date, first_seen_at)) desc`
+    }
+    limit ${parsed.limit}
+  `;
+  return rows.map(parseAd);
+}
+
+export async function getAd(id: string): Promise<Ad | null> {
+  const sql = getDb();
+  const rows = await sql`select * from ads where id = ${id}`;
+  return rows[0] ? parseAd(rows[0]) : null;
+}

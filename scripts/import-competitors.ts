@@ -43,6 +43,7 @@ async function main() {
     );
     await createCompetitor({
       name: row.name,
+      accountType: "brand",
       region: row.region,
       website: row.website,
       instagramHandle: row.instagramHandle,
