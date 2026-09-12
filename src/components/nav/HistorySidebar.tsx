@@ -22,7 +22,7 @@ export function HistorySidebar() {
   const { scans, currentScanId, deleteScan } = useScanHistory();
   const pathname = usePathname();
   const [files, setFiles] = useState<DownloadEntry[]>([]);
-  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false });
+  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +221,26 @@ export function HistorySidebar() {
                     className={`${navClass} text-xs`}>
                     {channel.label}
                     {!channel.connected && <span className="ml-auto text-muted-foreground/60">·</span>}
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="flex min-h-7 items-center gap-2">
+              <button onClick={() => setOpen((value) => ({ ...value, adInsights: !value.adInsights }))}
+                aria-expanded={open.adInsights} aria-controls="sidebar-ad-insights" aria-label="Toggle Ad Insights" title="Toggle Ad Insights"
+                className="flex size-5 shrink-0 items-center justify-center">
+                <ChevronRight className={`size-3.5 ${open.adInsights ? "rotate-90" : ""}`} />
+              </button>
+              <Link href="/ad-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+                <Megaphone className="size-4 shrink-0" />Ad Insights
+              </Link>
+            </div>
+            {open.adInsights && (
+              <div id="sidebar-ad-insights" className="ml-5 space-y-1">
+                {ANALYTICS_CHANNELS.map((channel) => (
+                  <Link key={channel.id} href={`/ad-insights/${channel.id}`}
+                    className={`${navClass} text-xs`}>
+                    {channel.label}
                   </Link>
                 ))}
               </div>
