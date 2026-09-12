@@ -114,6 +114,72 @@ export async function listScrapedContentGroupedByProductLine(
   return byProductLine;
 }
 
+export interface AccountContentInsights {
+  accountId: string;
+  accountName: string;
+  postCount: number;
+  totalViews: number;
+  totalLikes: number;
+  totalComments: number;
+  avgViews: number;
+  topPost: ScrapedContent | null;
+}
+
+// Per-account breakdown for one platform — Content/Creator Insights show
+// this rather than a single platform-wide aggregate, since "how is this
+// specific competitor/creator doing" is the actual question (per the
+// product spec: "Content Insights should pull data from each social media
+// account specifically").
+export async function listContentInsightsByAccount(
+  platformId: string,
+  accountType: "brand" | "creator",
+  limitAccounts: number
+): Promise<AccountContentInsights[]> {
+  const sql = getDb();
+  const stats = await sql`
+    select
+      a.id as account_id,
+      a.name as account_name,
+      count(sc.id) as post_count,
+      sum(coalesce(sc.view_count, 0)) as total_views,
+      sum(coalesce(sc.like_count, 0)) as total_likes,
+      sum(coalesce(sc.comment_count, 0)) as total_comments,
+      avg(coalesce(sc.view_count, 0)) as avg_views
+    from competitor_accounts a
+    join scraped_content sc on sc.account_id = a.id
+    where a.account_type = ${accountType} and sc.platform_id = ${platformId}
+    group by a.id, a.name
+    order by total_views desc
+    limit ${limitAccounts}
+  `;
+
+  if (stats.length === 0) return [];
+
+  // One extra query for each account's top post rather than a per-row
+  // correlated subquery — simpler to read, and limitAccounts keeps this
+  // small (this runs against a handful of saved accounts, not hundreds).
+  const results: AccountContentInsights[] = [];
+  for (const row of stats) {
+    const [topPostRow] = await sql`
+      select * from scraped_content
+      where account_id = ${row.accountId} and platform_id = ${platformId}
+      order by coalesce(view_count, 0) desc
+      limit 1
+    `;
+    results.push({
+      accountId: row.accountId,
+      accountName: row.accountName,
+      postCount: Number(row.postCount),
+      totalViews: Number(row.totalViews),
+      totalLikes: Number(row.totalLikes),
+      totalComments: Number(row.totalComments),
+      avgViews: Number(row.avgViews),
+      topPost: topPostRow ? parseContent(topPostRow) : null,
+    });
+  }
+  return results;
+}
+
 export async function getScrapedContent(id: string): Promise<ScrapedContent | null> {
   const sql = getDb();
   const rows = await sql`select * from scraped_content where id = ${id}`;

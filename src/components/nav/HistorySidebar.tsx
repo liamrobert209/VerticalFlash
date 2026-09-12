@@ -22,7 +22,7 @@ export function HistorySidebar() {
   const { scans, currentScanId, deleteScan } = useScanHistory();
   const pathname = usePathname();
   const [files, setFiles] = useState<DownloadEntry[]>([]);
-  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false });
+  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -239,6 +239,46 @@ export function HistorySidebar() {
               <div id="sidebar-ad-insights" className="ml-5 space-y-1">
                 {ANALYTICS_CHANNELS.map((channel) => (
                   <Link key={channel.id} href={`/ad-insights/${channel.id}`}
+                    className={`${navClass} text-xs`}>
+                    {channel.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="flex min-h-7 items-center gap-2">
+              <button onClick={() => setOpen((value) => ({ ...value, contentInsights: !value.contentInsights }))}
+                aria-expanded={open.contentInsights} aria-controls="sidebar-content-insights" aria-label="Toggle Content Insights" title="Toggle Content Insights"
+                className="flex size-5 shrink-0 items-center justify-center">
+                <ChevronRight className={`size-3.5 ${open.contentInsights ? "rotate-90" : ""}`} />
+              </button>
+              <Link href="/content-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+                <Newspaper className="size-4 shrink-0" />Content Insights
+              </Link>
+            </div>
+            {open.contentInsights && (
+              <div id="sidebar-content-insights" className="ml-5 space-y-1">
+                {ANALYTICS_CHANNELS.map((channel) => (
+                  <Link key={channel.id} href={`/content-insights/${channel.id}`}
+                    className={`${navClass} text-xs`}>
+                    {channel.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="flex min-h-7 items-center gap-2">
+              <button onClick={() => setOpen((value) => ({ ...value, creatorInsights: !value.creatorInsights }))}
+                aria-expanded={open.creatorInsights} aria-controls="sidebar-creator-insights" aria-label="Toggle Creator Insights" title="Toggle Creator Insights"
+                className="flex size-5 shrink-0 items-center justify-center">
+                <ChevronRight className={`size-3.5 ${open.creatorInsights ? "rotate-90" : ""}`} />
+              </button>
+              <Link href="/creator-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+                <Users className="size-4 shrink-0" />Creator Insights
+              </Link>
+            </div>
+            {open.creatorInsights && (
+              <div id="sidebar-creator-insights" className="ml-5 space-y-1">
+                {ANALYTICS_CHANNELS.map((channel) => (
+                  <Link key={channel.id} href={`/creator-insights/${channel.id}`}
                     className={`${navClass} text-xs`}>
                     {channel.label}
                   </Link>
