@@ -6,6 +6,7 @@ import { useFraming } from "@/components/form/useFraming";
 import type { FramingDocument } from "@/lib/framing-schema";
 
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import {
   GEMINI_PRICE_IN_PER_M,
@@ -379,6 +380,7 @@ function VideoViewerContent() {
   );
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [matchErrorEmptyLibrary, setMatchErrorEmptyLibrary] = useState(false);
   const [tagging, setTagging] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
   const [previewClip, setPreviewClip] = useState<ClipPreview | null>(null);
@@ -807,20 +809,46 @@ function VideoViewerContent() {
     }
   };
 
+  // Shared by the manual "Match" button and bulk fill-in, so both act on
+  // the exact same success/failure signal instead of one re-deriving it
+  // from state a render behind.
+  const fetchMatch = async (
+    id: string
+  ): Promise<
+    | { ok: true; data: ShotRecommendations }
+    | { ok: false; emptyLibrary: boolean; message: string }
+  > => {
+    const res = await fetch(`/api/analyze/${id}/recommendations`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      // The route's only 400 in practice (aside from a malformed videoId,
+      // which can't happen from this page) is an empty analyzed-clip
+      // catalog — worth a richer, actionable callout instead of a raw
+      // error line.
+      return {
+        ok: false,
+        emptyLibrary: res.status === 400,
+        message: data.error || `Matching failed (HTTP ${res.status})`,
+      };
+    }
+    return { ok: true, data };
+  };
+
   const handleMatch = async (): Promise<ShotRecommendations | null> => {
     if (!videoId || matching) return null;
     setMatching(true);
     setMatchError(null);
+    setMatchErrorEmptyLibrary(false);
     try {
-      const res = await fetch(`/api/analyze/${videoId}/recommendations`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Matching failed (HTTP ${res.status})`);
+      const result = await fetchMatch(videoId);
+      if (!result.ok) {
+        setMatchErrorEmptyLibrary(result.emptyLibrary);
+        throw new Error(result.message);
       }
-      setRecs(data);
-      return data;
+      setRecs(result.data);
+      return result.data;
     } catch (error) {
       setMatchError(
         error instanceof Error ? error.message : "Matching failed"
@@ -963,9 +991,31 @@ function VideoViewerContent() {
     let currentRecs = recs;
     if (!currentRecs) {
       setBulkFill({ running: true, shotStatus: {} });
-      currentRecs = await handleMatch();
-      if (!currentRecs) {
-        // handleMatch already set matchError with a specific message.
+      setMatching(true);
+      setMatchError(null);
+      setMatchErrorEmptyLibrary(false);
+      const result = await fetchMatch(videoId);
+      setMatching(false);
+      if (result.ok) {
+        setRecs(result.data);
+        currentRecs = result.data;
+      } else if (result.emptyLibrary) {
+        // Nothing to match against — every shot needs AI-generated
+        // footage anyway, so proceed instead of failing the whole run.
+        // Mirrors the generation/accept route's own fallback for a video
+        // generated entirely without library matches.
+        currentRecs = {
+          videoId,
+          generatedAt: new Date().toISOString(),
+          model: "none",
+          clipsConsidered: 0,
+          shots: analysis.shots.map((s) => ({
+            shot_index: s.index,
+            recommendations: [],
+          })),
+        };
+      } else {
+        setMatchError(result.message);
         setBulkFill(null);
         return;
       }
@@ -2372,11 +2422,30 @@ function VideoViewerContent() {
                             ? "Matching recommended B-roll clips…"
                             : "Match recommended B-roll clips"}
                         </button>
-                        {matchError && (
-                          <p className="text-xs text-red-500 break-words">
-                            {matchError}
-                          </p>
-                        )}
+                        {matchError &&
+                          (matchErrorEmptyLibrary ? (
+                            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 flex flex-col gap-1.5">
+                              <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                                Your clip library doesn&apos;t have anything
+                                analyzed yet to match against.
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                <Link
+                                  href="/library"
+                                  className="underline hover:text-foreground"
+                                >
+                                  Add and analyze some clips in the library
+                                </Link>
+                                , or skip matching entirely — use{" "}
+                                <strong>⚡ Fill in every shot</strong> above to
+                                AI-generate footage for every shot instead.
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-500 break-words">
+                              {matchError}
+                            </p>
+                          ))}
                       </div>
                       {analysis && (
                         <div className="rounded-lg border border-border">
