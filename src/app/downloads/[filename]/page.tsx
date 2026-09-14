@@ -16,6 +16,7 @@ import { ClipLibraryModal } from "@/components/form/ClipLibraryModal";
 import {
   GenerationPanel,
   type ShotGenerations as ShotGenerationsData,
+  type GenerationAttempt,
 } from "@/components/form/GenerationPanel";
 import { extractVideoId } from "@/lib/video-id";
 import { MusicPicker } from "@/components/form/MusicPicker";
@@ -104,6 +105,16 @@ const CONFIDENCE_STYLES: Record<Recommendation["confidence"], string> = {
   strong: "bg-green-500/15 text-green-600 dark:text-green-400",
   moderate: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400",
   weak: "bg-muted text-muted-foreground",
+};
+
+// Plain-language labels for how a recommendation was found — the raw
+// values (gemini/tags/manual/generated) are internal source names, not
+// something a user should have to already know the meaning of.
+const SOURCE_BADGE_LABELS: Record<Recommendation["source"], string> = {
+  gemini: "AI matched",
+  tags: "Keyword matched",
+  manual: "Your pick",
+  generated: "AI generated",
 };
 
 interface RenderShot {
@@ -372,6 +383,13 @@ function VideoViewerContent() {
   const [tagError, setTagError] = useState<string | null>(null);
   const [previewClip, setPreviewClip] = useState<ClipPreview | null>(null);
   const [allClipsOpen, setAllClipsOpen] = useState(false);
+  const [clipsMoreOpen, setClipsMoreOpen] = useState(false);
+  const [bulkFill, setBulkFill] = useState<{
+    running: boolean;
+    shotStatus: Record<number, "queued" | "generating" | "accepting" | "done" | "error">;
+    error?: string;
+  } | null>(null);
+  const bulkFillStop = useRef(false);
   const [trimmingShot, setTrimmingShot] = useState<number | null>(null);
   const [panelTab, setPanelTab] = useState<
     "video" | "shots" | "clips" | "storyboards" | "render" | "captions"
@@ -746,8 +764,8 @@ function VideoViewerContent() {
     );
   }, [panelTab, selectedShot, recs]);
 
-  const handleAnalyze = async () => {
-    if (!videoId || analyzing) return;
+  const handleAnalyze = async (): Promise<Analysis | null> => {
+    if (!videoId || analyzing) return null;
     setAnalyzing(true);
     setAnalysisError(null);
     try {
@@ -758,10 +776,12 @@ function VideoViewerContent() {
       }
       setAnalysis(data);
       setSelectedShot(0);
+      return data;
     } catch (error) {
       setAnalysisError(
         error instanceof Error ? error.message : "Analysis failed"
       );
+      return null;
     } finally {
       setAnalyzing(false);
     }
@@ -787,8 +807,8 @@ function VideoViewerContent() {
     }
   };
 
-  const handleMatch = async () => {
-    if (!videoId || matching) return;
+  const handleMatch = async (): Promise<ShotRecommendations | null> => {
+    if (!videoId || matching) return null;
     setMatching(true);
     setMatchError(null);
     try {
@@ -800,10 +820,12 @@ function VideoViewerContent() {
         throw new Error(data.error || `Matching failed (HTTP ${res.status})`);
       }
       setRecs(data);
+      return data;
     } catch (error) {
       setMatchError(
         error instanceof Error ? error.message : "Matching failed"
       );
+      return null;
     } finally {
       setMatching(false);
     }
@@ -896,8 +918,8 @@ function VideoViewerContent() {
       .catch(() => alert("Copying failed"));
   };
 
-  const handleRender = async () => {
-    if (!videoId || rendering) return;
+  const handleRender = async (): Promise<RenderManifest | null> => {
+    if (!videoId || rendering) return null;
     setRendering(true);
     setRenderError(null);
     try {
@@ -918,11 +940,131 @@ function VideoViewerContent() {
       }
       setRender(data);
       setPanelTab("render");
+      return data;
     } catch (error) {
       setRenderError(error instanceof Error ? error.message : "Render failed");
+      return null;
     } finally {
       setRendering(false);
     }
+  };
+
+  // One-click "get every shot covered": match first if nothing's been
+  // matched yet, then generate+accept AI footage for every shot that still
+  // has no selection — sequentially (each generation can take minutes, and
+  // this mirrors how a person would actually work through shots one at a
+  // time, not blast every shot's paid Gemini call at once). Reuses the same
+  // endpoints GenerationPanel itself calls; never touches shots explicitly
+  // marked "Use original footage".
+  const handleFillAllShots = async () => {
+    if (!videoId || !analysis || bulkFill?.running) return;
+    bulkFillStop.current = false;
+
+    let currentRecs = recs;
+    if (!currentRecs) {
+      setBulkFill({ running: true, shotStatus: {} });
+      currentRecs = await handleMatch();
+      if (!currentRecs) {
+        // handleMatch already set matchError with a specific message.
+        setBulkFill(null);
+        return;
+      }
+    }
+
+    const freshSelectedByShot = new Map(
+      currentRecs.shots.map((s) => [s.shot_index, s.selected_filename ?? null])
+    );
+    const freshKeepSourceByShot = new Map(
+      currentRecs.shots.map((s) => [s.shot_index, s.keep_source === true])
+    );
+    const shotsNeedingFootage = analysis.shots
+      .map((s) => s.index)
+      .filter(
+        (i) => !freshSelectedByShot.get(i) && freshKeepSourceByShot.get(i) !== true
+      );
+
+    if (shotsNeedingFootage.length === 0) {
+      setBulkFill(null);
+      return;
+    }
+
+    const initialStatus: Record<number, "queued"> = {};
+    for (const i of shotsNeedingFootage) initialStatus[i] = "queued";
+    setBulkFill({ running: true, shotStatus: initialStatus });
+
+    // Draft prompts once for the whole video if it hasn't happened yet —
+    // GenerationPanel does this itself on mount, but it may not be mounted
+    // (collapsed behind "More options"), so this can't depend on that.
+    if (!generation?.promptsGeneratedAt) {
+      try {
+        const res = await fetch(`/api/analyze/${videoId}/generation/prompts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (res.ok) setGeneration(data);
+      } catch {
+        // Best-effort — a per-shot generate call below will surface any
+        // real failure (e.g. a shot with no prompt at all).
+      }
+    }
+
+    for (const shotIndex of shotsNeedingFootage) {
+      if (bulkFillStop.current) break;
+      setBulkFill((prev) =>
+        prev ? { ...prev, shotStatus: { ...prev.shotStatus, [shotIndex]: "generating" } } : prev
+      );
+      try {
+        const genRes = await fetch(`/api/analyze/${videoId}/generation/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shot_index: shotIndex, use_references: true }),
+        });
+        const genData: ShotGenerationsData = await genRes.json();
+        if (!genRes.ok) {
+          throw new Error((genData as unknown as { error?: string }).error || "Generate failed");
+        }
+        setGeneration(genData);
+
+        const entry = genData.shots[String(shotIndex)];
+        const latestAttempt: GenerationAttempt | undefined =
+          entry?.attempts[entry.attempts.length - 1];
+        if (!latestAttempt || latestAttempt.status !== "ready" || !latestAttempt.file) {
+          throw new Error(latestAttempt?.error || "Generation did not produce a usable clip");
+        }
+
+        setBulkFill((prev) =>
+          prev ? { ...prev, shotStatus: { ...prev.shotStatus, [shotIndex]: "accepting" } } : prev
+        );
+        const acceptRes = await fetch(`/api/analyze/${videoId}/generation/accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shot_index: shotIndex, attempt: latestAttempt.attempt }),
+        });
+        const acceptData = await acceptRes.json();
+        if (!acceptRes.ok) throw new Error(acceptData.error || "Accept failed");
+        setGeneration(acceptData.generation);
+        setRecs(acceptData.recommendations);
+
+        setBulkFill((prev) =>
+          prev ? { ...prev, shotStatus: { ...prev.shotStatus, [shotIndex]: "done" } } : prev
+        );
+      } catch (error) {
+        setBulkFill((prev) =>
+          prev
+            ? {
+                ...prev,
+                shotStatus: { ...prev.shotStatus, [shotIndex]: "error" },
+                error: error instanceof Error ? error.message : "Generation failed",
+              }
+            : prev
+        );
+        // Keep going — one shot failing shouldn't stop the rest.
+      }
+    }
+
+    setBulkFill((prev) => (prev ? { ...prev, running: false } : prev));
   };
 
   const togglePlay = () => {
@@ -1711,7 +1853,7 @@ function VideoViewerContent() {
       {videoId && analysis && (
         <button
           onClick={handleMatch}
-          disabled={matching}
+          disabled={matching || (bulkFill?.running ?? false)}
           className={actionButtonClass}
         >
           {matching
@@ -1740,7 +1882,7 @@ function VideoViewerContent() {
         <div className="flex flex-col gap-3">
           <button
             onClick={handleRender}
-            disabled={rendering || !recs}
+            disabled={rendering || !recs || (bulkFill?.running ?? false)}
             title={
               recs ? undefined : "Match recommended B-roll clips first"
             }
@@ -1796,7 +1938,7 @@ function VideoViewerContent() {
                 </select>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Edit each shot&apos;s text in the B-Roll Clips tab · burned as
+                Edit each shot&apos;s text in the Footage tab · burned as
                 ASS subtitles
               </p>
             </div>
@@ -1873,7 +2015,7 @@ function VideoViewerContent() {
         Shots
       </button>
       <button onClick={() => setPanelTab("clips")} className={tabClass("clips")}>
-        B-Roll Clips
+        Footage
       </button>
       {project?.kind === "master" && (
         <button
@@ -1884,7 +2026,7 @@ function VideoViewerContent() {
         </button>
       )}
       <button onClick={() => setPanelTab("render")} className={tabClass("render")}>
-        Render Details
+        Render &amp; Finish
       </button>
       <button
         onClick={() => setPanelTab("captions")}
@@ -1899,36 +2041,43 @@ function VideoViewerContent() {
   // tracking a separate "current step" variable — stays correct automatically
   // as analysis/recs/render change instead of needing to be kept in sync.
   const allShotsAssigned =
-    !!analysis && analysis.shots.every((s) => !!selectedByShot.get(s.index));
-  const workflowSteps: { label: string; status: "done" | "current" | "upcoming" }[] = [
-    { label: "Analyze", status: analysis ? "done" : "current" },
+    !!analysis &&
+    analysis.shots.every(
+      (s) => !!selectedByShot.get(s.index) || keepSourceByShot.get(s.index) === true
+    );
+  const workflowSteps: { label: string; status: "done" | "current" | "upcoming"; tab: typeof panelTab }[] = [
+    { label: "Analyze", status: analysis ? "done" : "current", tab: "shots" },
     {
       label: "Add footage",
       status: allShotsAssigned ? "done" : analysis ? "current" : "upcoming",
+      tab: "clips",
     },
     {
       label: "Render",
       status: render && !renderStale ? "done" : allShotsAssigned ? "current" : "upcoming",
+      tab: "render",
     },
-    { label: "Finish & post", status: render ? "current" : "upcoming" },
+    { label: "Finish & post", status: render ? "current" : "upcoming", tab: "render" },
   ];
   const workflowBar = (
     <div className="flex items-center gap-1.5 flex-wrap" aria-label="Editing progress">
       {workflowSteps.map((step, i) => (
         <div key={step.label} className="flex items-center gap-1.5">
           {i > 0 && <span className="text-muted-foreground/40 text-xs">›</span>}
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1 ${
+          <button
+            onClick={() => setPanelTab(step.tab)}
+            title={`Go to ${step.label}`}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1 transition-colors ${
               step.status === "done"
-                ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                ? "bg-green-500/15 text-green-600 dark:text-green-400 hover:bg-green-500/25"
                 : step.status === "current"
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground/60"
+                  ? "bg-primary/15 text-primary hover:bg-primary/25"
+                  : "bg-muted text-muted-foreground/60 hover:bg-muted/70"
             }`}
           >
             {step.status === "done" && "✓ "}
             {i + 1}. {step.label}
-          </span>
+          </button>
         </div>
       ))}
     </div>
@@ -2060,7 +2209,6 @@ function VideoViewerContent() {
               <div className="flex flex-col gap-3 min-w-0">
                 {panelTab === "video" && (
                   <section aria-label="Video editing" className="flex w-full max-w-lg flex-col gap-4">
-                    <h2 className="text-sm font-semibold">Frame &amp; Layers</h2>
                     <div ref={setFramingControlsTarget} />
                   </section>
                 )}
@@ -2147,6 +2295,63 @@ function VideoViewerContent() {
                     Give each shot its footage — from your library, or AI-generated. Select ▸ one clip per shot, then move to Render.
                   </p>
                 )}
+                {panelTab === "clips" && analysis && (
+                  <div className="rounded-lg border border-violet-500/40 p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                          ⚡ Fill in every shot
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Matches your library first, then AI-generates footage for anything left over. Runs one shot at a time — each can take a few minutes.
+                        </p>
+                      </div>
+                      {bulkFill?.running ? (
+                        <button
+                          onClick={() => {
+                            bulkFillStop.current = true;
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border hover:bg-muted/40"
+                        >
+                          Stop after current shot
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFillAllShots}
+                          disabled={matching || rendering}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-60"
+                        >
+                          Fill in every shot
+                        </button>
+                      )}
+                    </div>
+                    {bulkFill && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(bulkFill.shotStatus).map(([shotIndexStr, status]) => (
+                          <span
+                            key={shotIndexStr}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                              status === "done"
+                                ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                                : status === "error"
+                                  ? "bg-red-500/15 text-red-500"
+                                  : status === "queued"
+                                    ? "bg-muted text-muted-foreground/60"
+                                    : "bg-primary/15 text-primary animate-pulse"
+                            }`}
+                          >
+                            Shot {Number(shotIndexStr) + 1}: {status}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {bulkFill?.error && (
+                      <p className="text-[10px] text-red-500 break-words">
+                        ⚠ {bulkFill.error}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {panelTab === "clips" &&
                   (!recs ? (
                     <div className="flex flex-col gap-3">
@@ -2160,7 +2365,7 @@ function VideoViewerContent() {
                         </p>
                         <button
                           onClick={handleMatch}
-                          disabled={matching}
+                          disabled={matching || (bulkFill?.running ?? false)}
                           className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
                         >
                           {matching
@@ -2174,53 +2379,67 @@ function VideoViewerContent() {
                         )}
                       </div>
                       {analysis && (
-                        <div className="rounded-lg border border-border p-3 flex flex-col gap-2">
-                          <p className="text-xs font-bold text-foreground uppercase tracking-wide">
-                            AI-generate footage for segment #{selectedShot + 1}
-                          </p>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {analysis.shots.map((s) => (
-                              <button
-                                key={s.index}
-                                onClick={() => selectShot(s.index)}
-                                className={`size-7 rounded-md border text-xs font-semibold transition-colors ${
-                                  s.index === selectedShot
-                                    ? "border-primary bg-primary/15 text-primary"
-                                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                                }`}
-                                title={`Shot ${s.index + 1}`}
-                              >
-                                {s.index + 1}
-                              </button>
-                            ))}
-                          </div>
-                          {videoId && shot && (
-                            <GenerationPanel
-                              videoId={videoId}
-                              shotIndex={selectedShot}
-                              shotDuration={shot.end_time - shot.start_time}
-                              gap={gapForShot(selectedShot)}
-                              generation={generation}
-                              selectedRec={null}
-                              onGeneration={setGeneration}
-                              onAccept={(g, newRecs) => {
-                                setGeneration(g);
-                                const parsed = newRecs as ShotRecommendations;
-                                setRecs(parsed);
-                                const rec = parsed.shots
-                                  .find((s) => s.shot_index === selectedShot)
-                                  ?.recommendations.find(
-                                    (r) => r.source === "generated"
-                                  );
-                                if (rec) {
-                                  setPreviewClip({
-                                    filename: rec.filename,
-                                    start: rec.trim_start ?? null,
-                                    end: rec.trim_end ?? null,
-                                  });
-                                }
-                              }}
-                            />
+                        <div className="rounded-lg border border-border">
+                          <button
+                            onClick={() => setClipsMoreOpen((v) => !v)}
+                            className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground flex justify-between items-center"
+                          >
+                            More options — AI-generate footage instead
+                            <span className="text-muted-foreground">
+                              {clipsMoreOpen ? "▾" : "▸"}
+                            </span>
+                          </button>
+                          {clipsMoreOpen && (
+                            <div className="px-3 pb-3 flex flex-col gap-2">
+                              <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                                AI-generate footage for Shot {selectedShot + 1}
+                              </p>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {analysis.shots.map((s) => (
+                                  <button
+                                    key={s.index}
+                                    onClick={() => selectShot(s.index)}
+                                    className={`size-7 rounded-md border text-xs font-semibold transition-colors ${
+                                      s.index === selectedShot
+                                        ? "border-primary bg-primary/15 text-primary"
+                                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                    }`}
+                                    title={`Shot ${s.index + 1}`}
+                                  >
+                                    {s.index + 1}
+                                  </button>
+                                ))}
+                              </div>
+                              {videoId && shot && (
+                                <GenerationPanel
+                                  videoId={videoId}
+                                  shotIndex={selectedShot}
+                                  shotDuration={shot.end_time - shot.start_time}
+                                  gap={gapForShot(selectedShot)}
+                                  generation={generation}
+                                  selectedRec={null}
+                                  disabled={bulkFill?.running ?? false}
+                                  onGeneration={setGeneration}
+                                  onAccept={(g, newRecs) => {
+                                    setGeneration(g);
+                                    const parsed = newRecs as ShotRecommendations;
+                                    setRecs(parsed);
+                                    const rec = parsed.shots
+                                      .find((s) => s.shot_index === selectedShot)
+                                      ?.recommendations.find(
+                                        (r) => r.source === "generated"
+                                      );
+                                    if (rec) {
+                                      setPreviewClip({
+                                        filename: rec.filename,
+                                        start: rec.trim_start ?? null,
+                                        end: rec.trim_end ?? null,
+                                      });
+                                    }
+                                  }}
+                                />
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -2229,11 +2448,12 @@ function VideoViewerContent() {
                     <div className="rounded-lg border border-border p-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <p className="text-xs font-bold text-foreground uppercase tracking-wide">
-                          Optional B-roll for segment #{selectedShot + 1}
+                          Optional B-roll for Shot {selectedShot + 1}
                         </p>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => patchKeepSource(!selectedKeepSource)}
+                            aria-pressed={selectedKeepSource}
                             title={
                               selectedKeepSource
                                 ? "Using the original footage for this shot — click to allow B-roll again"
@@ -2245,24 +2465,8 @@ function VideoViewerContent() {
                                 : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
                             }`}
                           >
-                            {selectedKeepSource ? "✓ No B-Roll" : "No B-Roll"}
+                            {selectedKeepSource ? "✓ Use original footage" : "Use original footage"}
                           </button>
-                          <button
-                            onClick={() => runBroll("suggest")}
-                            disabled={brollBusy != null}
-                            title="Gemini picks phrases worth covering with B-roll and matches clips for them — review them on the timeline"
-                            className="px-2 py-0.5 rounded-md border border-violet-500/60 text-[10px] font-semibold text-violet-500 hover:bg-violet-500/10 disabled:opacity-50"
-                          >
-                            {brollBusy === "suggest" ? "Suggesting…" : "✦ Suggest B-roll moments"}
-                          </button>
-                          {!previewClip && (
-                            <button
-                              onClick={() => setAllClipsOpen(true)}
-                              className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              All Clips
-                            </button>
-                          )}
                           <p className="text-[10px] text-muted-foreground">
                             {recs.clipsConsidered} clips considered ·{" "}
                             {new Date(recs.generatedAt).toLocaleString()}
@@ -2278,6 +2482,37 @@ function VideoViewerContent() {
                           time; B-roll clips are ignored.
                         </p>
                       )}
+                      <div className="rounded-lg border border-border">
+                        <button
+                          onClick={() => setClipsMoreOpen((v) => !v)}
+                          className="w-full px-3 py-1.5 text-left text-xs font-semibold text-foreground flex justify-between items-center"
+                        >
+                          More options
+                          <span className="text-muted-foreground">
+                            {clipsMoreOpen ? "▾" : "▸"}
+                          </span>
+                        </button>
+                        {clipsMoreOpen && (
+                          <div className="px-3 pb-2 flex items-center gap-2">
+                            <button
+                              onClick={() => runBroll("suggest")}
+                              disabled={brollBusy != null}
+                              title="Gemini picks phrases worth covering with B-roll and matches clips for them — review them on the timeline"
+                              className="px-2 py-0.5 rounded-md border border-violet-500/60 text-[10px] font-semibold text-violet-500 hover:bg-violet-500/10 disabled:opacity-50"
+                            >
+                              {brollBusy === "suggest" ? "Suggesting…" : "✦ Suggest B-roll moments"}
+                            </button>
+                            {!previewClip && (
+                              <button
+                                onClick={() => setAllClipsOpen(true)}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                All Clips
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       {analysis?.shots[selectedShot] && (
                         <ShotTextEditor
                           key={selectedShot}
@@ -2353,19 +2588,20 @@ function VideoViewerContent() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={toggleLoopShot}
+                              aria-pressed={loopShot}
                               title={
                                 loopShot
                                   ? "Stop looping the shot"
                                   : "Loop the playing shot or clip"
                               }
-                              className={`p-2 rounded-lg border transition-colors ${
+                              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors ${
                                 loopShot
                                   ? "bg-primary/15 text-primary border-primary/50"
                                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
                               }`}
                             >
                               <svg
-                                className="size-4"
+                                className="size-4 shrink-0"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -2378,6 +2614,7 @@ function VideoViewerContent() {
                                 <path d="M7 22l-4-4 4-4" />
                                 <path d="M21 13v1a4 4 0 01-4 4H3" />
                               </svg>
+                              Loop
                             </button>
                             <button
                               onClick={selectClip}
@@ -2484,13 +2721,7 @@ function VideoViewerContent() {
                                     {r.confidence}
                                   </span>
                                   <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[9px] uppercase">
-                                    {r.source === "gemini"
-                                      ? "semantic"
-                                      : r.source === "manual"
-                                        ? "your pick"
-                                        : r.source === "generated"
-                                          ? "⚡ AI generated"
-                                          : "tag match"}
+                                    {SOURCE_BADGE_LABELS[r.source]}
                                   </span>
                                   {r.trim_start != null &&
                                     r.trim_end != null && (
@@ -2531,7 +2762,7 @@ function VideoViewerContent() {
                       )}
                       </div>
                       </div>
-                      {videoId && shot && (
+                      {clipsMoreOpen && videoId && shot && (
                         <GenerationPanel
                           videoId={videoId}
                           shotIndex={selectedShot}
@@ -2550,6 +2781,7 @@ function VideoViewerContent() {
                                 }
                               : null
                           }
+                          disabled={bulkFill?.running ?? false}
                           onGeneration={setGeneration}
                           onAccept={(g, newRecs) => {
                             setGeneration(g);

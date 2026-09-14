@@ -733,7 +733,7 @@ export function ShotTimeline({
                         title="Renders from the source video at this shot's own time"
                         className={`shrink-0 px-1 py-0.5 rounded-md text-[9px] font-semibold ${recs.sourceBadgeClass}`}
                       >
-                        No B-Roll
+                        Using original footage
                       </span>
                     )}
                     {shotRecs.length === 0 ? (

@@ -22,6 +22,7 @@ interface Props {
 }
 const WIDTH = 1080, HEIGHT = 1920;
 const button = "inline-flex size-8 shrink-0 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40";
+const labeledButton = "inline-flex shrink-0 items-center gap-1 h-8 px-2 rounded border border-border hover:bg-muted disabled:opacity-40 text-xs font-medium whitespace-nowrap";
 
 export function FramingEditor(props: Props) {
   const { state, clock, shot, source, broll, target, onTarget, onSeek, controlsTarget } = props;
@@ -35,6 +36,7 @@ export function FramingEditor(props: Props) {
   const [buffering, setBuffering] = useState(false);
   const [dimensions, setDimensions] = useState({ width: WIDTH, height: HEIGHT, key: "" });
   const [guides, setGuides] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const drag = useRef<{ x: number; y: number; frame: Framing; key: "start" | "end"; bounds: DOMRect } | null>(null);
   const selected = broll.find(s => s.id === target);
   const layer = target ? state.document?.broll[target] ?? DEFAULT_LAYER : null;
@@ -200,8 +202,17 @@ export function FramingEditor(props: Props) {
           value={clamp(position, start, end - 0.001)} onChange={e => { clock.current?.pause(); onSeek(Number(e.target.value)); }} />
         <span className="w-20 shrink-0 whitespace-nowrap text-right font-mono text-[11px]">{Math.max(0, position - start).toFixed(1)} / {(end - start).toFixed(1)}s</span>
       </div>
-      {controlsTarget && createPortal(<div className="flex min-w-0 flex-col gap-4">
-      <fieldset aria-label="Framing controls" disabled={!state.document} className="flex min-w-0 flex-col gap-4">
+      {controlsTarget && createPortal(<div className="flex min-w-0 flex-col gap-3">
+      <div className="rounded-lg border border-border">
+        <button
+          onClick={() => setControlsOpen(v => !v)}
+          className="w-full px-3 py-2 text-left text-sm font-semibold text-foreground flex justify-between items-center"
+        >
+          Frame &amp; Layers
+          <span className="text-muted-foreground text-xs">{controlsOpen ? "▾" : "▸"}</span>
+        </button>
+        {controlsOpen && (
+      <fieldset aria-label="Framing controls" disabled={!state.document} className="flex min-w-0 flex-col gap-4 px-3 pb-3">
         <div className="flex items-center gap-2">
           <Crop size={16} className="shrink-0" />
           <select aria-label="Editing layer" className="min-w-0 flex-1 rounded border border-border bg-background p-1.5 text-xs"
@@ -209,9 +220,9 @@ export function FramingEditor(props: Props) {
             <option value="main">Main video - shot {shot.index + 1}</option>
             {broll.map(s => <option key={s.id} value={s.id}>B-roll - {s.label}</option>)}
           </select>
-          <button className={button} title="Undo framing" aria-label="Undo framing" disabled={!state.canUndo} onClick={state.undo}><Undo2 size={15} /></button>
-          <button className={button} title="Redo framing" aria-label="Redo framing" disabled={!state.canRedo} onClick={state.redo}><Redo2 size={15} /></button>
-          <button className={button} title="Reset framing" aria-label="Reset framing" onClick={() => changeFrame(structuredClone(DEFAULT_FRAMING))}><RotateCcw size={15} /></button>
+          <button className={labeledButton} title="Undo framing" aria-label="Undo framing" disabled={!state.canUndo} onClick={state.undo}><Undo2 size={15} /> Undo</button>
+          <button className={labeledButton} title="Redo framing" aria-label="Redo framing" disabled={!state.canRedo} onClick={state.redo}><Redo2 size={15} /> Redo</button>
+          <button className={labeledButton} title="Reset framing" aria-label="Reset framing" onClick={() => changeFrame(structuredClone(DEFAULT_FRAMING))}><RotateCcw size={15} /> Reset</button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex" role="group" aria-label="Frame fit">
@@ -266,6 +277,8 @@ export function FramingEditor(props: Props) {
           </label>
         </div>}
       </fieldset>
+        )}
+      </div>
       <div role="status" className="text-xs text-muted-foreground">{state.status}</div>
       {(state.error || mediaError) && <div role="alert" className="break-words text-xs text-red-500">{state.error || mediaError}
         {state.document && state.error && <button className="ml-2 underline" onClick={() => void state.flush().catch(() => {})}>Retry save</button>}

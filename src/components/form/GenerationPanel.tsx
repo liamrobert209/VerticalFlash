@@ -50,6 +50,9 @@ export interface GenerationPanelProps {
   selectedRec: { filename: string; duration: number | null } | null;
   onGeneration: (g: ShotGenerations) => void;
   onAccept: (g: ShotGenerations, recs: unknown) => void;
+  /** True while a bulk fill-in run elsewhere is processing shots, to avoid
+   * a manual action here racing that run on the same shot. */
+  disabled?: boolean;
 }
 
 const isGeneratedClip = (f: string) => /^gen_s\d+_a\d+\.mp4$/.test(f);
@@ -77,6 +80,7 @@ export function GenerationPanel({
   selectedRec,
   onGeneration,
   onAccept,
+  disabled = false,
 }: GenerationPanelProps) {
   const entry = generation?.shots[String(shotIndex)] ?? null;
   const [draft, setDraft] = useState(entry?.prompt ?? "");
@@ -236,7 +240,7 @@ export function GenerationPanel({
           )}
           <button
             onClick={redraft}
-            disabled={drafting || generating}
+            disabled={drafting || generating || disabled}
             className="text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-60"
           >
             {drafting ? "drafting…" : "↺ re-draft prompt"}
@@ -251,11 +255,17 @@ export function GenerationPanel({
         </p>
       )}
 
+      {disabled && (
+        <p className="text-[10px] text-muted-foreground">
+          Paused while &quot;Fill in every shot&quot; is running.
+        </p>
+      )}
+
       <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={savePrompt}
-        disabled={drafting || generating}
+        disabled={drafting || generating || disabled}
         rows={4}
         maxLength={4000}
         aria-label={`Generation prompt for shot ${shotIndex + 1}`}
@@ -275,7 +285,7 @@ export function GenerationPanel({
               use_references: useReferences,
             })
           }
-          disabled={generating || drafting || !draft.trim()}
+          disabled={generating || drafting || !draft.trim() || disabled}
           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-60"
         >
           {busy === "generate" ? "Generating…" : "⚡ Generate clip"}
@@ -284,7 +294,7 @@ export function GenerationPanel({
           <input
             type="checkbox"
             checked={useReferences}
-            disabled={generating}
+            disabled={generating || disabled}
             onChange={(e) => setUseReferences(e.target.checked)}
             className="accent-current"
           />
@@ -298,7 +308,7 @@ export function GenerationPanel({
                 filename: selectedRec!.filename,
               })
             }
-            disabled={generating || drafting}
+            disabled={generating || drafting || disabled}
             title={`Continue ${selectedRec!.filename} (${selectedRec!.duration!.toFixed(1)}s) so it covers the ${shotDuration.toFixed(1)}s shot`}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-500/60 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 disabled:opacity-60"
           >
@@ -394,7 +404,7 @@ export function GenerationPanel({
                 {a.status === "ready" && a.file && !inUse(a.file) && (
                   <button
                     onClick={() => accept(a.attempt)}
-                    disabled={busy != null}
+                    disabled={busy != null || disabled}
                     className="self-start px-2 py-1 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold disabled:opacity-60"
                   >
                     {busy === "accept" ? "Saving…" : "Use this clip"}
