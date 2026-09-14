@@ -7,6 +7,11 @@ import type { FramingDocument } from "@/lib/framing-schema";
 
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  loadEditorViewMode,
+  saveEditorViewMode,
+  type EditorViewMode,
+} from "@/lib/editor-view-mode";
 import { Suspense, useEffect, useRef, useState } from "react";
 import {
   GEMINI_PRICE_IN_PER_M,
@@ -386,6 +391,17 @@ function VideoViewerContent() {
   const [previewClip, setPreviewClip] = useState<ClipPreview | null>(null);
   const [allClipsOpen, setAllClipsOpen] = useState(false);
   const [clipsMoreOpen, setClipsMoreOpen] = useState(false);
+  // Defaults to "advanced" on the server render and flips to whatever's
+  // persisted once mounted, matching this file's other localStorage-backed
+  // state (see the scan-history context for the same pattern).
+  const [viewMode, setViewModeState] = useState<EditorViewMode>("advanced");
+  useEffect(() => {
+    setViewModeState(loadEditorViewMode());
+  }, []);
+  const setViewMode = (mode: EditorViewMode) => {
+    setViewModeState(mode);
+    saveEditorViewMode(mode);
+  };
   const [bulkFill, setBulkFill] = useState<{
     running: boolean;
     shotStatus: Record<number, "queued" | "generating" | "accepting" | "done" | "error">;
@@ -2191,7 +2207,34 @@ function VideoViewerContent() {
         {analysis && (
           <div className="flex flex-col gap-3 -mb-2">
             {titleBlock}
-            {workflowBar}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              {workflowBar}
+              <div
+                className="inline-flex rounded-full border border-border text-[10px] font-semibold uppercase tracking-wide overflow-hidden shrink-0"
+                role="group"
+                aria-label="Editor view mode"
+              >
+                {(["simple", "advanced"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    aria-pressed={viewMode === mode}
+                    title={
+                      mode === "simple"
+                        ? "Show only the essentials"
+                        : "Show every editing control"
+                    }
+                    className={`px-3 py-1 transition-colors ${
+                      viewMode === mode
+                        ? "bg-primary/15 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {mode === "simple" ? "Simple" : "Advanced"}
+                  </button>
+                ))}
+              </div>
+            </div>
             {tabBar}
           </div>
         )}
@@ -2239,7 +2282,7 @@ function VideoViewerContent() {
             {shot && (panelTab === "video" || panelTab === "shots" || panelTab === "clips") && (
               <FramingEditor state={framing} clock={videoRef} shot={shot} source={previewSources} controlsTarget={framingControlsTarget}
                 broll={previewBroll} target={previewBroll.some(s => s.id === frameTarget) ? frameTarget : null}
-                onTarget={setFrameTarget} onSeek={seekPreview}
+                onTarget={setFrameTarget} onSeek={seekPreview} simple={viewMode === "simple"}
                 getTime={() => {
                   const time = videoRef.current?.currentTime ?? 0;
                   return masterBacked ? shot.start_time + time - (shot.source_start ?? shot.start_time) : time;
@@ -2882,6 +2925,7 @@ function VideoViewerContent() {
                       videoId={videoId}
                       filename={filename}
                       onSeek={seekTo}
+                      simple={viewMode === "simple"}
                     />
                   )}
 

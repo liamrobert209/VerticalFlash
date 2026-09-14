@@ -19,13 +19,17 @@ interface Props {
   onTarget: (id: string | null) => void;
   getTime: () => number;
   onSeek: (time: number) => void;
+  // Simple view mode: canvas + play/scrubber + Fill/Fit only. Layer
+  // selection, motion/keyframes, position/zoom, and opacity/background stay
+  // exactly as saved — this only hides the controls for editing them.
+  simple?: boolean;
 }
 const WIDTH = 1080, HEIGHT = 1920;
 const button = "inline-flex size-8 shrink-0 items-center justify-center rounded border border-border hover:bg-muted disabled:opacity-40";
 const labeledButton = "inline-flex shrink-0 items-center gap-1 h-8 px-2 rounded border border-border hover:bg-muted disabled:opacity-40 text-xs font-medium whitespace-nowrap";
 
 export function FramingEditor(props: Props) {
-  const { state, clock, shot, source, broll, target, onTarget, onSeek, controlsTarget } = props;
+  const { state, clock, shot, source, broll, target, onTarget, onSeek, controlsTarget, simple = false } = props;
   const canvas = useRef<HTMLCanvasElement>(null);
   const videos = useRef(new Map<string, HTMLVideoElement>());
   const live = useRef(props); live.current = props;
@@ -213,7 +217,7 @@ export function FramingEditor(props: Props) {
         </button>
         {controlsOpen && (
       <fieldset aria-label="Framing controls" disabled={!state.document} className="flex min-w-0 flex-col gap-4 px-3 pb-3">
-        <div className="flex items-center gap-2">
+        {!simple && <div className="flex items-center gap-2">
           <Crop size={16} className="shrink-0" />
           <select aria-label="Editing layer" className="min-w-0 flex-1 rounded border border-border bg-background p-1.5 text-xs"
             value={target ?? "main"} onChange={e => { const id = e.target.value === "main" ? null : e.target.value; onTarget(id); const seg = broll.find(s => s.id === id); if (seg) onSeek(seg.start); }}>
@@ -223,25 +227,25 @@ export function FramingEditor(props: Props) {
           <button className={labeledButton} title="Undo framing" aria-label="Undo framing" disabled={!state.canUndo} onClick={state.undo}><Undo2 size={15} /> Undo</button>
           <button className={labeledButton} title="Redo framing" aria-label="Redo framing" disabled={!state.canRedo} onClick={state.redo}><Redo2 size={15} /> Redo</button>
           <button className={labeledButton} title="Reset framing" aria-label="Reset framing" onClick={() => changeFrame(structuredClone(DEFAULT_FRAMING))}><RotateCcw size={15} /> Reset</button>
-        </div>
+        </div>}
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex" role="group" aria-label="Frame fit">
             {(["fill", "fit"] as const).map(value => <button key={value} aria-pressed={frame.fit === value}
               className={`border border-border px-3 py-1.5 text-xs ${frame.fit === value ? "bg-primary text-primary-foreground" : "bg-background"}`}
               onClick={() => changeFrame({ ...frame, fit: value })}>{value === "fill" ? "Fill" : "Fit"}</button>)}
           </div>
-          <select aria-label="Frame motion" className="min-w-0 flex-1 rounded border border-border bg-background p-1.5 text-xs" value={frame.motion}
+          {!simple && <select aria-label="Frame motion" className="min-w-0 flex-1 rounded border border-border bg-background p-1.5 text-xs" value={frame.motion}
             onChange={e => { const motion = e.target.value as Framing["motion"]; changeFrame({ ...frame, motion, end: motion === "pan-zoom" ? { ...frame.start } : frame.end }); setEndpoint("start"); }}>
             <option value="static">Static</option><option value="pan-zoom">Pan &amp; Zoom</option>
-          </select>
+          </select>}
         </div>
-        {frame.motion === "pan-zoom" && <div className="flex items-center gap-2" role="group" aria-label="Motion keyframe">
+        {!simple && frame.motion === "pan-zoom" && <div className="flex items-center gap-2" role="group" aria-label="Motion keyframe">
           <Move size={15} />
           {(["start", "end"] as const).map(value => <button key={value} aria-pressed={endpoint === value}
             className={`flex-1 rounded border border-border px-3 py-1.5 text-xs ${endpoint === value ? "bg-muted font-semibold" : ""}`}
             onClick={() => selectEndpoint(value)}>{value === "start" ? "Start" : "End"}</button>)}
         </div>}
-        <fieldset aria-label="Layer position" disabled={!dimensionsReady} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] items-end gap-2">
+        {!simple && <fieldset aria-label="Layer position" disabled={!dimensionsReady} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px] items-end gap-2">
           <PositionInput key={`${shot.index}:${target}:${key}:x`} label="Center X" value={centerX}
             onBegin={() => { state.begin(); setGuides(true); selectEndpoint(endpoint); }}
             onChange={x => changeCenter(x, centerY, true)} onCommit={() => { controlEnd(); setGuides(false); }} />
@@ -250,16 +254,16 @@ export function FramingEditor(props: Props) {
             onChange={y => changeCenter(centerX, y, true)} onCommit={() => { controlEnd(); setGuides(false); }} />
           <button className={button} title="Center position" aria-label="Center position"
             onClick={() => { selectEndpoint(endpoint); changeCenter(WIDTH / 2, HEIGHT / 2); }}><LocateFixed size={16} /></button>
-        </fieldset>
-        <label className="flex items-center gap-2 text-xs">Zoom
+        </fieldset>}
+        {!simple && <label className="flex items-center gap-2 text-xs">Zoom
           <input aria-label="Zoom" className="min-w-0 flex-1" type="range" min={1} max={4} step={0.01}
             value={frame[frame.motion === "static" ? "start" : endpoint].zoom}
             disabled={!dimensionsReady}
             onPointerDown={() => { state.begin(); selectEndpoint(endpoint); }} onPointerUp={controlEnd} onPointerCancel={controlEnd} onBlur={controlEnd} onKeyUp={controlEnd}
             onChange={e => changeZoom(Number(e.target.value))} />
           <span className="w-10 text-right font-mono">{frame[frame.motion === "static" ? "start" : endpoint].zoom.toFixed(2)}x</span>
-        </label>
-        {layer && target && <div className="flex flex-col gap-3 border-t border-border pt-3">
+        </label>}
+        {!simple && layer && target && <div className="flex flex-col gap-3 border-t border-border pt-3">
           <label className="flex items-center justify-between text-xs">Main video
             <input type="checkbox" checked={layer.mainVisible} onChange={e => state.update(d => ({ ...d, broll: { ...d.broll, [target]: { ...layer, mainVisible: e.target.checked } } }))} />
           </label>

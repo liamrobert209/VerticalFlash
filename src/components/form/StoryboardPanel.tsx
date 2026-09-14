@@ -43,6 +43,9 @@ export interface StoryboardPanelProps {
   previewMedia?: ReactNode;
   footagePanel?: ReactNode;
   refreshKey?: number;
+  // Simple view mode: hides the per-beat trim (start/end) dialog, a
+  // precision control most people editing a storyboard don't need.
+  simple?: boolean;
 }
 
 const ROLE_STYLES: Record<SegmentRole, string> = {
@@ -113,7 +116,7 @@ function beatMatchesSegment(beat: Beat, segment: Segment): boolean {
   );
 }
 
-export function StoryboardPanel({ videoId, onSeek, onStopPreview, previewMedia, footagePanel, refreshKey = 0 }: StoryboardPanelProps) {
+export function StoryboardPanel({ videoId, onSeek, onStopPreview, previewMedia, footagePanel, refreshKey = 0, simple = false }: StoryboardPanelProps) {
   const [model, setModel] = useState("");
   const [segments, setSegments] = useState<MasterSegments | null>(null);
   const [storyboards, setStoryboards] = useState<MasterStoryboards | null>(null);
@@ -719,7 +722,7 @@ export function StoryboardPanel({ videoId, onSeek, onStopPreview, previewMedia, 
                   onMove={(to) => reorderBeat(activeStoryboard, index, to)}
                   onRemove={() => commitStoryboard(withBeats(activeStoryboard, activeStoryboard.beats.filter((_, i) => i !== index)))}
                   onNote={(note) => commitStoryboard(withBeats(activeStoryboard, activeStoryboard.beats.map((value, i) => i === index ? { ...value, fix_note: note } : value)))}
-                  onTrim={() => setTrimIndex(index)} />
+                  onTrim={simple ? undefined : () => setTrimIndex(index)} />
                 </div>
               </Fragment>;
             })}
