@@ -35,34 +35,46 @@ function extractImage(response: {
   };
 }
 
+export interface StaticAdBrief {
+  usp: string;
+  angle: string;
+  persona: string;
+  backgroundInstruction: string | null;
+}
+
 // Tier (a), step one: blend the reference ad's composition/style with our
 // own product into one coherent photographic base image. A single
-// generateContent call with both images as input parts — confirmed by a
-// real test call to actually blend both inputs, not just reproduce one.
+// generateContent call with the reference + every product photo as input
+// parts — confirmed by a real test call to actually blend inputs, not just
+// reproduce one.
 export async function generateBaseImage(
   ai: GoogleGenAI,
   reference: ImageBytes,
-  product: ImageBytes,
-  usp: string
+  products: ImageBytes[],
+  brief: StaticAdBrief
 ): Promise<GeneratedImage> {
   const prompt = `You are creating a new advertising photo for a product, using an
 existing ad as a style/composition reference.
 
 The FIRST image is a competitor's ad creative — use its composition, framing,
 lighting, and overall visual style as a reference.
-The SECOND image is our own product.
+The REMAINING image(s) are real reference photos of our own product — use
+them to render the actual product accurately, not a generic stand-in.
 
 Generate ONE new photographic image that follows the first image's
-composition/style/layout, but features the product from the second image
-instead. The ad's message is: "${usp}". Do not add any text, logos, or
-captions to the image — that gets added separately. Photorealistic, no
-watermarks.`;
+composition/style/layout, but features our product instead.
+The ad's message is: "${brief.usp}".
+Marketing angle: ${brief.angle}.
+Target persona: ${brief.persona || "same as the reference ad's apparent audience"}.
+${brief.backgroundInstruction ? `Background/setting: ${brief.backgroundInstruction}.` : "Match the reference ad's setting, lighting, and composition."}
+Do not add any text, logos, or captions to the image — that gets added
+separately. Photorealistic, no watermarks.`;
 
   const response = await ai.models.generateContent({
     model: GEMINI_IMAGE_MODEL,
     contents: createUserContent([
       createPartFromBase64(reference.base64, reference.mimeType),
-      createPartFromBase64(product.base64, product.mimeType),
+      ...products.map((p) => createPartFromBase64(p.base64, p.mimeType)),
       prompt,
     ]),
     config: { responseModalities: [Modality.IMAGE] },

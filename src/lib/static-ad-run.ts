@@ -98,3 +98,83 @@ export async function executeStaticAdAttempt(
 export function staticAdAttemptImagePath(projectId: string, file: string): string {
   return join(STATIC_ADS_DIR, projectId, file);
 }
+
+export interface StaticAdBatchSpec {
+  projectId: string;
+  count: number;
+  prompt: string;
+  // Runs one Gemini call for the given attempt number — called `count`
+  // times concurrently, each independent (same inputs, relying on
+  // Gemini's own sampling variation for the 5 different results).
+  run: (attempt: number) => Promise<GeneratedImage>;
+}
+
+// Reserves the project's base-image slot ONCE (not once per attempt), runs
+// `count` generations concurrently, and appends every result (success or
+// failure) in a single save. Used for the initial "Generate 5 versions"
+// action; executeStaticAdAttempt (single-attempt) still powers refine.
+export async function executeStaticAdBatchGenerate(
+  spec: StaticAdBatchSpec
+): Promise<{ project: StaticAdProject } | { busy: true } | { notFound: true }> {
+  const key = spec.projectId;
+  if (inFlight.has(key)) return { busy: true };
+  inFlight.add(key);
+  try {
+    let project = await loadStaticAdProject(spec.projectId);
+    if (!project) return { notFound: true };
+    if (project.baseImage.status === "generating") return { busy: true };
+
+    const startAttempt = project.baseImage.attempts.length + 1;
+    project.baseImage.status = "generating";
+    project.baseImage.startedAt = new Date().toISOString();
+    project.updatedAt = new Date().toISOString();
+    await saveStaticAdProject(project);
+
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: spec.count }, (_, i) => spec.run(startAttempt + i))
+    );
+
+    // Reload in case something else touched the project while generating
+    project = await loadStaticAdProject(spec.projectId);
+    if (!project) return { notFound: true };
+
+    await fs.mkdir(join(STATIC_ADS_DIR, spec.projectId), { recursive: true });
+    for (let i = 0; i < outcomes.length; i++) {
+      const attemptNumber = startAttempt + i;
+      const outcome = outcomes[i];
+      let file: string | null = null;
+      let error: string | null = null;
+      if (outcome.status === "fulfilled") {
+        const ext = extFor(outcome.value.mimeType);
+        file = staticAdAttemptName(attemptNumber, ext);
+        await fs.writeFile(
+          join(STATIC_ADS_DIR, spec.projectId, file),
+          Buffer.from(outcome.value.base64, "base64")
+        );
+      } else {
+        error = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+      }
+      project.baseImage.attempts.push({
+        attempt: attemptNumber,
+        kind: "generate",
+        prompt: spec.prompt,
+        parentAttempt: null,
+        file,
+        status: file ? "ready" : "failed",
+        error,
+        model: GEMINI_IMAGE_MODEL,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    const anyReady = outcomes.some((o) => o.status === "fulfilled");
+    project.baseImage.status = anyReady ? "ready" : "failed";
+    project.baseImage.startedAt = null;
+    project.updatedAt = new Date().toISOString();
+    await saveStaticAdProject(project);
+
+    return { project };
+  } finally {
+    inFlight.delete(key);
+  }
+}

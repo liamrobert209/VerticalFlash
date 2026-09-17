@@ -8,6 +8,7 @@ import {
   type StaticAdProject,
   type StaticAdStatus,
 } from "./static-ad-schema";
+import type { AdIntent } from "./ad-analysis-schema";
 
 function projectPath(id: string): string {
   return join(STATIC_ADS_DIR, id, "project.json");
@@ -36,7 +37,10 @@ export async function createStaticAdProject(input: {
   referenceAdId: string;
   productLineId: string;
   ourUsp: string;
-  ourProductImage: string;
+  angle: AdIntent;
+  persona: string;
+  headline: string;
+  backgroundInstruction: string | null;
 }): Promise<StaticAdProject> {
   const now = new Date().toISOString();
   const project: StaticAdProject = {
@@ -47,11 +51,46 @@ export async function createStaticAdProject(input: {
     referenceAdId: input.referenceAdId,
     productLineId: input.productLineId,
     ourUsp: input.ourUsp,
-    ourProductImage: input.ourProductImage,
+    angle: input.angle,
+    persona: input.persona,
+    headline: input.headline,
+    backgroundInstruction: input.backgroundInstruction,
     baseImage: emptyBaseImage(),
     textOverlay: null,
     finalImage: null,
   };
+  await saveStaticAdProject(project);
+  return project;
+}
+
+// Discards one generation attempt from a project's grid — the "delete this
+// version" action. Best-effort file cleanup (a missing file is not an
+// error worth surfacing); clears acceptedAttempt if it pointed at the
+// attempt being removed, so the workspace doesn't keep referencing a
+// deleted image.
+export async function deleteStaticAdAttempt(
+  projectId: string,
+  attempt: number
+): Promise<StaticAdProject | null> {
+  const project = await loadStaticAdProject(projectId);
+  if (!project) return null;
+
+  const target = project.baseImage.attempts.find((a) => a.attempt === attempt);
+  if (!target) return project;
+
+  if (target.file) {
+    try {
+      await fs.unlink(join(STATIC_ADS_DIR, projectId, target.file));
+    } catch {
+      // Missing file is fine — nothing left to clean up.
+    }
+  }
+
+  project.baseImage.attempts = project.baseImage.attempts.filter((a) => a.attempt !== attempt);
+  if (project.baseImage.acceptedAttempt === attempt) {
+    project.baseImage.acceptedAttempt = null;
+  }
+  project.updatedAt = new Date().toISOString();
   await saveStaticAdProject(project);
   return project;
 }

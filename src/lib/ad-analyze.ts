@@ -1,11 +1,46 @@
 import {
   createPartFromBase64,
   createUserContent,
+  Type,
   type GoogleGenAI,
 } from "@google/genai";
 import { getGeminiModel } from "./gemini";
-import { AdAnalysisZ, adAnalysisResponseSchema, type AdAnalysis } from "./ad-analysis-schema";
+import { AdAnalysisZ, AD_INTENTS, type AdAnalysis } from "./ad-analysis-schema";
 import { fetchImageAsBase64 } from "./fetch-image";
+
+// Gemini structured-output schema — keep in sync with AdAnalysisZ. Lives
+// here (not ad-analysis-schema.ts) so that client-safe file never imports
+// @google/genai — see its header comment.
+const adAnalysisResponseSchema = {
+  type: Type.OBJECT,
+  required: ["summary", "intent", "usp", "persona", "productShown", "tags"],
+  properties: {
+    summary: {
+      type: Type.STRING,
+      description: "One or two plain-language sentences describing the ad.",
+    },
+    intent: { type: Type.STRING, enum: [...AD_INTENTS] },
+    usp: {
+      type: Type.STRING,
+      description:
+        "The single unique selling proposition the ad leads with (e.g. 'blocks 99% of blue light while you sleep').",
+    },
+    persona: {
+      type: Type.STRING,
+      description:
+        "Who this ad is targeting, in plain language (e.g. 'night-shift workers struggling to fall asleep').",
+    },
+    productShown: {
+      type: Type.STRING,
+      description: "What product or product category is visually shown in the creative.",
+    },
+    tags: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "Short lowercase keyword tags for this ad's angle/style/format.",
+    },
+  },
+};
 
 interface AdContext {
   headline: string | null;

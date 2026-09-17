@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { StaticAdTextOverlayZ } from "./static-ad-overlays-schema";
+import { AD_INTENTS } from "./ad-analysis-schema";
 
 // A Static Ad Generator project: one competitor reference ad, swapped in
 // with our own product/USP, worked through generation + refinement + a
@@ -54,9 +55,17 @@ export const StaticAdProjectZ = z.object({
   // The USP we're leading with, pre-filled from the reference ad's
   // analysis but user-editable — the "swap" the whole project is about.
   ourUsp: z.string(),
-  // Filename within product-images/<productLineId>/ (see
-  // product-images-store.ts, reused as-is — no new upload mechanism).
-  ourProductImage: z.string(),
+  // Pre-filled from the reference ad's analysis.intent/persona but
+  // user-editable — drives the generation brief alongside ourUsp.
+  angle: z.enum(AD_INTENTS).default("other"),
+  persona: z.string().default(""),
+  // Pre-filled from the reference ad's own headline; feeds the text
+  // overlay step's default headline once a base image is accepted.
+  headline: z.string().default(""),
+  // Free-text brief for the generated backdrop/scene — pre-filled with a
+  // default suggestion, editable, clearable back to null ("delete the
+  // current suggestion").
+  backgroundInstruction: z.string().nullable().default(null),
   baseImage: StaticAdBaseImageZ,
   textOverlay: StaticAdTextOverlayZ.nullable(),
   // Basename within static-ads/<projectId>/ of the base image + overlay

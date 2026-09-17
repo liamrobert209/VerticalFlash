@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { Type } from "@google/genai";
+
+// Client-safe: no @google/genai import here. The Gemini structured-output
+// schema (adAnalysisResponseSchema) lives in ad-analyze.ts instead, since
+// its only consumer is server-only — importing it here would drag the
+// Gemini SDK into any client bundle that just wants AD_INTENTS/AdAnalysisZ
+// (e.g. the static ad editor's angle picker). Confirmed the hard way: this
+// split exists because importing AD_INTENT_LABELS from here once bloated
+// weekly-ads' client bundle by ~37KB before the split.
 
 // Automatic Gemini analysis run once per eligible static competitor ad, at
 // ingest time (see ad-analyze.ts / weekly-ads-sync.ts) — feeds the Weekly
@@ -16,6 +23,18 @@ export const AD_INTENTS = [
 ] as const;
 
 export type AdIntent = (typeof AD_INTENTS)[number];
+
+// Shared display labels for AD_INTENTS — was independently hand-duplicated
+// in weekly-ads/page.tsx and weekly-static-ads/page.tsx; a third caller
+// (the static ad editor's angle picker) made a shared copy worth it.
+export const AD_INTENT_LABELS: Record<AdIntent, string> = {
+  direct_response: "Direct response",
+  brand_awareness: "Brand awareness",
+  retargeting: "Retargeting",
+  seasonal_promo: "Seasonal promo",
+  product_launch: "Product launch",
+  other: "Other",
+};
 
 // Field names are deliberately camelCase, unlike the snake_case convention
 // used by the per-video Gemini analysis schema — this one round-trips
@@ -38,35 +57,3 @@ export const AdAnalysisZ = z.object({
 });
 
 export type AdAnalysis = z.infer<typeof AdAnalysisZ>;
-
-// Gemini structured-output schema — keep in sync with AdAnalysisZ
-export const adAnalysisResponseSchema = {
-  type: Type.OBJECT,
-  required: ["summary", "intent", "usp", "persona", "productShown", "tags"],
-  properties: {
-    summary: {
-      type: Type.STRING,
-      description: "One or two plain-language sentences describing the ad.",
-    },
-    intent: { type: Type.STRING, enum: [...AD_INTENTS] },
-    usp: {
-      type: Type.STRING,
-      description:
-        "The single unique selling proposition the ad leads with (e.g. 'blocks 99% of blue light while you sleep').",
-    },
-    persona: {
-      type: Type.STRING,
-      description:
-        "Who this ad is targeting, in plain language (e.g. 'night-shift workers struggling to fall asleep').",
-    },
-    productShown: {
-      type: Type.STRING,
-      description: "What product or product category is visually shown in the creative.",
-    },
-    tags: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "Short lowercase keyword tags for this ad's angle/style/format.",
-    },
-  },
-};

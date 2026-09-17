@@ -4,13 +4,18 @@ import { extname } from "path";
 import { getGeminiClient, classifyGeminiError } from "@/lib/gemini";
 import { getAd } from "@/lib/ads-store";
 import { loadStaticAdProject } from "@/lib/static-ad-store";
-import { productImagePath } from "@/lib/product-images-store";
+import { getProductImageSlots, productImagePath } from "@/lib/product-images-store";
 import { fetchImageAsBase64, type ImageBytes } from "@/lib/fetch-image";
 import { generateBaseImage } from "@/lib/static-ad-generate";
-import { executeStaticAdAttempt } from "@/lib/static-ad-run";
+import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
+
+// Every generation now happens as a batch of 5 independent tries from the
+// same locked-in inputs, so the user picks a favorite instead of iterating
+// one attempt at a time.
+const VERSIONS_PER_BATCH = 5;
 
 const PRODUCT_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -37,6 +42,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     return NextResponse.json({ error: "Reference ad's creative image is unavailable" }, { status: 400 });
   }
 
+  const slots = await getProductImageSlots(project.productLineId);
+  const filledSlots = slots.filter((s) => s.filename);
+  if (filledSlots.length === 0) {
+    return NextResponse.json(
+      { error: "Add at least one product photo in Settings → Product images first" },
+      { status: 400 }
+    );
+  }
+
   let ai;
   try {
     ai = getGeminiClient();
@@ -48,17 +62,23 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
   }
 
   try {
-    const [referenceBytes, productBytes] = await Promise.all([
+    const [referenceBytes, ...productBytes] = await Promise.all([
       fetchImageAsBase64(referenceAd.creativeUrl),
-      loadProductImageBytes(project.productLineId, project.ourProductImage),
+      ...filledSlots.map((s) => loadProductImageBytes(project.productLineId, s.filename as string)),
     ]);
 
-    const outcome = await executeStaticAdAttempt({
+    const brief = {
+      usp: project.ourUsp,
+      angle: project.angle,
+      persona: project.persona,
+      backgroundInstruction: project.backgroundInstruction,
+    };
+
+    const outcome = await executeStaticAdBatchGenerate({
       projectId,
-      kind: "generate",
+      count: VERSIONS_PER_BATCH,
       prompt: project.ourUsp,
-      parentAttempt: null,
-      run: () => generateBaseImage(ai, referenceBytes, productBytes, project.ourUsp),
+      run: () => generateBaseImage(ai, referenceBytes, productBytes, brief),
     });
 
     if ("notFound" in outcome) {

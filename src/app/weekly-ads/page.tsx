@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { AdWithAccount } from "@/lib/ads-schema";
-import type { AdIntent } from "@/lib/ad-analysis-schema";
+import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
 
@@ -21,19 +21,8 @@ const SYNC_PLATFORMS = [
   { id: "tiktok", label: "TikTok" },
 ];
 
-// Same labels as weekly-static-ads/page.tsx's INTENT_LABELS — kept as a
-// small local copy rather than a shared import since it's just 6 strings.
-const INTENT_LABELS: Record<AdIntent, string> = {
-  direct_response: "Direct response",
-  brand_awareness: "Brand awareness",
-  retargeting: "Retargeting",
-  seasonal_promo: "Seasonal promo",
-  product_launch: "Product launch",
-  other: "Other",
-};
-
 function adAngle(ad: Ad): string {
-  if (ad.analysis) return INTENT_LABELS[ad.analysis.intent];
+  if (ad.analysis) return AD_INTENT_LABELS[ad.analysis.intent];
   return ad.tags[0] ?? "—";
 }
 
@@ -95,6 +84,13 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
 function AdDetail({ ad, productLineId }: { ad: Ad; productLineId: string }) {
   const days = runningDays(ad);
   const generateHref = useMemo(() => {
+    // Static-image ads get the real editor (angle/persona/copy/background,
+    // 5-way batch generation) — video-sourced ads keep the existing
+    // create-ad-hoc flow, which has no equivalent for a static image.
+    if (ad.isStaticEligible) {
+      const params = new URLSearchParams({ referenceAdId: ad.id, productLineId });
+      return `/create-static-ad?${params.toString()}`;
+    }
     const params = new URLSearchParams({ origin: "ad", productLineId });
     if (ad.creativeUrl) params.set("url", ad.creativeUrl);
     else if (ad.landingUrl) params.set("url", ad.landingUrl);

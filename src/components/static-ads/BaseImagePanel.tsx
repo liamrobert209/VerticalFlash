@@ -31,19 +31,28 @@ export interface BaseImagePanelProps {
   onUpdated: (baseImage: StaticAdBaseImage) => void;
 }
 
+const VERSIONS_PER_BATCH = 5;
+
 function costLine(): string | null {
   if (GEMINI_IMAGE_PRICE_PER_IMAGE == null) return null;
   return `~$${GEMINI_IMAGE_PRICE_PER_IMAGE.toFixed(3)}`;
+}
+
+function batchCostLine(): string | null {
+  if (GEMINI_IMAGE_PRICE_PER_IMAGE == null) return null;
+  return `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)} for ${VERSIONS_PER_BATCH}`;
 }
 
 export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePanelProps) {
   const [refineText, setRefineText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingAttempt, setDeletingAttempt] = useState<number | null>(null);
 
   const generating = baseImage.status === "generating" || busy;
   const hasAttempts = baseImage.attempts.length > 0;
   const price = costLine();
+  const batchPrice = batchCostLine();
 
   const runGenerate = async () => {
     setBusy(true);
@@ -57,6 +66,21 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const deleteAttempt = async (attempt: number) => {
+    setDeletingAttempt(attempt);
+    setError(null);
+    try {
+      const res = await fetch(`/api/static-ads/${projectId}/attempts/${attempt}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
+      onUpdated(data.baseImage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeletingAttempt(null);
     }
   };
 
@@ -108,8 +132,8 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
           disabled={generating}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {generating ? "Generating…" : "Generate base image"}
-          {price && !generating && <span className="ml-1 text-xs opacity-80">({price})</span>}
+          {generating ? "Generating 5 versions…" : "Generate 5 versions"}
+          {batchPrice && !generating && <span className="ml-1 text-xs opacity-80">({batchPrice})</span>}
         </button>
       )}
 
@@ -138,19 +162,28 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
                   {attempt.kind} #{attempt.attempt}
                 </span>
-                {attempt.status === "ready" && (
+                <div className="flex items-center gap-1.5">
+                  {attempt.status === "ready" && (
+                    <button
+                      onClick={() => accept(attempt.attempt)}
+                      disabled={generating}
+                      className={`text-xs font-semibold rounded-full px-2 py-0.5 ${
+                        baseImage.acceptedAttempt === attempt.attempt
+                          ? "bg-primary/15 text-primary"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      }`}
+                    >
+                      {baseImage.acceptedAttempt === attempt.attempt ? "✓ Accepted" : "Use this"}
+                    </button>
+                  )}
                   <button
-                    onClick={() => accept(attempt.attempt)}
-                    disabled={generating}
-                    className={`text-xs font-semibold rounded-full px-2 py-0.5 ${
-                      baseImage.acceptedAttempt === attempt.attempt
-                        ? "bg-primary/15 text-primary"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    }`}
+                    onClick={() => deleteAttempt(attempt.attempt)}
+                    disabled={generating || deletingAttempt === attempt.attempt}
+                    className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
-                    {baseImage.acceptedAttempt === attempt.attempt ? "✓ Accepted" : "Use this"}
+                    {deletingAttempt === attempt.attempt ? "Deleting…" : "Delete"}
                   </button>
-                )}
+                </div>
               </div>
             </div>
           ))}
@@ -158,11 +191,22 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       )}
 
       {hasAttempts && (
+        <button
+          onClick={runGenerate}
+          disabled={generating}
+          className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+        >
+          {generating ? "Generating…" : "Generate 5 more"}
+          {batchPrice && !generating && <span className="ml-1 text-xs opacity-80">({batchPrice})</span>}
+        </button>
+      )}
+
+      {hasAttempts && (
         <div className="flex gap-2">
           <input
             value={refineText}
             onChange={(e) => setRefineText(e.target.value)}
-            placeholder="Refine it — e.g. “make the lighting warmer”"
+            placeholder="Refine the accepted version — e.g. “make the lighting warmer”"
             disabled={generating}
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
           />

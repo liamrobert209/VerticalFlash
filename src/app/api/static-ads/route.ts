@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAd } from "@/lib/ads-store";
 import { getProductLinesConfig } from "@/lib/config";
-import { getProductImageSlots } from "@/lib/product-images-store";
 import { createStaticAdProject, listStaticAdProjects } from "@/lib/static-ad-store";
 import { STATIC_AD_STATUSES } from "@/lib/static-ad-schema";
+import { AD_INTENTS } from "@/lib/ad-analysis-schema";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,10 @@ const CreateBodyZ = z.object({
   referenceAdId: z.string().min(1),
   productLineId: z.string().min(1),
   ourUsp: z.string().min(1),
-  ourProductImage: z.string().min(1),
+  angle: z.enum(AD_INTENTS),
+  persona: z.string().default(""),
+  headline: z.string().default(""),
+  backgroundInstruction: z.string().nullable().default(null),
 });
 
 export async function POST(request: NextRequest) {
@@ -42,14 +45,6 @@ export async function POST(request: NextRequest) {
   if (!referenceAd.isStaticEligible) {
     return NextResponse.json(
       { error: "That ad isn't eligible as a static reference (no genuine static-image creative)" },
-      { status: 400 }
-    );
-  }
-
-  const slots = await getProductImageSlots(body.productLineId);
-  if (!slots.some((s) => s.filename === body.ourProductImage)) {
-    return NextResponse.json(
-      { error: "Unknown product image for that product line" },
       { status: 400 }
     );
   }
