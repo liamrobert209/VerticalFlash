@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAd } from "@/lib/ads-store";
 import { getProductLinesConfig } from "@/lib/config";
-import { listProductImages } from "@/lib/product-images-store";
+import { getProductImageSlots } from "@/lib/product-images-store";
 import { createStaticAdProject, listStaticAdProjects } from "@/lib/static-ad-store";
 import { STATIC_AD_STATUSES } from "@/lib/static-ad-schema";
 
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const images = await listProductImages(body.productLineId);
-  if (!images.includes(body.ourProductImage)) {
+  const slots = await getProductImageSlots(body.productLineId);
+  if (!slots.some((s) => s.filename === body.ourProductImage)) {
     return NextResponse.json(
       { error: "Unknown product image for that product line" },
       { status: 400 }

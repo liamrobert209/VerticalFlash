@@ -14,7 +14,7 @@ import {
 import type { ClipLibrary } from "./library-schema";
 import type { Analysis } from "./analysis-schema";
 import { LIBRARY_DIR } from "./paths";
-import { listProductImages, productImagePath } from "./product-images-store";
+import { getProductImageSlots, productImagePath } from "./product-images-store";
 
 const REFS_DIR = join(GENERATED_DIR, ".refs");
 const IMAGE_REFS_DIR = join(GENERATED_DIR, ".image-refs");
@@ -172,7 +172,11 @@ export async function prepareProductImageReferences(
   productLineId: string,
   maxCount: number
 ): Promise<string[]> {
-  const images = (await listProductImages(productLineId)).slice(0, maxCount);
+  const slots = await getProductImageSlots(productLineId);
+  const images = slots
+    .filter((s): s is typeof s & { filename: string } => s.filename != null)
+    .slice(0, maxCount)
+    .map((s) => s.filename);
   if (images.length === 0) return [];
   await fs.mkdir(IMAGE_REFS_DIR, { recursive: true });
   const out: string[] = [];

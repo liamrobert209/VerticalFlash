@@ -62,6 +62,12 @@ function ReferencePicker({
   );
 }
 
+interface ProductImageSlot {
+  id: number;
+  label: string;
+  filename: string | null;
+}
+
 function ProductImagePicker({
   productLineId,
   selected,
@@ -71,20 +77,21 @@ function ProductImagePicker({
   selected: string | null;
   onSelect: (filename: string) => void;
 }) {
-  const [images, setImages] = useState<string[]>([]);
+  const [slots, setSlots] = useState<ProductImageSlot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     fetch(`/api/settings/product-images?productLineId=${encodeURIComponent(productLineId)}`)
       .then((res) => res.json())
-      .then((data) => setImages(data.images ?? []))
-      .catch(() => setImages([]))
+      .then((data) => setSlots(data.slots ?? []))
+      .catch(() => setSlots([]))
       .finally(() => setLoading(false));
   }, [productLineId]);
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading product photos…</p>;
-  if (images.length === 0) {
+  const filled = slots.filter((s) => s.filename);
+  if (filled.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No product photos uploaded for this product line yet — add some in Settings → Product images.
@@ -94,20 +101,21 @@ function ProductImagePicker({
 
   return (
     <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-      {images.map((filename) => (
+      {filled.map((slot) => (
         <button
-          key={filename}
-          onClick={() => onSelect(filename)}
+          key={slot.id}
+          onClick={() => onSelect(slot.filename as string)}
           className={`rounded-lg border overflow-hidden transition-colors ${
-            selected === filename ? "border-primary" : "border-border hover:border-primary/60"
+            selected === slot.filename ? "border-primary" : "border-border hover:border-primary/60"
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/settings/product-images/${encodeURIComponent(productLineId)}/${encodeURIComponent(filename)}`}
-            alt={filename}
+            src={`/api/settings/product-images/${encodeURIComponent(productLineId)}/${slot.id}`}
+            alt={slot.label}
             className="w-full aspect-square object-cover bg-muted"
           />
+          <p className="truncate px-1 py-0.5 text-[10px] text-muted-foreground">{slot.label}</p>
         </button>
       ))}
     </div>

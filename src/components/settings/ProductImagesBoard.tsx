@@ -1,16 +1,127 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Upload } from "lucide-react";
 import { useActiveProduct } from "@/app/context/active-product";
+
+interface ProductImageSlot {
+  id: number;
+  label: string;
+  filename: string | null;
+}
+
+function SlotCard({
+  productLineId,
+  slot,
+  onChanged,
+}: {
+  productLineId: string;
+  slot: ProductImageSlot;
+  onChanged: (slots: ProductImageSlot[]) => void;
+}) {
+  const [label, setLabel] = useState(slot.label);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => setLabel(slot.label), [slot.label]);
+
+  const saveLabel = async () => {
+    if (label === slot.label) return;
+    try {
+      const res = await fetch(`/api/settings/product-images/${productLineId}/${slot.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label }),
+      });
+      const data = await res.json();
+      if (res.ok) onChanged(data.slots);
+    } catch {
+      // best-effort — the label field just keeps its local value
+    }
+  };
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/settings/product-images/${productLineId}/${slot.id}`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      onChanged(data.slots);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clear = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/settings/product-images/${productLineId}/${slot.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) onChanged(data.slots);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        onBlur={saveLabel}
+        placeholder={`Image ${slot.id}`}
+        className="rounded-md border border-input bg-background px-2 py-1 text-xs font-semibold"
+      />
+      <div className="group relative aspect-square overflow-hidden rounded-md border border-border bg-muted">
+        {slot.filename ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/settings/product-images/${productLineId}/${slot.id}?t=${slot.filename}`}
+              alt={slot.label}
+              className="size-full object-cover"
+            />
+            <button
+              onClick={clear}
+              disabled={busy}
+              aria-label={`Remove ${slot.label}`}
+              className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 disabled:opacity-50"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </>
+        ) : (
+          <label className="flex size-full cursor-pointer flex-col items-center justify-center gap-1 text-muted-foreground">
+            <Upload className="size-5" />
+            <span className="text-[10px]">Upload</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+            />
+          </label>
+        )}
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 export function ProductImagesBoard() {
   const { options: productLineOptions } = useActiveProduct();
   const [productLineId, setProductLineId] = useState(productLineOptions[0]?.id ?? "");
-  const [images, setImages] = useState<string[]>([]);
+  const [slots, setSlots] = useState<ProductImageSlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = async (id: string) => {
     if (!id) return;
@@ -18,9 +129,9 @@ export function ProductImagesBoard() {
     try {
       const res = await fetch(`/api/settings/product-images?productLineId=${encodeURIComponent(id)}`, { cache: "no-store" });
       const data = await res.json();
-      setImages(data.images ?? []);
+      setSlots(data.slots ?? []);
     } catch {
-      setImages([]);
+      setSlots([]);
     } finally {
       setLoading(false);
     }
@@ -30,41 +141,17 @@ export function ProductImagesBoard() {
     load(productLineId);
   }, [productLineId]);
 
-  const upload = async (file: File) => {
-    setUploading(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("productLineId", productLineId);
-      const res = await fetch("/api/settings/product-images", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      await load(productLineId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const remove = async (filename: string) => {
-    await fetch(`/api/settings/product-images/${encodeURIComponent(productLineId)}/${encodeURIComponent(filename)}`, {
-      method: "DELETE",
-    });
-    await load(productLineId);
-  };
-
   return (
     <section aria-labelledby="product-images" className="rounded-lg border border-border bg-card p-5 sm:p-7">
       <div>
         <h2 id="product-images" className="text-lg font-semibold">Product images</h2>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Real reference photos per product — used automatically when generating AI shots, so the output looks like your actual product instead of a generic guess.
+          Real reference photos per product — used automatically when generating AI shots and static ads, so the
+          output looks like your actual product instead of a generic guess. Five labeled slots per product line.
         </p>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4">
         <select
           value={productLineId}
           onChange={(e) => setProductLineId(e.target.value)}
@@ -74,39 +161,16 @@ export function ProductImagesBoard() {
             <option key={p.id} value={p.id}>{p.label}</option>
           ))}
         </select>
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-          disabled={uploading}
-          className="text-sm"
-        />
       </div>
 
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-
-      <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-        {loading && <p className="col-span-full text-sm text-muted-foreground">Loading...</p>}
-        {!loading && images.length === 0 && (
-          <p className="col-span-full text-sm text-muted-foreground">No reference photos for this product yet.</p>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        {loading ? (
+          <p className="col-span-full text-sm text-muted-foreground">Loading...</p>
+        ) : (
+          slots.map((slot) => (
+            <SlotCard key={slot.id} productLineId={productLineId} slot={slot} onChanged={setSlots} />
+          ))
         )}
-        {images.map((filename) => (
-          <div key={filename} className="group relative aspect-square overflow-hidden rounded-md border border-border">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/api/settings/product-images/${encodeURIComponent(productLineId)}/${encodeURIComponent(filename)}`}
-              alt={filename}
-              className="size-full object-cover"
-            />
-            <button
-              onClick={() => remove(filename)}
-              aria-label={`Delete ${filename}`}
-              className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        ))}
       </div>
     </section>
   );
