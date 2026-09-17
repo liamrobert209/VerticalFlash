@@ -116,14 +116,16 @@ export async function createCompetitor(input: CompetitorAccountInput): Promise<C
   return sql.begin(async (tx) => {
     await tx`
       insert into competitor_accounts (
-        id, name, account_type, region, website, instagram_handle, instagram_followers,
-        facebook_handle, facebook_followers, tiktok_handle, tiktok_status,
+        id, name, account_type, region, website,
+        instagram_handle, instagram_url, instagram_followers,
+        facebook_handle, facebook_url, facebook_followers,
+        tiktok_handle, tiktok_url, tiktok_status,
         positioning, cross_category_flag, notes, created_at, updated_at
       ) values (
         ${id}, ${input.name}, ${input.accountType}, ${input.region}, ${input.website ?? null},
-        ${input.instagramHandle ?? null}, ${input.instagramFollowers ?? null},
-        ${input.facebookHandle ?? null}, ${input.facebookFollowers ?? null},
-        ${input.tiktokHandle ?? null}, ${input.tiktokStatus},
+        ${input.instagramHandle ?? null}, ${input.instagramUrl ?? null}, ${input.instagramFollowers ?? null},
+        ${input.facebookHandle ?? null}, ${input.facebookUrl ?? null}, ${input.facebookFollowers ?? null},
+        ${input.tiktokHandle ?? null}, ${input.tiktokUrl ?? null}, ${input.tiktokStatus},
         ${input.positioning ?? null}, ${input.crossCategoryFlag}, ${input.notes ?? null},
         now(), now()
       )
@@ -157,10 +159,13 @@ export async function updateCompetitor(
         region = ${input.region ?? existing.region},
         website = ${input.website !== undefined ? input.website : existing.website},
         instagram_handle = ${input.instagramHandle !== undefined ? input.instagramHandle : existing.instagramHandle},
+        instagram_url = ${input.instagramUrl !== undefined ? input.instagramUrl : existing.instagramUrl},
         instagram_followers = ${input.instagramFollowers !== undefined ? input.instagramFollowers : existing.instagramFollowers},
         facebook_handle = ${input.facebookHandle !== undefined ? input.facebookHandle : existing.facebookHandle},
+        facebook_url = ${input.facebookUrl !== undefined ? input.facebookUrl : existing.facebookUrl},
         facebook_followers = ${input.facebookFollowers !== undefined ? input.facebookFollowers : existing.facebookFollowers},
         tiktok_handle = ${input.tiktokHandle !== undefined ? input.tiktokHandle : existing.tiktokHandle},
+        tiktok_url = ${input.tiktokUrl !== undefined ? input.tiktokUrl : existing.tiktokUrl},
         tiktok_status = ${input.tiktokStatus ?? existing.tiktokStatus},
         positioning = ${input.positioning !== undefined ? input.positioning : existing.positioning},
         cross_category_flag = ${input.crossCategoryFlag ?? existing.crossCategoryFlag},

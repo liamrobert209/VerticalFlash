@@ -49,10 +49,13 @@ const EMPTY_FORM: CompetitorAccountInput = {
   region: "uk",
   website: null,
   instagramHandle: null,
+  instagramUrl: null,
   instagramFollowers: null,
   facebookHandle: null,
+  facebookUrl: null,
   facebookFollowers: null,
   tiktokHandle: null,
+  tiktokUrl: null,
   tiktokStatus: "not_found",
   positioning: null,
   crossCategoryFlag: false,
@@ -143,36 +146,105 @@ function AccountForm({
             placeholder="https://..."
           />
         </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok handle</span>
-          <input
-            value={form.tiktokHandle ?? ""}
-            onChange={(e) => setForm({ ...form, tiktokHandle: e.target.value || null })}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-            placeholder="handle (no @)"
-          />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok status</span>
-          <select
-            value={form.tiktokStatus}
-            onChange={(e) => setForm({ ...form, tiktokStatus: e.target.value as TikTokStatus })}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          >
-            {TIKTOK_STATUSES.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Instagram followers</span>
-          <input
-            type="number"
-            value={form.instagramFollowers ?? ""}
-            onChange={(e) => setForm({ ...form, instagramFollowers: e.target.value ? Number(e.target.value) : null })}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </label>
+      </div>
+
+      <div className="space-y-3 rounded-md border border-border p-3">
+        <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Social profiles
+        </span>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok username</span>
+            <input
+              value={form.tiktokHandle ?? ""}
+              onChange={(e) => setForm({ ...form, tiktokHandle: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="handle (no @)"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok link</span>
+            <input
+              value={form.tiktokUrl ?? ""}
+              onChange={(e) => setForm({ ...form, tiktokUrl: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="https://tiktok.com/@..."
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok status</span>
+            <select
+              value={form.tiktokStatus}
+              onChange={(e) => setForm({ ...form, tiktokStatus: e.target.value as TikTokStatus })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              {TIKTOK_STATUSES.map((s) => (
+                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Facebook username</span>
+            <input
+              value={form.facebookHandle ?? ""}
+              onChange={(e) => setForm({ ...form, facebookHandle: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="handle"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Facebook link</span>
+            <input
+              value={form.facebookUrl ?? ""}
+              onChange={(e) => setForm({ ...form, facebookUrl: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="https://facebook.com/..."
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Facebook followers</span>
+            <input
+              type="number"
+              value={form.facebookFollowers ?? ""}
+              onChange={(e) => setForm({ ...form, facebookFollowers: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Instagram username</span>
+            <input
+              value={form.instagramHandle ?? ""}
+              onChange={(e) => setForm({ ...form, instagramHandle: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="handle"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Instagram link</span>
+            <input
+              value={form.instagramUrl ?? ""}
+              onChange={(e) => setForm({ ...form, instagramUrl: e.target.value || null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+              placeholder="https://instagram.com/..."
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Instagram followers</span>
+            <input
+              type="number"
+              value={form.instagramFollowers ?? ""}
+              onChange={(e) => setForm({ ...form, instagramFollowers: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
       </div>
 
       <label className="block text-sm">
@@ -210,7 +282,12 @@ function AccountForm({
       </div>
 
       <div>
-        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Product lines</span>
+        <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          Our products they also sell
+        </span>
+        <p className="mb-1.5 text-xs text-muted-foreground">
+          Used to filter this list down to only the competitors relevant to a given product.
+        </p>
         <div className="flex flex-wrap gap-3">
           {productLineOptions.map((p) => (
             <label key={p.id} className="flex items-center gap-1.5 text-sm">
@@ -257,12 +334,14 @@ function AccountForm({
 }
 
 export function CompetitorsBoard() {
+  const { options: productLineOptions } = useActiveProduct();
   const [accounts, setAccounts] = useState<CompetitorAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState<CompetitorRegion | "">("");
   const [categoryFilter, setCategoryFilter] = useState<CompetitorCategoryId | "">("");
   const [accountTypeFilter, setAccountTypeFilter] = useState<AccountType | "">("");
+  const [productLineFilter, setProductLineFilter] = useState<string>("");
   const [scanReadyOnly, setScanReadyOnly] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -276,6 +355,7 @@ export function CompetitorsBoard() {
       if (regionFilter) params.set("region", regionFilter);
       if (categoryFilter) params.set("category", categoryFilter);
       if (accountTypeFilter) params.set("accountType", accountTypeFilter);
+      if (productLineFilter) params.set("productLineId", productLineFilter);
       if (scanReadyOnly) params.set("scanReady", "true");
       const res = await fetch(`/api/competitors?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
@@ -291,7 +371,7 @@ export function CompetitorsBoard() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regionFilter, categoryFilter, accountTypeFilter, scanReadyOnly]);
+  }, [regionFilter, categoryFilter, accountTypeFilter, productLineFilter, scanReadyOnly]);
 
   const remove = async (id: string) => {
     if (!confirm("Remove this competitor from your saved accounts?")) return;
@@ -319,7 +399,7 @@ export function CompetitorsBoard() {
           </div>
           <h2 id="saved-accounts" className="text-lg font-semibold">Competitor / reference accounts</h2>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {accounts.length} accounts loaded{regionFilter || categoryFilter || scanReadyOnly ? " (filtered)" : ""} · {scanReadyCount} scan-ready in this view.
+            {accounts.length} accounts loaded{regionFilter || categoryFilter || productLineFilter || scanReadyOnly ? " (filtered)" : ""} · {scanReadyCount} scan-ready in this view.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -363,6 +443,16 @@ export function CompetitorsBoard() {
           <option value="">Brands + creators</option>
           {ACCOUNT_TYPES.map((t) => (
             <option key={t} value={t}>{ACCOUNT_TYPE_LABELS[t]}</option>
+          ))}
+        </select>
+        <select
+          value={productLineFilter}
+          onChange={(e) => setProductLineFilter(e.target.value)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="">All products</option>
+          {productLineOptions.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
           ))}
         </select>
         <label className="flex items-center gap-1.5 text-sm">
@@ -484,10 +574,13 @@ export function CompetitorsBoard() {
                           region: account.region,
                           website: account.website,
                           instagramHandle: account.instagramHandle,
+                          instagramUrl: account.instagramUrl,
                           instagramFollowers: account.instagramFollowers,
                           facebookHandle: account.facebookHandle,
+                          facebookUrl: account.facebookUrl,
                           facebookFollowers: account.facebookFollowers,
                           tiktokHandle: account.tiktokHandle,
+                          tiktokUrl: account.tiktokUrl,
                           tiktokStatus: account.tiktokStatus,
                           positioning: account.positioning,
                           crossCategoryFlag: account.crossCategoryFlag,
