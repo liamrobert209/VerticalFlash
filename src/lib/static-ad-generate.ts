@@ -57,12 +57,17 @@ export async function generateBaseImage(
 existing ad as a style/composition reference.
 
 The FIRST image is a competitor's ad creative — use its composition, framing,
-lighting, and overall visual style as a reference.
+lighting, and overall visual style as a reference ONLY. The competitor's
+product itself must NOT appear anywhere in the output — do not depict it,
+even partially or in the background. Replace it entirely.
 The REMAINING image(s) are real reference photos of our own product — use
-them to render the actual product accurately, not a generic stand-in.
+them to render the actual product accurately (matching its real shape,
+color, and branding), not a generic stand-in, and it must be the ONLY
+product visible in the generated image.
 
 Generate ONE new photographic image that follows the first image's
-composition/style/layout, but features our product instead.
+composition/style/layout, but with the competitor's product fully replaced
+by our own product from the reference photos.
 The ad's message is: "${brief.usp}".
 Marketing angle: ${brief.angle}.
 Target persona: ${brief.persona || "same as the reference ad's apparent audience"}.

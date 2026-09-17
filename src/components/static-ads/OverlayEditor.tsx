@@ -5,8 +5,9 @@ import { useState } from "react";
 // Mirrors static-ad-overlays-schema.ts (kept local, matching this
 // component tree's convention of not importing the schema module directly
 // into the client bundle).
-export type OverlayRole = "headline" | "subhead" | "cta";
+export type OverlayRole = "headline" | "subhead" | "cta" | "badge";
 export type OverlayPosition = "top" | "center" | "bottom";
+export type OverlayLayout = "stacked" | "split_band";
 
 export interface StaticAdOverlayElement {
   role: OverlayRole;
@@ -17,12 +18,19 @@ export interface StaticAdOverlayElement {
 
 export interface StaticAdTextOverlay {
   elements: StaticAdOverlayElement[];
+  layout: OverlayLayout;
 }
 
 const ROLE_LABELS: Record<OverlayRole, string> = {
   headline: "Headline",
   subhead: "Subhead",
   cta: "Call to action",
+  badge: "Trust badge",
+};
+
+const LAYOUT_LABELS: Record<OverlayLayout, string> = {
+  stacked: "Stacked (default)",
+  split_band: "Bottom band",
 };
 
 const POSITIONS: OverlayPosition[] = ["top", "center", "bottom"];
@@ -33,7 +41,9 @@ function defaultOverlay(): StaticAdTextOverlay {
       { role: "headline", text: "", include: false, position: "top" },
       { role: "subhead", text: "", include: false, position: "top" },
       { role: "cta", text: "Shop now", include: false, position: "bottom" },
+      { role: "badge", text: "Rated 4.8 · 10,000+ reviews", include: false, position: "bottom" },
     ],
+    layout: "stacked",
   };
 }
 
@@ -51,6 +61,7 @@ export function OverlayEditor({ projectId, initialOverlay, finalImage, onApplied
 
   const updateElement = (role: OverlayRole, patch: Partial<StaticAdOverlayElement>) => {
     setOverlay((prev) => ({
+      ...prev,
       elements: prev.elements.map((el) => (el.role === role ? { ...el, ...patch } : el)),
     }));
   };
@@ -84,6 +95,21 @@ export function OverlayEditor({ projectId, initialOverlay, finalImage, onApplied
           className="w-full max-w-sm rounded-lg border border-border"
         />
       )}
+
+      <label className="flex items-center gap-2 text-xs">
+        <span className="font-semibold text-muted-foreground">Layout</span>
+        <select
+          value={overlay.layout}
+          onChange={(e) => setOverlay((prev) => ({ ...prev, layout: e.target.value as OverlayLayout }))}
+          className="h-8 rounded-md border border-input bg-background px-1.5 text-xs"
+        >
+          {(Object.keys(LAYOUT_LABELS) as OverlayLayout[]).map((l) => (
+            <option key={l} value={l}>
+              {LAYOUT_LABELS[l]}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {overlay.elements.map((el) => (
         <div key={el.role} className="flex items-center gap-2">

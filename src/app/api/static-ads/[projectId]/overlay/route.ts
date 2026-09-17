@@ -5,7 +5,8 @@ import { STATIC_ADS_DIR } from "@/lib/paths";
 import { loadStaticAdProject, saveStaticAdProject } from "@/lib/static-ad-store";
 import { staticAdAttemptImagePath } from "@/lib/static-ad-run";
 import { StaticAdTextOverlayZ } from "@/lib/static-ad-overlays-schema";
-import { compositeStaticAd } from "@/lib/static-ad-overlays";
+import { compositeStaticAd, type OverlayPalette } from "@/lib/static-ad-overlays";
+import { getLatestColorPalette } from "@/lib/brand-assets-store";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
+    const colors = await getLatestColorPalette();
+    // First color = primary/headline, second = accent/CTA — matches the
+    // order the brand-assets UI asks colors to be entered in.
+    const palette: OverlayPalette | undefined = colors
+      ? { primaryColor: colors[0], accentColor: colors[1] }
+      : undefined;
     const composited = await compositeStaticAd(
       staticAdAttemptImagePath(projectId, accepted.file),
-      overlay
+      overlay,
+      palette
     );
     const filename = "final.png";
     await fs.mkdir(join(STATIC_ADS_DIR, projectId), { recursive: true });

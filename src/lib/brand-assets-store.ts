@@ -61,3 +61,19 @@ export async function getBrandAsset(id: string): Promise<BrandAsset | null> {
   const rows = await sql`select * from brand_assets where id = ${id}`;
   return rows[0] ? BrandAssetZ.parse(rows[0]) : null;
 }
+
+// The most recently added color-palette asset — brand color is treated as
+// one global identity, not per-product-line, so this is a flat "latest
+// wins" lookup rather than filtered by product line. Read by the static ad
+// overlay compositor to style headline/CTA text on-brand instead of the
+// hardcoded defaults.
+export async function getLatestColorPalette(): Promise<string[] | null> {
+  const sql = getDb();
+  const rows = await sql`
+    select colors from brand_assets
+    where kind = 'color_palette' and colors is not null and array_length(colors, 1) > 0
+    order by uploaded_at desc
+    limit 1
+  `;
+  return rows[0] ? (rows[0].colors as string[]) : null;
+}

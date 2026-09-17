@@ -13,7 +13,7 @@ import type {
 // of one full-width band — a static ad needs several simultaneous
 // elements (headline/subhead/CTA), not one caption.
 
-const FONT_STACK = '"Arial Black", "Helvetica Neue", "Apple Color Emoji"';
+const DEFAULT_FONT_STACK = '"Arial Black", "Helvetica Neue", "Apple Color Emoji"';
 
 interface RolePresetSpec {
   fontScale: number; // relative to canvas width
@@ -23,7 +23,17 @@ interface RolePresetSpec {
   textColor: string;
 }
 
-const ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
+// Read by anything that composites a static ad and has a brand color
+// palette to apply — falls back to the original hardcoded look (the
+// DEFAULT_ROLE_PRESETS values below) when no palette exists yet, e.g. no
+// color_palette-kind brand asset has been added for the product line.
+export interface OverlayPalette {
+  primaryColor?: string; // headline pill background
+  accentColor?: string; // CTA pill background
+  fontFamily?: string;
+}
+
+const DEFAULT_ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
   headline: {
     fontScale: 0.075,
     weight: "bold",
@@ -39,7 +49,7 @@ const ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
     textColor: "#ffffff",
   },
   // A filled button/badge, distinct from headline/subhead's caption-style
-  // treatment — this is the one genuinely new visual surface here.
+  // treatment.
   cta: {
     fontScale: 0.04,
     weight: "bold",
@@ -47,7 +57,32 @@ const ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
     stroke: null,
     textColor: "#ffffff",
   },
+  // Trust factor (rating, review count, certification, "as seen in") — a
+  // small, understated pill rather than a loud CTA-style button.
+  badge: {
+    fontScale: 0.03,
+    weight: "bold",
+    fill: { pad: 0.5, radius: 0.5, color: "rgba(255,255,255,0.92)" },
+    stroke: null,
+    textColor: "#1a1a1a",
+  },
 };
+
+// Merges a brand palette into the default presets — only the two colors a
+// palette can plausibly override (headline/CTA fill) and the font, so an
+// incomplete palette (e.g. just accentColor) doesn't blow away the rest of
+// the design.
+function resolvePresets(palette?: OverlayPalette): { presets: Record<OverlayRole, RolePresetSpec>; fontStack: string } {
+  if (!palette) return { presets: DEFAULT_ROLE_PRESETS, fontStack: DEFAULT_FONT_STACK };
+  const presets = { ...DEFAULT_ROLE_PRESETS };
+  if (palette.primaryColor) {
+    presets.headline = { ...presets.headline, fill: { ...presets.headline.fill!, color: palette.primaryColor } };
+  }
+  if (palette.accentColor) {
+    presets.cta = { ...presets.cta, fill: { ...presets.cta.fill!, color: palette.accentColor } };
+  }
+  return { presets, fontStack: palette.fontFamily || DEFAULT_FONT_STACK };
+}
 
 function wrapLines(ctx: SKRSContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -85,11 +120,13 @@ function roundedRectPath(ctx: SKRSContext2D, x: number, y: number, w: number, h:
 function renderElementBlock(
   text: string,
   role: OverlayRole,
-  canvasWidth: number
+  canvasWidth: number,
+  presets: Record<OverlayRole, RolePresetSpec>,
+  fontStack: string
 ): { canvas: Canvas; width: number; height: number } {
-  const preset = ROLE_PRESETS[role];
+  const preset = presets[role];
   const fontsize = Math.round(canvasWidth * preset.fontScale);
-  const font = `${preset.weight === "bold" ? "900" : "400"} ${fontsize}px ${FONT_STACK}`;
+  const font = `${preset.weight === "bold" ? "900" : "400"} ${fontsize}px ${fontStack}`;
   const sideMargin = canvasWidth * 0.08;
   const strokeW = preset.stroke ? Math.max(2, Math.round(fontsize * preset.stroke.widthScale)) : 0;
   const pad = preset.fill ? Math.round(fontsize * preset.fill.pad) : 0;
@@ -159,19 +196,35 @@ function layoutByPosition(
 
 export async function compositeStaticAd(
   baseImagePath: string,
-  overlay: StaticAdTextOverlay
+  overlay: StaticAdTextOverlay,
+  palette?: OverlayPalette
 ): Promise<Buffer> {
   const image = await loadImage(baseImagePath);
   const canvas = createCanvas(image.width, image.height);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(image, 0, 0, image.width, image.height);
 
+  const { presets, fontStack } = resolvePresets(palette);
+
+  // "split_band" draws a solid color band across the bottom third before
+  // any text, so bottom-anchored elements sit on a clean surface instead
+  // of directly over busy product photography — the one structural layout
+  // change beyond simple top/center/bottom stacking.
+  if (overlay.layout === "split_band") {
+    const bandHeight = image.height * 0.32;
+    ctx.fillStyle = palette?.primaryColor ?? "rgba(0,0,0,0.72)";
+    ctx.fillRect(0, image.height - bandHeight, image.width, bandHeight);
+  }
+
   const grouped = layoutByPosition(overlay.elements);
   const margin = image.height * 0.06;
   const gap = image.height * 0.02;
 
   const blocks = Object.entries(grouped).flatMap(([position, els]) =>
-    els.map((el) => ({ position: position as OverlayPosition, block: renderElementBlock(el.text, el.role, image.width) }))
+    els.map((el) => ({
+      position: position as OverlayPosition,
+      block: renderElementBlock(el.text, el.role, image.width, presets, fontStack),
+    }))
   );
 
   for (const position of ["top", "center", "bottom"] as const) {
