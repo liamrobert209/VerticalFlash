@@ -7,6 +7,7 @@ import type { StaticAdProject } from "@/lib/static-ad-schema";
 import type { Ad } from "@/lib/ads-schema";
 import { BaseImagePanel, type StaticAdBaseImage } from "@/components/static-ads/BaseImagePanel";
 import { OverlayEditor, type StaticAdTextOverlay } from "@/components/static-ads/OverlayEditor";
+import { FinishDownloadPanel } from "@/components/static-ads/FinishDownloadPanel";
 
 export default function StaticAdProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -94,6 +95,18 @@ export default function StaticAdProjectPage() {
                   : p
               )
             }
+          />
+        </section>
+      )}
+
+      {project.finalImage && (
+        <section className="rounded-lg border border-border p-4 space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Finish</h2>
+          <FinishDownloadPanel
+            projectId={project.id}
+            finalImage={project.finalImage}
+            status={project.status}
+            onStatusChange={(status) => setProject((p) => (p ? { ...p, status } : p))}
           />
         </section>
       )}
