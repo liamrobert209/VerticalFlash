@@ -1,3 +1,5 @@
+import { promises as fs } from "fs";
+import { extname, join } from "path";
 import type postgres from "postgres";
 import { getDb } from "./db";
 import {
@@ -10,6 +12,8 @@ import {
   type AdQuery,
 } from "./ads-schema";
 import type { AdAnalysis } from "./ad-analysis-schema";
+import { fetchImageAsBase64, type ImageBytes } from "./fetch-image";
+import { ADS_MEDIA_DIR } from "./paths";
 
 // postgres.js does not auto-decode jsonb columns into objects (unlike some
 // other Postgres clients) — it hands back the raw JSON text, so `raw`/
@@ -39,12 +43,12 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
   const rows = await sql`
     insert into ads (
       account_id, platform_id, product_line_id, external_ad_id,
-      headline, body_text, creative_url, landing_url, launch_date, tags, raw,
+      headline, body_text, creative_url, creative_local_file, landing_url, launch_date, tags, raw,
       is_static_eligible
     ) values (
       ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
       ${sighting.externalAdId}, ${sighting.headline ?? null}, ${sighting.bodyText ?? null},
-      ${sighting.creativeUrl ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
+      ${sighting.creativeUrl ?? null}, ${sighting.creativeLocalFile ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
       ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null},
       ${sighting.isStaticEligible ?? false}
     )
@@ -54,6 +58,7 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
       headline = coalesce(excluded.headline, ads.headline),
       body_text = coalesce(excluded.body_text, ads.body_text),
       creative_url = coalesce(excluded.creative_url, ads.creative_url),
+      creative_local_file = coalesce(excluded.creative_local_file, ads.creative_local_file),
       landing_url = coalesce(excluded.landing_url, ads.landing_url),
       launch_date = coalesce(ads.launch_date, excluded.launch_date),
       tags = case when array_length(excluded.tags, 1) > 0 then excluded.tags else ads.tags end,
@@ -233,4 +238,30 @@ export async function listUnanalyzedStaticAds(limit: number): Promise<Ad[]> {
     limit ${limit}
   `;
   return rows.map(parseAd);
+}
+
+const CREATIVE_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
+
+// Reads an ad's creative image for use as generation input, preferring the
+// locally-cached copy (fast, disk-only, can never be stale/dead) over a
+// live fetch of the remote CDN URL — which is only ever attempted as a
+// fallback for an ad synced before local caching existed, or whose
+// download failed at sync time.
+export async function loadAdCreativeImageBytes(ad: Ad): Promise<ImageBytes> {
+  if (ad.creativeLocalFile) {
+    const buffer = await fs.readFile(join(ADS_MEDIA_DIR, ad.creativeLocalFile)).catch(() => null);
+    if (buffer) {
+      const mimeType = CREATIVE_MIME[extname(ad.creativeLocalFile).toLowerCase()] ?? "image/jpeg";
+      return { base64: buffer.toString("base64"), mimeType };
+    }
+  }
+  if (!ad.creativeUrl) {
+    throw new Error("This ad has no creative image available");
+  }
+  return fetchImageAsBase64(ad.creativeUrl);
 }

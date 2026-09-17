@@ -8,6 +8,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 // those pages were independently hand-rolling identical scroll rows,
 // thumbnail-with-fallback logic, and detail panels.
 
+// One stable creative URL for a competitor ad, regardless of whether it's
+// cached locally — /api/ads/[id]/creative serves the local copy when one
+// exists and redirects to the remote CDN URL otherwise, so display code
+// never needs its own local-file-or-remote branching (and never breaks
+// when a remote CDN URL that was live at sync time later goes dead).
+export function adCreativeSrc(ad: { id: string; creativeUrl: string | null }): string | null {
+  return ad.creativeUrl ? `/api/ads/${ad.id}/creative` : null;
+}
+
 // The creative URL can point at either a still image or an mp4 (CDN paths
 // from Meta/TikTok are opaque, no reliable extension to branch on ahead of
 // time), so this renders optimistically as an image and swaps to a native

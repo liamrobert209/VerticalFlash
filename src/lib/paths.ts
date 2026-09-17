@@ -37,6 +37,13 @@ export const AGENT_SETTINGS_PATH = join(DATA_ROOT, "agent-settings.json");
 export const BRAND_ASSETS_DIR = join(DATA_ROOT, "brand-assets");
 export const PRODUCT_IMAGES_DIR = join(DATA_ROOT, "product-images");
 
+// Locally-cached copies of static-eligible competitor ad creative images —
+// synced-in CDN URLs (Facebook's especially) can go dead well before
+// anything actually uses them, so the image is downloaded once at sync
+// time instead of being re-fetched from the remote CDN on every use. See
+// ads-schema.ts's creativeLocalFile.
+export const ADS_MEDIA_DIR = join(DATA_ROOT, "ads-media");
+
 // Static Ad Generator projects — a fresh root dir rather than the
 // video-keyed ANALYSIS_DIR convention, since a static ad project isn't
 // keyed to a downloaded video at all.
@@ -55,6 +62,7 @@ export const DATA_DIRS = [
   BRAND_ASSETS_DIR,
   PRODUCT_IMAGES_DIR,
   STATIC_ADS_DIR,
+  ADS_MEDIA_DIR,
 ] as const;
 
 // Per-video sidecar files under analysis/

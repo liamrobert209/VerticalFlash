@@ -1,3 +1,5 @@
+import { promises as fs } from "fs";
+import { join } from "path";
 import type { GoogleGenAI } from "@google/genai";
 import { runApifyActor } from "./apify-client";
 import { recordAdSighting, markStaleAdsInactive, saveAdAnalysis } from "./ads-store";
@@ -5,6 +7,8 @@ import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
 import { analyzeStaticAd } from "./ad-analyze";
 import { addFacebookPageId } from "./competitor-store";
+import { fetchImageBuffer } from "./fetch-image";
+import { ADS_MEDIA_DIR } from "./paths";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
 // runs before writing this (not guessed from documentation alone).
@@ -110,6 +114,33 @@ function isFacebookStaticEligible(snapshot: FacebookSnapshot | undefined): boole
     !!snapshot?.videos?.length || !!snapshot?.cards?.some((c) => c.video_hd_url || c.video_sd_url);
   if (hasVideo) return false;
   return !!snapshot?.images?.length || !!snapshot?.cards?.some((c) => c.original_image_url);
+}
+
+const CREATIVE_MIME_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
+// Downloads a static-eligible ad's creative image once at sync time and
+// caches it on the Railway volume (ads-media/), keyed by the ad's own
+// platform-independent archive id — the remote CDN URL isn't reliable to
+// keep re-fetching from later (Facebook's especially can go dead well
+// before anything downstream actually uses it). Best-effort: a failed
+// download must never fail the sync — the ad still gets stored with just
+// its (possibly short-lived) remote creativeUrl, same as before this
+// existed.
+async function cacheCreativeImageLocally(url: string, adArchiveId: string): Promise<string | null> {
+  try {
+    const { buffer, mimeType } = await fetchImageBuffer(url);
+    const ext = CREATIVE_MIME_EXT[mimeType] ?? ".jpg";
+    const filename = `fb-${adArchiveId}${ext}`;
+    await fs.mkdir(ADS_MEDIA_DIR, { recursive: true });
+    await fs.writeFile(join(ADS_MEDIA_DIR, filename), buffer);
+    return filename;
+  } catch {
+    return null;
+  }
 }
 
 // Meta's publisherPlatform can list facebook/instagram/messenger/
@@ -227,18 +258,26 @@ export async function processFacebookItems(
         errors.push(`Could not record Facebook page id for ${matchedTarget.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+    const creativeUrl = facebookCreativeUrl(item.snapshot);
+    const isStaticEligible = isFacebookStaticEligible(item.snapshot);
+    // Cached once per item (not per platform row below) — the same
+    // creative image would otherwise be downloaded twice for an ad that
+    // runs on both Facebook and Instagram.
+    const creativeLocalFile =
+      isStaticEligible && creativeUrl ? await cacheCreativeImageLocally(creativeUrl, item.ad_archive_id) : null;
     const sighting: Omit<AdSighting, "platformId"> = {
       accountId: matchedTarget.accountId,
       productLineId: matchedTarget.productLineId ?? null,
       externalAdId: item.ad_archive_id,
       headline: item.snapshot?.title ?? null,
       bodyText: facebookBodyText(item.snapshot),
-      creativeUrl: facebookCreativeUrl(item.snapshot),
+      creativeUrl,
+      creativeLocalFile,
       landingUrl: item.snapshot?.link_url ?? null,
       launchDate: toIsoDate(item.start_date),
       tags: [],
       raw: item as unknown as Record<string, unknown>,
-      isStaticEligible: isFacebookStaticEligible(item.snapshot),
+      isStaticEligible,
     };
     for (const platformId of facebookPlatformIds(item)) {
       try {

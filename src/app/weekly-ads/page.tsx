@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { AdWithAccount } from "@/lib/ads-schema";
 import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
-import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import { MediaThumb, HorizontalCardRow, DockedDetailPanel, adCreativeSrc } from "@/components/weekly-digest/shared";
 
 type Ad = AdWithAccount;
 
@@ -45,7 +45,7 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
       }`}
     >
       <div className="flex gap-3">
-        <MediaThumb url={ad.creativeUrl} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
+        <MediaThumb url={adCreativeSrc(ad)} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
         <div className="min-w-0 flex-1 space-y-1 text-xs">
           <p className="text-sm font-medium text-foreground line-clamp-2">
             {ad.headline || ad.bodyText || "(no headline)"}
@@ -99,7 +99,7 @@ function AdDetail({ ad, productLineId }: { ad: Ad; productLineId: string }) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-      <MediaThumb url={ad.creativeUrl} className="h-48 w-full rounded-md" />
+      <MediaThumb url={adCreativeSrc(ad)} className="h-48 w-full rounded-md" />
       <div>
         <p className="text-sm font-semibold text-foreground">{ad.headline || "(no headline)"}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">

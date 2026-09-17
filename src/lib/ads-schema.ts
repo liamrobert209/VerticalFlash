@@ -15,6 +15,12 @@ export const AdZ = z.object({
   headline: z.string().nullable(),
   bodyText: z.string().nullable(),
   creativeUrl: z.string().nullable(),
+  // Basename within ads-media/ — a locally-cached copy of the creative
+  // image, downloaded once at sync time for static-eligible ads so
+  // generation/display never depends on the remote CDN URL staying alive.
+  // Null for video ads, TikTok ads (never eligible), and any ad synced
+  // before this existed — those fall back to creativeUrl.
+  creativeLocalFile: z.string().nullable().default(null),
   landingUrl: z.string().nullable(),
   launchDate: z.union([z.string(), z.date()]).nullable(),
   firstSeenAt: z.union([z.string(), z.date()]),
@@ -58,6 +64,7 @@ export const AdSightingZ = z.object({
   headline: z.string().nullable().optional(),
   bodyText: z.string().nullable().optional(),
   creativeUrl: z.string().nullable().optional(),
+  creativeLocalFile: z.string().nullable().optional(),
   landingUrl: z.string().nullable().optional(),
   launchDate: z.string().nullable().optional(),
   tags: z.array(z.string()).default([]),

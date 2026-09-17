@@ -43,6 +43,7 @@ agent-settings.json
 /benchmarks/
 /static-ads/
 /product-images/
+/ads-media/
 
 # Music library (local only)
 /music/

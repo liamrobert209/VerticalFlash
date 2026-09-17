@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { AdWithAccount } from "@/lib/ads-schema";
 import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
-import { MediaThumb } from "@/components/weekly-digest/shared";
+import { MediaThumb, adCreativeSrc } from "@/components/weekly-digest/shared";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Ad = AdWithAccount;
@@ -32,7 +32,7 @@ const PAGE_SIZE = 5;
 function StaticAdCard({ ad }: { ad: Ad }) {
   return (
     <div className="w-56 shrink-0 rounded-lg border border-border overflow-hidden">
-      <MediaThumb url={ad.creativeUrl} className="w-full aspect-square" showControls={false} />
+      <MediaThumb url={adCreativeSrc(ad)} className="w-full aspect-square" showControls={false} />
       <div className="p-3 space-y-1.5">
         <p className="text-sm font-medium text-foreground line-clamp-2">
           {ad.headline || ad.bodyText || "(no headline)"}

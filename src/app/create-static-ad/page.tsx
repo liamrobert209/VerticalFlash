@@ -56,7 +56,7 @@ function ReferencePicker({
         >
           {ad.creativeUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.creativeUrl} alt={ad.headline ?? "Reference ad"} className="w-full aspect-square object-cover bg-muted" />
+            <img src={`/api/ads/${ad.id}/creative`} alt={ad.headline ?? "Reference ad"} className="w-full aspect-square object-cover bg-muted" />
           ) : (
             <div className="w-full aspect-square bg-muted" />
           )}
@@ -257,7 +257,7 @@ function CreateStaticAdForm() {
             <div className="flex items-center gap-3 rounded-lg border border-primary p-3">
               {referenceAd.creativeUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={referenceAd.creativeUrl} alt="" className="size-16 rounded object-cover bg-muted" />
+                <img src={`/api/ads/${referenceAd.id}/creative`} alt="" className="size-16 rounded object-cover bg-muted" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-foreground line-clamp-1">

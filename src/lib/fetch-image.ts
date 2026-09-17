@@ -31,7 +31,12 @@ async function fetchOnce(url: string): Promise<Response> {
   return res;
 }
 
-export async function fetchImageAsBase64(url: string): Promise<ImageBytes> {
+export interface ImageBuffer {
+  buffer: Buffer;
+  mimeType: string;
+}
+
+export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
   let res: Response;
   try {
     res = await fetchOnce(url);
@@ -49,5 +54,10 @@ export async function fetchImageAsBase64(url: string): Promise<ImageBytes> {
   }
   const mimeType = res.headers.get("content-type") || "image/jpeg";
   const buffer = Buffer.from(await res.arrayBuffer());
+  return { buffer, mimeType };
+}
+
+export async function fetchImageAsBase64(url: string): Promise<ImageBytes> {
+  const { buffer, mimeType } = await fetchImageBuffer(url);
   return { base64: buffer.toString("base64"), mimeType };
 }

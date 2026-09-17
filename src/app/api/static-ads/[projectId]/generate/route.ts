@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import { extname } from "path";
 import { getGeminiClient, classifyGeminiError } from "@/lib/gemini";
-import { getAd } from "@/lib/ads-store";
+import { getAd, loadAdCreativeImageBytes } from "@/lib/ads-store";
 import { loadStaticAdProject } from "@/lib/static-ad-store";
 import { getProductImageSlots, productImagePath } from "@/lib/product-images-store";
-import { fetchImageAsBase64, type ImageBytes } from "@/lib/fetch-image";
+import type { ImageBytes } from "@/lib/fetch-image";
 import { generateBaseImage } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
 
@@ -63,7 +63,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
 
   try {
     const [referenceBytes, ...productBytes] = await Promise.all([
-      fetchImageAsBase64(referenceAd.creativeUrl),
+      loadAdCreativeImageBytes(referenceAd),
       ...filledSlots.map((s) => loadProductImageBytes(project.productLineId, s.filename as string)),
     ]);
 
