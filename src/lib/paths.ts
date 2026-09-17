@@ -44,6 +44,11 @@ export const PRODUCT_IMAGES_DIR = join(DATA_ROOT, "product-images");
 // ads-schema.ts's creativeLocalFile.
 export const ADS_MEDIA_DIR = join(DATA_ROOT, "ads-media");
 
+// Locally-cached copies of scraped organic-post thumbnails (Weekly Content/
+// Creators) — same dead-CDN-URL resilience reasoning as ADS_MEDIA_DIR
+// above. See scraped-content-schema.ts's thumbnailLocalFile.
+export const COMPETITOR_CONTENT_MEDIA_DIR = join(DATA_ROOT, "competitor-content-media");
+
 // Static Ad Generator projects — a fresh root dir rather than the
 // video-keyed ANALYSIS_DIR convention, since a static ad project isn't
 // keyed to a downloaded video at all.
@@ -63,6 +68,7 @@ export const DATA_DIRS = [
   PRODUCT_IMAGES_DIR,
   STATIC_ADS_DIR,
   ADS_MEDIA_DIR,
+  COMPETITOR_CONTENT_MEDIA_DIR,
 ] as const;
 
 // Per-video sidecar files under analysis/

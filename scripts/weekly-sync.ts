@@ -1,21 +1,31 @@
 /**
  * Weekly automated sync — runs on a Railway cron schedule (see
- * .railway/railway.ts's `weeklySync` service). Refreshes the three
- * weekly-digest data sources that already have a working sync path:
- * Weekly Ads / Weekly Static Ads / Ad Insights category pages (via the
- * shared `ads` table), Weekly Trending Content, and Search by Hashtag.
- * Weekly Content / Weekly Creators are NOT included — there is no scraper
- * wired up for `scraped_content` yet (a separate, larger project).
+ * .railway/railway.ts's `weeklySync` service). Refreshes every
+ * weekly-digest data source with a working sync path: Weekly Ads / Weekly
+ * Static Ads / Ad Insights category pages and Weekly Content / Weekly
+ * Creators (via the shared `ads`/`scraped_content` tables), Weekly
+ * Trending Content, and Search by Hashtag.
+ *
+ * Ads and content targets are both a RANKED, cost-bounded selection, not
+ * "sync everything on file":
+ *   - Ads: per product line, walk that line's competitors ranked by
+ *     follower count (facebook/tiktok) until 5 have yielded at least one ad
+ *     or the list is exhausted — see syncRankedAdsForProductLines
+ *     (weekly-ads-sync.ts). Capped overall by WEEKLY_SYNC_MAX_ADS_ACCOUNTS_TOTAL
+ *     (default 60 distinct accounts across the whole run).
+ *   - Content: a flat top 5 accounts per channel (Instagram, TikTok),
+ *     ranked by that channel's own follower count, NO brand/creator split
+ *     (a deliberate cost decision — Weekly Creators may end up sparse as a
+ *     result) — see rankContentTargets (competitor-ranking.ts).
  *
  * Usage:
  *   node --import tsx scripts/weekly-sync.ts              # real run
  *   node --import tsx scripts/weekly-sync.ts --dry-run    # log targets, no Apify calls
  *
- * Optional per-run caps (unset = no cap, run the full list) — set these as
+ * Optional per-run caps (unset = default, see above) — set these as
  * Railway env vars on the weekly-sync service to bound cost/volume without
  * touching code:
- *   WEEKLY_SYNC_MAX_FACEBOOK_TARGETS   e.g. "30"
- *   WEEKLY_SYNC_MAX_TIKTOK_TARGETS     e.g. "10"
+ *   WEEKLY_SYNC_MAX_ADS_ACCOUNTS_TOTAL  e.g. "60" (see weekly-ads-sync.ts)
  *   WEEKLY_SYNC_MAX_TRENDING_CATEGORIES e.g. "3"
  *   WEEKLY_SYNC_MAX_HASHTAGS           e.g. "50"
  *
@@ -25,7 +35,10 @@
  * testing: `node --import tsx scripts/weekly-sync.ts --dry-run --day=1`.
  */
 import { listCompetitors } from "../src/lib/competitor-store";
-import { syncFacebookAds, syncTikTokAds, type SyncTarget } from "../src/lib/weekly-ads-sync";
+import { syncRankedAdsForProductLines } from "../src/lib/weekly-ads-sync";
+import { rankAdsTargetsForProductLine, rankContentTargets } from "../src/lib/competitor-ranking";
+import { syncInstagramContent, syncTikTokContent, type ContentSyncTarget } from "../src/lib/content-sync";
+import { getPublicProductLines } from "../src/lib/config";
 import type { CompetitorAccount } from "../src/lib/competitor-schema";
 import { syncTrendingVideos } from "../src/lib/tiktok-trends-sync";
 import { TIKTOK_TREND_INDUSTRIES } from "../src/lib/tiktok-trends-schema";
@@ -171,100 +184,78 @@ function uniqueHashtags(): string[] {
   return Array.from(seen);
 }
 
-function toSyncTarget(account: CompetitorAccount): SyncTarget {
-  return {
-    accountId: account.id,
-    name: account.name,
-    productLineId: account.productLineIds[0] ?? null,
-    candidateProductLineIds: account.productLineIds,
-    facebookPageIds: account.facebookPageIds,
-  };
-}
-
-// Facebook Ad Library is queried by `name` (facebook_handle/facebook_url
-// are unpopulated for every account on file) — many rows are the SAME
-// brand tagged once per region (e.g. "Belkin" uk/eu/us all point at the
-// same Instagram/Facebook presence), so syncing every row would issue
-// identical duplicate Ad Library searches. Two accounts are treated as the
-// same real target if EITHER their names match OR they share a known
-// Facebook page id (page-id match is the stronger signal — it catches a
-// same-brand-different-spelling case name matching would miss — but as of
-// this writing only a handful of accounts have a populated
-// facebook_page_ids, so name matching still does most of the work). A
-// simple union-find groups accounts linked by either signal, then one
-// representative per group is kept — preferring a row that already has a
-// known facebookPageIds match over an arbitrary regional row.
-function dedupeFacebookTargets(accounts: CompetitorAccount[]): SyncTarget[] {
-  const parent = accounts.map((_, i) => i);
-  function find(i: number): number {
-    while (parent[i] !== i) {
-      parent[i] = parent[parent[i]];
-      i = parent[i];
-    }
-    return i;
-  }
-  function union(a: number, b: number): void {
-    const ra = find(a);
-    const rb = find(b);
-    if (ra !== rb) parent[ra] = rb;
-  }
-
-  const byName = new Map<string, number>();
-  const byPageId = new Map<string, number>();
-  accounts.forEach((account, i) => {
-    const nameKey = account.name.trim().toLowerCase();
-    const nameMatch = byName.get(nameKey);
-    if (nameMatch != null) union(i, nameMatch);
-    else byName.set(nameKey, i);
-
-    for (const pageId of account.facebookPageIds) {
-      const pageMatch = byPageId.get(pageId);
-      if (pageMatch != null) union(i, pageMatch);
-      else byPageId.set(pageId, i);
-    }
-  });
-
-  const groups = new Map<number, CompetitorAccount[]>();
-  accounts.forEach((account, i) => {
-    const root = find(i);
-    const group = groups.get(root) ?? [];
-    group.push(account);
-    groups.set(root, group);
-  });
-
-  const representatives: CompetitorAccount[] = [];
-  for (const group of groups.values()) {
-    const withPageId = group.find((a) => a.facebookPageIds.length > 0);
-    representatives.push(withPageId ?? group[0]);
-  }
-  return representatives.map(toSyncTarget);
-}
-
+// Every competitor linked to product line, ranked by follower count, is
+// walked (up to 5 per line per platform yielding at least one ad, or
+// exhausted) inside syncRankedAdsForProductLines — regional-duplicate
+// collapsing (e.g. "Belkin" uk/eu/us) happens there too, per product line's
+// ranked subset, via dedupeFacebookTargets (weekly-ads-sync.ts).
 async function syncAds() {
   const accounts = await listCompetitors({});
   console.log(`[weekly-sync] ads: ${accounts.length} competitor account rows on file`);
 
-  let facebookTargets = dedupeFacebookTargets(accounts);
-  console.log(
-    `[weekly-sync] ads: facebook — ${facebookTargets.length} deduped targets (from ${accounts.length} rows)`
-  );
-  facebookTargets = applyLimit(facebookTargets, envLimit("WEEKLY_SYNC_MAX_FACEBOOK_TARGETS"), "WEEKLY_SYNC_MAX_FACEBOOK_TARGETS");
-  if (!DRY_RUN) {
-    const results = await syncFacebookAds(facebookTargets);
-    const adsSeen = results.reduce((sum, r) => sum + r.adsSeen, 0);
-    const errors = results.flatMap((r) => r.errors);
-    console.log(`[weekly-sync] ads: facebook done — ${adsSeen} ads seen, ${errors.length} errors`);
-    if (errors.length) console.log(errors.slice(0, 20).join("\n"));
+  if (DRY_RUN) {
+    // Ranking is pure/free — log what each product line's walk WOULD
+    // consider without making any real Apify calls.
+    for (const line of getPublicProductLines()) {
+      const facebook = rankAdsTargetsForProductLine(accounts, line.id, "facebook");
+      const tiktok = rankAdsTargetsForProductLine(accounts, line.id, "tiktok");
+      console.log(
+        `[weekly-sync] ads: "${line.label}" — facebook ${facebook.length} ranked candidates, tiktok ${tiktok.length} ranked candidates (walking up to 5 with ads)`
+      );
+    }
+    return;
   }
 
-  let tiktokTargets = accounts.filter((a) => a.tiktokHandle).map(toSyncTarget);
-  console.log(`[weekly-sync] ads: tiktok — ${tiktokTargets.length} accounts with a handle`);
-  tiktokTargets = applyLimit(tiktokTargets, envLimit("WEEKLY_SYNC_MAX_TIKTOK_TARGETS"), "WEEKLY_SYNC_MAX_TIKTOK_TARGETS");
-  if (!DRY_RUN && tiktokTargets.length > 0) {
-    const result = await syncTikTokAds(tiktokTargets);
-    console.log(`[weekly-sync] ads: tiktok done — ${result.adsSeen} ads seen, ${result.errors.length} errors`);
-    if (result.errors.length) console.log(result.errors.slice(0, 20).join("\n"));
-  }
+  const { facebook, tiktok } = await syncRankedAdsForProductLines(accounts, {
+    maxItemsPerTarget: 5,
+    targetsWithAdsGoal: 5,
+  });
+
+  const facebookAdsSeen = facebook.reduce((sum, r) => sum + r.adsSeen, 0);
+  const facebookErrors = facebook.flatMap((r) => r.errors);
+  console.log(`[weekly-sync] ads: facebook done — ${facebookAdsSeen} ads seen, ${facebookErrors.length} errors`);
+  if (facebookErrors.length) console.log(facebookErrors.slice(0, 20).join("\n"));
+
+  const tiktokAdsSeen = tiktok.reduce((sum, r) => sum + r.adsSeen, 0);
+  const tiktokErrors = tiktok.flatMap((r) => r.errors);
+  console.log(`[weekly-sync] ads: tiktok done — ${tiktokAdsSeen} ads seen, ${tiktokErrors.length} errors`);
+  if (tiktokErrors.length) console.log(tiktokErrors.slice(0, 20).join("\n"));
+}
+
+function toContentSyncTarget(account: CompetitorAccount): ContentSyncTarget {
+  return {
+    accountId: account.id,
+    name: account.name,
+    instagramHandle: account.instagramHandle,
+    tiktokHandle: account.tiktokHandle,
+    productLineId: account.productLineIds[0] ?? null,
+    candidateProductLineIds: account.productLineIds,
+  };
+}
+
+// Flat top 5 accounts per channel, no brand/creator split — a deliberate
+// cost decision (confirmed): Weekly Creators may end up sparse/empty as a
+// known, accepted tradeoff rather than doubling Apify spend with a
+// brand+creator split like the ads side doesn't need (ads walk by product
+// line, not a flat top-N).
+async function syncContent() {
+  const accounts = await listCompetitors({});
+  const instagramTargets = rankContentTargets(accounts, "instagram", 5).map(toContentSyncTarget);
+  const tiktokTargets = rankContentTargets(accounts, "tiktok", 5).map(toContentSyncTarget);
+  console.log(
+    `[weekly-sync] content: instagram ${instagramTargets.length} accounts, tiktok ${tiktokTargets.length} accounts (flat top 5 per channel, no brand/creator split)`
+  );
+  if (DRY_RUN) return;
+
+  const igResults = await syncInstagramContent(instagramTargets);
+  const igContentSeen = igResults.reduce((sum, r) => sum + r.contentSeen, 0);
+  const igErrors = igResults.flatMap((r) => r.errors);
+  console.log(`[weekly-sync] content: instagram done — ${igContentSeen} posts seen, ${igErrors.length} errors`);
+  if (igErrors.length) console.log(igErrors.slice(0, 20).join("\n"));
+
+  const ttResult = await syncTikTokContent(tiktokTargets);
+  console.log(`[weekly-sync] content: tiktok done — ${ttResult.contentSeen} posts seen, ${ttResult.errors.length} errors`);
+  if (ttResult.errors.length) console.log(ttResult.errors.slice(0, 20).join("\n"));
 }
 
 // Top 10 videos per TikTok content-tag category, US / 7-day window — a
@@ -322,6 +313,7 @@ async function main() {
   console.log(`[weekly-sync] starting${DRY_RUN ? " (dry run)" : ""} at ${new Date().toISOString()}`);
 
   await syncAds();
+  await syncContent();
   await syncTrending();
   await syncHashtags();
 

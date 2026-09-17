@@ -119,13 +119,13 @@ export async function createCompetitor(input: CompetitorAccountInput): Promise<C
         id, name, account_type, region, website,
         instagram_handle, instagram_url, instagram_followers,
         facebook_handle, facebook_url, facebook_followers, facebook_page_ids,
-        tiktok_handle, tiktok_url, tiktok_status,
+        tiktok_handle, tiktok_url, tiktok_followers, tiktok_status,
         positioning, cross_category_flag, notes, created_at, updated_at
       ) values (
         ${id}, ${input.name}, ${input.accountType}, ${input.region}, ${input.website ?? null},
         ${input.instagramHandle ?? null}, ${input.instagramUrl ?? null}, ${input.instagramFollowers ?? null},
         ${input.facebookHandle ?? null}, ${input.facebookUrl ?? null}, ${input.facebookFollowers ?? null}, ${input.facebookPageIds},
-        ${input.tiktokHandle ?? null}, ${input.tiktokUrl ?? null}, ${input.tiktokStatus},
+        ${input.tiktokHandle ?? null}, ${input.tiktokUrl ?? null}, ${input.tiktokFollowers ?? null}, ${input.tiktokStatus},
         ${input.positioning ?? null}, ${input.crossCategoryFlag}, ${input.notes ?? null},
         now(), now()
       )
@@ -167,6 +167,7 @@ export async function updateCompetitor(
         facebook_page_ids = ${input.facebookPageIds !== undefined ? input.facebookPageIds : existing.facebookPageIds},
         tiktok_handle = ${input.tiktokHandle !== undefined ? input.tiktokHandle : existing.tiktokHandle},
         tiktok_url = ${input.tiktokUrl !== undefined ? input.tiktokUrl : existing.tiktokUrl},
+        tiktok_followers = ${input.tiktokFollowers !== undefined ? input.tiktokFollowers : existing.tiktokFollowers},
         tiktok_status = ${input.tiktokStatus ?? existing.tiktokStatus},
         positioning = ${input.positioning !== undefined ? input.positioning : existing.positioning},
         cross_category_flag = ${input.crossCategoryFlag ?? existing.crossCategoryFlag},

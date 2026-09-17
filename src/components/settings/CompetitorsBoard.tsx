@@ -57,6 +57,7 @@ const EMPTY_FORM: CompetitorAccountInput = {
   facebookPageIds: [],
   tiktokHandle: null,
   tiktokUrl: null,
+  tiktokFollowers: null,
   tiktokStatus: "not_found",
   positioning: null,
   crossCategoryFlag: false,
@@ -184,6 +185,15 @@ function AccountForm({
                 <option key={s} value={s}>{STATUS_LABELS[s]}</option>
               ))}
             </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">TikTok followers</span>
+            <input
+              type="number"
+              value={form.tiktokFollowers ?? ""}
+              onChange={(e) => setForm({ ...form, tiktokFollowers: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
           </label>
         </div>
 
@@ -604,6 +614,7 @@ export function CompetitorsBoard() {
                           facebookPageIds: account.facebookPageIds,
                           tiktokHandle: account.tiktokHandle,
                           tiktokUrl: account.tiktokUrl,
+                          tiktokFollowers: account.tiktokFollowers,
                           tiktokStatus: account.tiktokStatus,
                           positioning: account.positioning,
                           crossCategoryFlag: account.crossCategoryFlag,

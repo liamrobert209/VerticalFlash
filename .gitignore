@@ -44,6 +44,7 @@ agent-settings.json
 /static-ads/
 /product-images/
 /ads-media/
+/competitor-content-media/
 
 # Music library (local only)
 /music/

@@ -9,17 +9,22 @@ import {
   type ScrapedContentSighting,
   type ScrapedContentQuery,
 } from "./scraped-content-schema";
+import type { ContentAnalysis } from "./content-analysis-schema";
 
 // postgres.js does not auto-decode jsonb columns into objects — see the
 // identical note in ads-store.ts's parseAd().
 function parseContent(row: Record<string, unknown>): ScrapedContent {
   const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
-  return ScrapedContentZ.parse({ ...row, raw });
+  const analysis =
+    typeof row.analysis === "string" ? JSON.parse(row.analysis) : row.analysis;
+  return ScrapedContentZ.parse({ ...row, raw, analysis });
 }
 
 function parseContentWithAccount(row: Record<string, unknown>): ScrapedContentWithAccount {
   const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
-  return ScrapedContentWithAccountZ.parse({ ...row, raw });
+  const analysis =
+    typeof row.analysis === "string" ? JSON.parse(row.analysis) : row.analysis;
+  return ScrapedContentWithAccountZ.parse({ ...row, raw, analysis });
 }
 
 // Upsert one observed post: engagement counts (views/likes/comments/shares)
@@ -33,14 +38,14 @@ export async function recordContentSighting(
   const rows = await sql`
     insert into scraped_content (
       account_id, platform_id, product_line_id, external_content_id,
-      posted_at, caption, media_url, thumbnail_url,
-      view_count, like_count, comment_count, share_count, tags, raw
+      posted_at, caption, media_url, thumbnail_url, thumbnail_local_file,
+      view_count, like_count, comment_count, share_count, format, tags, raw
     ) values (
       ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
       ${sighting.externalContentId}, ${sighting.postedAt ?? null}, ${sighting.caption ?? null},
-      ${sighting.mediaUrl ?? null}, ${sighting.thumbnailUrl ?? null},
+      ${sighting.mediaUrl ?? null}, ${sighting.thumbnailUrl ?? null}, ${sighting.thumbnailLocalFile ?? null},
       ${sighting.viewCount ?? null}, ${sighting.likeCount ?? null},
-      ${sighting.commentCount ?? null}, ${sighting.shareCount ?? null},
+      ${sighting.commentCount ?? null}, ${sighting.shareCount ?? null}, ${sighting.format ?? null},
       ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null}
     )
     on conflict (platform_id, external_content_id) do update set
@@ -50,10 +55,15 @@ export async function recordContentSighting(
       caption = coalesce(excluded.caption, scraped_content.caption),
       media_url = coalesce(excluded.media_url, scraped_content.media_url),
       thumbnail_url = coalesce(excluded.thumbnail_url, scraped_content.thumbnail_url),
+      thumbnail_local_file = coalesce(excluded.thumbnail_local_file, scraped_content.thumbnail_local_file),
       view_count = coalesce(excluded.view_count, scraped_content.view_count),
       like_count = coalesce(excluded.like_count, scraped_content.like_count),
       comment_count = coalesce(excluded.comment_count, scraped_content.comment_count),
       share_count = coalesce(excluded.share_count, scraped_content.share_count),
+      -- Recomputed every sighting, not sticky — same reasoning as
+      -- ads.is_static_eligible (a re-scraped post's media type is a pure
+      -- function of the raw payload, not state to preserve).
+      format = excluded.format,
       tags = case when array_length(excluded.tags, 1) > 0 then excluded.tags else scraped_content.tags end,
       raw = coalesce(excluded.raw, scraped_content.raw),
       last_seen_at = now(),
@@ -191,4 +201,71 @@ export async function getScrapedContent(id: string): Promise<ScrapedContent | nu
   const sql = getDb();
   const rows = await sql`select * from scraped_content where id = ${id}`;
   return rows[0] ? parseContent(rows[0]) : null;
+}
+
+// Dedup + normalize a set of content tags: trim, lowercase, sort. Pure —
+// identical body to mergeAdTags (ads-store.ts), duplicated rather than
+// imported so the ads/content pairs stay independent of each other. Used
+// to merge Gemini's per-analysis tags into the tags already stored on a
+// post (which start empty at sync time; see recordContentSighting's
+// `tags: []` sighting default) without ever losing or duplicating a tag
+// across repeated analyses/re-syncs.
+export function mergeContentTags(existing: string[], incoming: string[]): string[] {
+  const merged = new Set<string>();
+  for (const tag of [...existing, ...incoming]) {
+    const normalized = tag.trim().toLowerCase();
+    if (normalized) merged.add(normalized);
+  }
+  return Array.from(merged).sort();
+}
+
+// `productLineId`, when provided, is the already-resolved value (default or
+// Gemini's pick — see resolveProductLineId in weekly-ads-sync.ts) to write
+// directly; omitted entirely (not just `null`) means "leave whatever's
+// already stored alone" (e.g. no product-line disambiguation ran). Mirrors
+// saveAdAnalysis (ads-store.ts) exactly.
+export async function saveContentAnalysis(
+  contentId: string,
+  analysis: ContentAnalysis,
+  productLineId?: string | null
+): Promise<ScrapedContent> {
+  const sql = getDb();
+  const existing = await sql`select tags from scraped_content where id = ${contentId}`;
+  if (!existing[0]) throw new Error(`Scraped content not found: ${contentId}`);
+  const mergedTags = mergeContentTags(existing[0].tags ?? [], analysis.tags);
+  const rows = await sql`
+    update scraped_content set
+      analysis = ${sql.json(analysis as unknown as postgres.JSONValue)},
+      analyzed_at = now(),
+      tags = ${mergedTags},
+      ${productLineId !== undefined ? sql`product_line_id = ${productLineId},` : sql``}
+      updated_at = now()
+    where id = ${contentId}
+    returning *
+  `;
+  return parseContent(rows[0]);
+}
+
+// Scraped posts that haven't been analyzed yet — the sync loop's per-post
+// analysis call skips anything already analyzed, and this covers retrying
+// posts whose analysis failed on a prior sync. Unlike
+// listUnanalyzedStaticAds, there's no eligibility gate: every scraped post
+// (image or video) has an analyzable thumbnail, so the only filter is
+// `analyzed_at is null`. `accountIds`, when given, scopes the retry to the
+// accounts actually included in the current sync batch (same scoping
+// philosophy as markStaleAdsInactive) rather than retrying every
+// unanalyzed post on the platform.
+export async function listUnanalyzedContent(
+  limit: number,
+  accountIds?: string[]
+): Promise<ScrapedContent[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from scraped_content
+    where analyzed_at is null
+    ${accountIds && accountIds.length ? sql`and account_id = any(${accountIds})` : sql``}
+    order by first_seen_at desc
+    limit ${limit}
+  `;
+  return rows.map(parseContent);
 }

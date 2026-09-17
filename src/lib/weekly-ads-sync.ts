@@ -15,6 +15,8 @@ import { addFacebookPageId } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
 import { getPublicProductLines } from "./config";
+import type { CompetitorAccount } from "./competitor-schema";
+import { rankAdsTargetsForProductLine, type AdsPlatform } from "./competitor-ranking";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
 // runs before writing this (not guessed from documentation alone).
@@ -169,7 +171,10 @@ function facebookPlatformIds(item: FacebookAdItem): string[] {
   return ids.size ? Array.from(ids) : ["facebook"];
 }
 
-export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult[]> {
+export async function syncFacebookAds(
+  targets: SyncTarget[],
+  maxItemsPerTarget: number = FACEBOOK_MAX_ITEMS_PER_TARGET
+): Promise<SyncResult[]> {
   // One actor call per target (this actor takes a single `query`, not a
   // batch of startUrls) — sequential, not parallel, to stay under any
   // concurrent-run cap on the Apify plan. Cost is identical either way.
@@ -193,7 +198,7 @@ export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult
         for (const pageId of knownPageIds) {
           const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
             pageId,
-            maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
+            maxItems: maxItemsPerTarget,
             activeStatus: "all",
           });
           items.push(...results);
@@ -201,7 +206,7 @@ export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult
       } else {
         const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
           query: target.name,
-          maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
+          maxItems: maxItemsPerTarget,
           // "all" (not "" like the old actor) is this actor's documented
           // value for "both active and inactive" — confirmed against a real
           // 400 response during testing ("active"|"inactive"|"all").
@@ -483,4 +488,256 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
     seenIds
   );
   return { platformId: "tiktok", adsSeen: seenIds.length, markedInactive, errors };
+}
+
+// --- Ranked cron target selection ---------------------------------------
+// Everything below is cron-only (scripts/weekly-sync.ts) — the manual
+// /weekly-ads sync route (a human picking specific accounts) is untouched
+// and never calls any of this.
+
+// One CompetitorAccount -> SyncTarget conversion, shared by every caller
+// (previously duplicated as a private `toSyncTarget` in
+// scripts/weekly-sync.ts) so there's exactly one implementation to keep in
+// sync with SyncTarget's shape.
+export function accountToSyncTarget(account: CompetitorAccount): SyncTarget {
+  return {
+    accountId: account.id,
+    name: account.name,
+    productLineId: account.productLineIds[0] ?? null,
+    candidateProductLineIds: account.productLineIds,
+    facebookPageIds: account.facebookPageIds,
+  };
+}
+
+// Facebook Ad Library is queried by `name` (facebook_handle/facebook_url
+// are unpopulated for every account on file) — many rows are the SAME
+// brand tagged once per region (e.g. "Belkin" uk/eu/us all point at the
+// same Instagram/Facebook presence), so syncing every row would issue
+// identical duplicate Ad Library searches. Two accounts are treated as the
+// same real target if EITHER their names match OR they share a known
+// Facebook page id (page-id match is the stronger signal — it catches a
+// same-brand-different-spelling case name matching would miss — but as of
+// this writing only a handful of accounts have a populated
+// facebook_page_ids, so name matching still does most of the work). A
+// simple union-find groups accounts linked by either signal, then one
+// representative per group is kept — preferring a row that already has a
+// known facebookPageIds match over an arbitrary regional row.
+//
+// Moved here from scripts/weekly-sync.ts so the ranked ads walk below
+// (which lives in this lib file, not the script) can reuse it too — see
+// syncRankedAdsForProductLines. Order-preserving: the representative
+// chosen for each group is whichever member the caller's list encountered
+// first, so calling this on an already-ranked (followers-desc) subset
+// keeps that ranking intact.
+export function dedupeFacebookTargets(accounts: CompetitorAccount[]): SyncTarget[] {
+  const parent = accounts.map((_, i) => i);
+  function find(i: number): number {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  }
+  function union(a: number, b: number): void {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  }
+
+  const byName = new Map<string, number>();
+  const byPageId = new Map<string, number>();
+  accounts.forEach((account, i) => {
+    const nameKey = account.name.trim().toLowerCase();
+    const nameMatch = byName.get(nameKey);
+    if (nameMatch != null) union(i, nameMatch);
+    else byName.set(nameKey, i);
+
+    for (const pageId of account.facebookPageIds) {
+      const pageMatch = byPageId.get(pageId);
+      if (pageMatch != null) union(i, pageMatch);
+      else byPageId.set(pageId, i);
+    }
+  });
+
+  const groups = new Map<number, CompetitorAccount[]>();
+  accounts.forEach((account, i) => {
+    const root = find(i);
+    const group = groups.get(root) ?? [];
+    group.push(account);
+    groups.set(root, group);
+  });
+
+  const representatives: CompetitorAccount[] = [];
+  for (const group of groups.values()) {
+    const withPageId = group.find((a) => a.facebookPageIds.length > 0);
+    representatives.push(withPageId ?? group[0]);
+  }
+  return representatives.map(accountToSyncTarget);
+}
+
+// Per-account, per-platform cache entry for one syncRankedAdsForProductLines
+// run — a competitor linked to N product lines gets at most one real Apify
+// call per platform across the whole run; every later product line's walk
+// that encounters the same account reuses these cached rows instead.
+// syncFacebookAds can return more than one row per call (an ad running on
+// both Facebook and Instagram yields a "facebook" row and an "instagram"
+// row from a single call), so `facebook` caches the whole array; TikTok's
+// syncTikTokAds returns exactly one result, cached as-is.
+export interface RankedAdsCacheEntry {
+  facebook?: SyncResult[];
+  tiktok?: SyncResult;
+}
+
+// Dependencies the ranked walk calls out to — defaulted to the real
+// implementations so production callers need zero changes, overridable in
+// tests with fakes.
+export interface RankedAdsSyncDeps {
+  syncFacebookAds: typeof syncFacebookAds;
+  syncTikTokAds: typeof syncTikTokAds;
+}
+
+export const defaultRankedAdsSyncDeps: RankedAdsSyncDeps = {
+  syncFacebookAds,
+  syncTikTokAds,
+};
+
+const DEFAULT_MAX_ADS_ACCOUNTS_TOTAL = 60;
+
+function maxAdsAccountsTotal(): number {
+  const raw = process.env.WEEKLY_SYNC_MAX_ADS_ACCOUNTS_TOTAL;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_MAX_ADS_ACCOUNTS_TOTAL;
+}
+
+// Walks one product line's already-deduped, ranked target list for one ads
+// platform. A target already present in `cache` for this platform (synced
+// during an earlier product line's walk in the same run) is never
+// re-synced — its cached result is reused. A not-yet-cached target is
+// real-synced UNLESS the global per-run cap (`totalRealSynced`, shared
+// across every platform/product-line walk in the run) has already been
+// reached for a brand-new account id — in that case it's skipped entirely
+// (not synced, not counted toward this line's goal), never erroring. An
+// account already counted in `totalRealSynced` (e.g. real-synced for the
+// other platform earlier this run) can still proceed past the cap: the cap
+// bounds distinct accounts touched this run, not calls per account. The
+// walk stops once `targetsWithAdsGoal` targets have yielded at least one ad
+// (adsSeen > 0), or the ranked list is exhausted — no cap on how far down
+// it walks otherwise.
+export async function walkRankedTargets(
+  rankedTargets: SyncTarget[],
+  platform: AdsPlatform,
+  maxItemsPerTarget: number,
+  targetsWithAdsGoal: number,
+  cache: Map<string, RankedAdsCacheEntry>,
+  totalRealSynced: Set<string>,
+  maxTotalAccounts: number,
+  deps: RankedAdsSyncDeps = defaultRankedAdsSyncDeps
+): Promise<SyncResult[]> {
+  const results: SyncResult[] = [];
+  let targetsWithAds = 0;
+
+  for (const target of rankedTargets) {
+    if (targetsWithAds >= targetsWithAdsGoal) break;
+
+    const entry = cache.get(target.accountId) ?? {};
+    const cached = platform === "facebook" ? entry.facebook : entry.tiktok ? [entry.tiktok] : undefined;
+
+    let rows: SyncResult[];
+    if (cached) {
+      rows = cached;
+    } else {
+      const alreadyCountedAccount = totalRealSynced.has(target.accountId);
+      if (!alreadyCountedAccount && totalRealSynced.size >= maxTotalAccounts) {
+        // Global per-run cap hit and this is a brand-new account — skip
+        // it rather than error; it doesn't count toward this line's goal.
+        continue;
+      }
+      totalRealSynced.add(target.accountId);
+      if (platform === "facebook") {
+        rows = await deps.syncFacebookAds([target], maxItemsPerTarget);
+        entry.facebook = rows;
+      } else {
+        // scrapesage/tiktok-ad-library-scraper documents no result-count
+        // cap in its input (only source/libraryRegions/advertiserName/
+        // includeAdDetails) — deliberately NOT inventing a `maxItems`
+        // field for it. A single-target call still forces
+        // syncTikTokAds' existing `advertiserName: targets.length === 1
+        // ? ... : undefined` branch into a real scoped search, so cost is
+        // bounded by the "stop at N accounts with ads" rule and the total-
+        // accounts cap above, just not a per-call item cap.
+        const result = await deps.syncTikTokAds([target]);
+        rows = [result];
+        entry.tiktok = result;
+      }
+      cache.set(target.accountId, entry);
+    }
+
+    results.push(...rows);
+    const adsSeenTotal = rows.reduce((sum, r) => sum + r.adsSeen, 0);
+    if (adsSeenTotal > 0) targetsWithAds++;
+  }
+
+  return results;
+}
+
+// Orchestrates the ranked ads walk across every product line (fixed config
+// order, so runs are deterministic), returning combined Facebook/TikTok
+// results. Before walking each product line's ranked list, runs
+// dedupeFacebookTargets' regional-duplicate collapse over just that line's
+// ranked subset first — the same real brand is sometimes stored as
+// multiple regional rows (e.g. "Belkin" uk/eu/us), and without this each
+// region would separately consume the line's targetsWithAdsGoal quota.
+// Applied to both platforms' lists (not just Facebook's), since the
+// regional-duplicate problem it solves is platform-agnostic even though
+// the function itself is named for Facebook's page-id/name matching.
+export async function syncRankedAdsForProductLines(
+  accounts: CompetitorAccount[],
+  opts: { maxItemsPerTarget?: number; targetsWithAdsGoal?: number } = {},
+  deps: RankedAdsSyncDeps = defaultRankedAdsSyncDeps
+): Promise<{ facebook: SyncResult[]; tiktok: SyncResult[] }> {
+  const maxItemsPerTarget = opts.maxItemsPerTarget ?? FACEBOOK_MAX_ITEMS_PER_TARGET;
+  const targetsWithAdsGoal = opts.targetsWithAdsGoal ?? 5;
+  const maxTotalAccounts = maxAdsAccountsTotal();
+
+  // Shared across every product line's walk (both platforms) in this run —
+  // see walkRankedTargets/RankedAdsCacheEntry above.
+  const cache = new Map<string, RankedAdsCacheEntry>();
+  const totalRealSynced = new Set<string>();
+
+  const facebookResults: SyncResult[] = [];
+  const tiktokResults: SyncResult[] = [];
+
+  for (const line of getPublicProductLines()) {
+    const facebookRanked = rankAdsTargetsForProductLine(accounts, line.id, "facebook");
+    const facebookTargets = dedupeFacebookTargets(facebookRanked);
+    facebookResults.push(
+      ...(await walkRankedTargets(
+        facebookTargets,
+        "facebook",
+        maxItemsPerTarget,
+        targetsWithAdsGoal,
+        cache,
+        totalRealSynced,
+        maxTotalAccounts,
+        deps
+      ))
+    );
+
+    const tiktokRanked = rankAdsTargetsForProductLine(accounts, line.id, "tiktok");
+    const tiktokTargets = dedupeFacebookTargets(tiktokRanked);
+    tiktokResults.push(
+      ...(await walkRankedTargets(
+        tiktokTargets,
+        "tiktok",
+        maxItemsPerTarget,
+        targetsWithAdsGoal,
+        cache,
+        totalRealSynced,
+        maxTotalAccounts,
+        deps
+      ))
+    );
+  }
+
+  return { facebook: facebookResults, tiktok: tiktokResults };
 }

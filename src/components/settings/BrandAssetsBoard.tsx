@@ -42,6 +42,7 @@ export function BrandAssetsBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
 
   const [selectedKind, setSelectedKind] = useState<BrandAssetKind>(BRAND_ASSET_KINDS[0]);
   const [description, setDescription] = useState("");
@@ -88,27 +89,49 @@ export function BrandAssetsBoard() {
     resetForm();
   };
 
+  const uploadOne = async (file: File | undefined) => {
+    const form = new FormData();
+    form.append("kind", selectedKind);
+    if (description.trim()) form.append("description", description.trim());
+    if (selectedKind === "website") form.append("url", url.trim());
+    if (selectedKind === "color_palette") form.append("colors", colorsText.trim());
+    if (selectedKind === "product_image") form.append("productLineId", productLineId);
+    if (file) form.append("file", file);
+
+    const res = await fetch("/api/settings/brand-assets", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+  };
+
   const submit = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append("kind", selectedKind);
-      if (description.trim()) form.append("description", description.trim());
-      if (selectedKind === "website") form.append("url", url.trim());
-      if (selectedKind === "color_palette") form.append("colors", colorsText.trim());
-      if (selectedKind === "product_image") form.append("productLineId", productLineId);
-      const file = fileRef.current?.files?.[0];
-      if (file) form.append("file", file);
-
-      const res = await fetch("/api/settings/brand-assets", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const files = fileRef.current?.files;
+      if (files && files.length > 1) {
+        let succeeded = 0;
+        const failures: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+          setProgressLabel(`Adding ${i + 1} of ${files.length}…`);
+          try {
+            await uploadOne(files[i]);
+            succeeded++;
+          } catch (err) {
+            failures.push(err instanceof Error ? err.message : "Could not save the asset");
+          }
+        }
+        if (failures.length > 0) {
+          setError(`${succeeded} of ${files.length} added — ${failures.length} failed: ${failures.join("; ")}`);
+        }
+      } else {
+        await uploadOne(files?.[0]);
+      }
       resetForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the asset");
     } finally {
+      setProgressLabel(null);
       setSubmitting(false);
     }
   };
@@ -215,6 +238,7 @@ export function BrandAssetsBoard() {
               <input
                 ref={fileRef}
                 type="file"
+                multiple
                 disabled={submitting}
                 onChange={(e) => setHasFile(!!e.target.files?.length)}
                 className="text-sm"
@@ -223,7 +247,7 @@ export function BrandAssetsBoard() {
 
             <div>
               <Button onClick={submit} disabled={!canSubmit} size="sm">
-                {submitting ? "Adding…" : "Add"}
+                {submitting ? progressLabel ?? "Adding…" : "Add"}
               </Button>
             </div>
           </div>

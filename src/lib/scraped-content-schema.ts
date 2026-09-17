@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ContentAnalysisZ, CONTENT_FORMATS } from "./content-analysis-schema";
 
 // Organic posts pulled from saved accounts — a brand account's posts feed
 // Weekly Content, a creator/affiliate account's posts feed Weekly Creators
@@ -17,12 +18,25 @@ export const ScrapedContentZ = z.object({
   caption: z.string().nullable(),
   mediaUrl: z.string().nullable(),
   thumbnailUrl: z.string().nullable(),
+  // Basename within competitor-content-media/ — a locally-cached copy of
+  // the post's thumbnail, downloaded once at sync time so display/analysis
+  // never depends on the remote CDN URL staying alive (same reasoning as
+  // ads.creative_local_file). Null for anything synced before this existed
+  // or whose download failed — those fall back to thumbnailUrl.
+  thumbnailLocalFile: z.string().nullable().default(null),
   viewCount: z.number().int().nullable(),
   likeCount: z.number().int().nullable(),
   commentCount: z.number().int().nullable(),
   shareCount: z.number().int().nullable(),
   tags: z.array(z.string()).default([]),
   raw: z.record(z.unknown()).nullable().optional(),
+  // Automatic Gemini analysis (topic/pain point/solution/product/tags), run
+  // once per post at ingest time — see content-analyze.ts.
+  analysis: ContentAnalysisZ.nullable().optional(),
+  analyzedAt: z.union([z.string(), z.date()]).nullable().optional(),
+  // Deterministic, derived from each platform's own media-type field at
+  // sync time (see content-sync.ts) — not Gemini-derived.
+  format: z.enum(CONTENT_FORMATS).nullable().optional(),
   firstSeenAt: z.union([z.string(), z.date()]),
   lastSeenAt: z.union([z.string(), z.date()]),
   createdAt: z.union([z.string(), z.date()]),
@@ -51,10 +65,16 @@ export const ScrapedContentSightingZ = z.object({
   caption: z.string().nullable().optional(),
   mediaUrl: z.string().nullable().optional(),
   thumbnailUrl: z.string().nullable().optional(),
+  thumbnailLocalFile: z.string().nullable().optional(),
   viewCount: z.number().int().nullable().optional(),
   likeCount: z.number().int().nullable().optional(),
   commentCount: z.number().int().nullable().optional(),
   shareCount: z.number().int().nullable().optional(),
+  // Computed by the sync job from the raw payload's media-type field (see
+  // deriveInstagramFormat/deriveTikTokFormat in content-sync.ts) —
+  // recomputed on every sighting since it's a pure function of the raw
+  // item, never sticky state (same reasoning as ads.is_static_eligible).
+  format: z.enum(CONTENT_FORMATS).nullable().optional(),
   tags: z.array(z.string()).default([]),
   raw: z.record(z.unknown()).nullable().optional(),
 });
