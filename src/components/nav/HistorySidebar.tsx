@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, Palette, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
+import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, Palette, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
@@ -268,6 +268,7 @@ export function HistorySidebar() {
             <NavLink href="/weekly-content" pathname={pathname} icon={Newspaper}>Weekly content</NavLink>
             <NavLink href="/weekly-creators" pathname={pathname} icon={Users}>Weekly creators</NavLink>
             <NavLink href="/weekly-trending-content" pathname={pathname} icon={TrendingUp}>Weekly trending content</NavLink>
+            <NavLink href="/weekly-hashtag-search" pathname={pathname} icon={Hash}>Search by hashtag</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="insights" label="Insights" open={open.insightsSection}
