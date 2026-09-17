@@ -65,6 +65,12 @@ function StaticAdCard({ ad }: { ad: Ad }) {
         ) : (
           <p className="text-xs text-muted-foreground">Analysis pending — will fill in on the next sync.</p>
         )}
+        <Link
+          href={`/create-static-ad?referenceAdId=${ad.id}${ad.productLineId ? `&productLineId=${ad.productLineId}` : ""}`}
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          Create static ad from this ▸
+        </Link>
       </div>
     </div>
   );

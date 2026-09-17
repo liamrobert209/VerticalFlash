@@ -64,6 +64,7 @@ export const AdQueryZ = z.object({
   platformId: z.string().optional(),
   productLineId: z.string().optional(),
   isActive: z.coerce.boolean().optional(),
+  isStaticEligible: z.coerce.boolean().optional(),
   // "newest" orders by launch_date desc; "longest_running" orders by
   // (last_seen_at - coalesce(launch_date, first_seen_at)) desc
   sort: z.enum(["newest", "longest_running"]).default("newest"),

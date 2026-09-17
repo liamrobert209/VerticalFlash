@@ -57,6 +57,7 @@ const GUIDE_GROUPS: GuideGroup[] = [
       { label: "Iterate on a top video", description: "build an alternate version of one of your own best-performing published videos" },
       { label: "Iterate creator content", description: "swap the hook and product on an affiliate's, influencer's, or other creator's video" },
       { label: "Iterate ad content", description: "same tool as above, tagged as coming from a competitor or your own past ad" },
+      { label: "Create static ad", description: "pick a competitor's static ad as a visual reference, swap in your product/USP, and generate a new still image" },
       { label: "Custom from a prompt", description: "describe a video and build it from library clips or full AI generation" },
       { label: "Start from a song", description: "build a video around a chosen track" },
       { label: "Storyboard from your own footage", description: "upload raw footage and get hook → main → end storyboards to cut shorts from" },

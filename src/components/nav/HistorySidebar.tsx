@@ -116,6 +116,7 @@ export function HistorySidebar() {
             <Link href="/iterate" className={navClass}><RotateCcw className="size-4 shrink-0" />Iterate on a top video</Link>
             <Link href="/create-ad-hoc?origin=creator" className={navClass}><Sparkles className="size-4 shrink-0" />Iterate creator content</Link>
             <Link href="/create-ad-hoc?origin=ad" className={navClass}><Megaphone className="size-4 shrink-0" />Iterate ad content</Link>
+            <Link href="/create-static-ad" className={navClass}><ImageIcon className="size-4 shrink-0" />Create static ad</Link>
           </div>
 
           <div className="border-t border-border pt-4">

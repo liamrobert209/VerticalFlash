@@ -79,6 +79,7 @@ export async function listAds(query: AdQuery): Promise<Ad[]> {
     ${parsed.platformId ? sql`and platform_id = ${parsed.platformId}` : sql``}
     ${parsed.productLineId ? sql`and product_line_id = ${parsed.productLineId}` : sql``}
     ${parsed.isActive !== undefined ? sql`and is_active = ${parsed.isActive}` : sql``}
+    ${parsed.isStaticEligible !== undefined ? sql`and is_static_eligible = ${parsed.isStaticEligible}` : sql``}
     ${
       parsed.sort === "newest"
         ? sql`order by coalesce(launch_date, first_seen_at) desc`

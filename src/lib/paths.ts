@@ -37,6 +37,11 @@ export const AGENT_SETTINGS_PATH = join(DATA_ROOT, "agent-settings.json");
 export const BRAND_ASSETS_DIR = join(DATA_ROOT, "brand-assets");
 export const PRODUCT_IMAGES_DIR = join(DATA_ROOT, "product-images");
 
+// Static Ad Generator projects — a fresh root dir rather than the
+// video-keyed ANALYSIS_DIR convention, since a static ad project isn't
+// keyed to a downloaded video at all.
+export const STATIC_ADS_DIR = join(DATA_ROOT, "static-ads");
+
 export const DATA_DIRS = [
   DOWNLOADS_DIR,
   STORYBOARDS_DIR,
@@ -49,6 +54,7 @@ export const DATA_DIRS = [
   LIBRARY_DIR,
   BRAND_ASSETS_DIR,
   PRODUCT_IMAGES_DIR,
+  STATIC_ADS_DIR,
 ] as const;
 
 // Per-video sidecar files under analysis/
