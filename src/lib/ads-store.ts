@@ -54,7 +54,12 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
     )
     on conflict (platform_id, external_ad_id) do update set
       account_id = coalesce(excluded.account_id, ads.account_id),
-      product_line_id = coalesce(excluded.product_line_id, ads.product_line_id),
+      -- Sticky once set (same pattern as launch_date below): a Gemini
+      -- product-line correction written by saveAdAnalysis must survive the
+      -- next sync of this same ad, which would otherwise reintroduce the
+      -- competitor's first-linked-line default via the incoming row and
+      -- silently undo the correction.
+      product_line_id = coalesce(ads.product_line_id, excluded.product_line_id),
       headline = coalesce(excluded.headline, ads.headline),
       body_text = coalesce(excluded.body_text, ads.body_text),
       creative_url = coalesce(excluded.creative_url, ads.creative_url),
@@ -254,12 +259,39 @@ export async function getAd(id: string): Promise<Ad | null> {
   return rows[0] ? parseAd(rows[0]) : null;
 }
 
-export async function saveAdAnalysis(adId: string, analysis: AdAnalysis): Promise<Ad> {
+// Dedup + normalize a set of ad tags: trim, lowercase, sort. Pure — used to
+// merge Gemini's per-analysis tags into the tags already stored on an ad
+// (which for Facebook ads start empty at sync time; see recordAdSighting's
+// `tags: []` sighting default) without ever losing or duplicating a tag
+// across repeated analyses/re-syncs.
+export function mergeAdTags(existing: string[], incoming: string[]): string[] {
+  const merged = new Set<string>();
+  for (const tag of [...existing, ...incoming]) {
+    const normalized = tag.trim().toLowerCase();
+    if (normalized) merged.add(normalized);
+  }
+  return Array.from(merged).sort();
+}
+
+// `productLineId`, when provided, is the already-resolved value (default or
+// Gemini's pick — see resolveProductLineId in weekly-ads-sync.ts) to write
+// directly; omitted entirely (not just `null`) means "leave whatever's
+// already stored alone" (e.g. no product-line disambiguation ran).
+export async function saveAdAnalysis(
+  adId: string,
+  analysis: AdAnalysis,
+  productLineId?: string | null
+): Promise<Ad> {
   const sql = getDb();
+  const existing = await sql`select tags from ads where id = ${adId}`;
+  if (!existing[0]) throw new Error(`Ad not found: ${adId}`);
+  const mergedTags = mergeAdTags(existing[0].tags ?? [], analysis.tags);
   const rows = await sql`
     update ads set
       analysis = ${sql.json(analysis as unknown as postgres.JSONValue)},
       analyzed_at = now(),
+      tags = ${mergedTags},
+      ${productLineId !== undefined ? sql`product_line_id = ${productLineId},` : sql``}
       updated_at = now()
     where id = ${adId}
     returning *
@@ -269,12 +301,16 @@ export async function saveAdAnalysis(adId: string, analysis: AdAnalysis): Promis
 
 // Eligible static ads that haven't been analyzed yet — the sync loop's
 // per-ad analysis call skips anything already analyzed, and this covers
-// retrying ads whose analysis failed on a prior sync.
-export async function listUnanalyzedStaticAds(limit: number): Promise<Ad[]> {
+// retrying ads whose analysis failed on a prior sync. `accountIds`, when
+// given, scopes the retry to the accounts actually included in the current
+// sync batch (same scoping philosophy as markStaleAdsInactive) rather than
+// retrying every unanalyzed ad on the platform.
+export async function listUnanalyzedStaticAds(limit: number, accountIds?: string[]): Promise<Ad[]> {
   const sql = getDb();
   const rows = await sql`
     select * from ads
     where is_static_eligible = true and analyzed_at is null
+    ${accountIds && accountIds.length ? sql`and account_id = any(${accountIds})` : sql``}
     order by first_seen_at desc
     limit ${limit}
   `;

@@ -54,6 +54,12 @@ export const AdAnalysisZ = z.object({
   // What product/category is visually shown in the creative
   productShown: z.string(),
   tags: z.array(z.string()).min(1),
+  // Only present when the competitor is linked to 2+ product lines and the
+  // ad-analysis prompt asked Gemini to pick one (see ad-analyze.ts's
+  // `candidates` param) — null/absent otherwise. Not itself written to
+  // ads.product_line_id directly; weekly-ads-sync.ts's resolveProductLineId
+  // validates it against the candidate list before trusting it.
+  productLineId: z.string().nullable().optional(),
 });
 
 export type AdAnalysis = z.infer<typeof AdAnalysisZ>;

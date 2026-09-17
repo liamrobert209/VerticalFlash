@@ -3,9 +3,13 @@ import { BrandTagsZ, productCharacter as brandProductCharacter, type BrandConfig
 
 // Product-line + ICP configuration: everything the prompts and the UI need
 // to know about Ocushield's 8 product lines and the 6 customer profiles
-// behind them. Loaded server-side from product-lines.config.json (see
-// config.ts); this module is isomorphic on purpose so client components can
-// import the types.
+// behind them. Product-line *structure* (id/label/shortName/description/
+// presenceRule/tags) is loaded server-side from product-lines.config.json
+// (see config.ts); this module is isomorphic on purpose so client
+// components can import the types. ICP *content* (the 5 ranked lists plus
+// demographic/quote) lives in the icp_profiles DB table instead — see
+// resolveIcp() below and ./icp-store — so that one function is DB-backed
+// and server-only even though the rest of this module stays isomorphic.
 
 export const RankedItemZ = z.object({
   label: z.string().min(1),
@@ -29,6 +33,24 @@ export const IcpProfileZ = z.object({
 
 export type IcpProfile = z.infer<typeof IcpProfileZ>;
 
+// Fallback used by getIcpProfile() (./icp-store) when no icp_profiles row
+// exists yet for a given id — so a fresh checkout with zero DB rows still
+// boots cleanly instead of crashing, matching DEFAULT_PRODUCT_LINES_CONFIG's
+// "app still boots" role for the config file itself.
+export function emptyIcpProfile(id: string): IcpProfile {
+  return {
+    id,
+    label: "Not yet defined",
+    problemsSolved: [],
+    loves: [],
+    hates: [],
+    purchaseDrivers: [],
+    nearMissObjections: [],
+    demographic: "Not yet defined.",
+    representativeQuote: "",
+  };
+}
+
 export const ProductLineZ = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/, "lowercase snake_case id"),
   label: z.string().min(1),
@@ -46,12 +68,7 @@ export const ProductLinesConfigZ = z
   .object({
     defaultProductLineId: z.string(),
     productLines: z.array(ProductLineZ).min(1),
-    icps: z.array(IcpProfileZ).min(1),
   })
-  .refine(
-    (cfg) => cfg.productLines.every((p) => cfg.icps.some((i) => i.id === p.icpRef)),
-    { message: "every productLine.icpRef must resolve to an icps[].id" }
-  )
   .refine(
     (cfg) => cfg.productLines.some((p) => p.id === cfg.defaultProductLineId),
     { message: "defaultProductLineId must match a productLines[].id" }
@@ -71,19 +88,6 @@ export const DEFAULT_PRODUCT_LINES_CONFIG: ProductLinesConfig = {
       description: "the brand's product",
       presenceRule: "true ONLY if the brand's product is visible in the frame at any point",
       icpRef: "default",
-    },
-  ],
-  icps: [
-    {
-      id: "default",
-      label: "General audience",
-      problemsSolved: [],
-      loves: [],
-      hates: [],
-      purchaseDrivers: [],
-      nearMissObjections: [],
-      demographic: "Not yet defined.",
-      representativeQuote: "",
     },
   ],
 };
@@ -119,25 +123,35 @@ export function resolveEffectiveProduct(
   };
 }
 
-export function resolveIcp(cfg: ProductLinesConfig, productLineId: string): IcpProfile | null {
+// DB-backed (see ./icp-store) — unlike the rest of this module, this one
+// function is server-only. Returns null only when productLineId itself
+// doesn't resolve to a known product line; a product line with no
+// icp_profiles row yet still resolves, to getIcpProfile()'s empty-profile
+// fallback.
+export async function resolveIcp(cfg: ProductLinesConfig, productLineId: string): Promise<IcpProfile | null> {
   const product = cfg.productLines.find((p) => p.id === productLineId);
   if (!product) return null;
-  return cfg.icps.find((i) => i.id === product.icpRef) ?? null;
+  const { getIcpProfile } = await import("./icp-store");
+  return getIcpProfile(product.icpRef);
 }
 
 export function findProductLine(cfg: ProductLinesConfig, productLineId: string): ProductLine | null {
   return cfg.productLines.find((p) => p.id === productLineId) ?? null;
 }
 
-// The subset safe to ship to the browser
+// The subset safe to ship to the browser. icpRef is just a join key (not
+// ICP content itself) — included so client code (e.g. ProductLinesBoard)
+// can tell which product lines share the same underlying icp_profiles row
+// without a server round-trip per product line.
 export interface PublicProductLine {
   id: string;
   label: string;
   shortName: string;
+  icpRef: string;
 }
 
 export function toPublicProductLines(cfg: ProductLinesConfig): PublicProductLine[] {
-  return cfg.productLines.map((p) => ({ id: p.id, label: p.label, shortName: p.shortName }));
+  return cfg.productLines.map((p) => ({ id: p.id, label: p.label, shortName: p.shortName, icpRef: p.icpRef }));
 }
 
 // A closed vocabulary of hook/angle options for a product's ICP, used by the

@@ -2,13 +2,19 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import type { GoogleGenAI } from "@google/genai";
 import { runApifyActor } from "./apify-client";
-import { recordAdSighting, markStaleAdsInactive, saveAdAnalysis } from "./ads-store";
+import {
+  recordAdSighting,
+  markStaleAdsInactive,
+  saveAdAnalysis,
+  listUnanalyzedStaticAds,
+} from "./ads-store";
 import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
-import { analyzeStaticAd } from "./ad-analyze";
+import { analyzeStaticAd, type ProductLineCandidate } from "./ad-analyze";
 import { addFacebookPageId } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
+import { getPublicProductLines } from "./config";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
 // runs before writing this (not guessed from documentation alone).
@@ -31,6 +37,13 @@ export interface SyncTarget {
   accountId: string;
   name: string;
   productLineId?: string | null;
+  // Every product line this account is linked to (not just the first one
+  // used as `productLineId`'s default) — when there are 2+, analyzeIfNeeded
+  // asks Gemini to disambiguate which one a given ad's creative actually
+  // shows instead of defaulting to productLineId unconditionally. Omitted
+  // (or a single id) means zero extra Gemini cost, identical to before this
+  // existed.
+  candidateProductLineIds?: string[];
   // Known Facebook Page ids for this account (see facebook-schema's
   // comment) — matched first, before falling back to page-name matching.
   facebookPageIds?: string[];
@@ -187,12 +200,62 @@ export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult
   return results;
 }
 
+// Pure: only trusts Gemini's pick when it's actually one of the candidates
+// offered — a hallucinated or omitted pick (invalid JSON field, model
+// declining to choose, etc.) falls back to the competitor's first-linked
+// line rather than writing garbage into ads.product_line_id.
+export function resolveProductLineId(
+  defaultId: string | null,
+  candidateIds: string[],
+  geminiPick: string | null | undefined
+): string | null {
+  if (geminiPick && candidateIds.includes(geminiPick)) return geminiPick;
+  return defaultId;
+}
+
+// Resolves candidate ids to {id, label} pairs Gemini can be shown, reading
+// from product-lines.config.json (via the existing config loader) — the
+// only thing the disambiguation prompt needs from product-line config. An
+// id with no matching config entry (stale/renamed) is silently dropped
+// rather than failing the whole analysis.
+function buildProductLineCandidates(candidateIds: string[]): ProductLineCandidate[] {
+  const byId = new Map(getPublicProductLines().map((line) => [line.id, line]));
+  return candidateIds
+    .map((id) => byId.get(id))
+    .filter((line): line is NonNullable<typeof line> => !!line)
+    .map((line) => ({ id: line.id, label: line.label }));
+}
+
+// Dependencies `processFacebookItems` calls out to — defaulted to the real
+// implementations so every production call site (syncFacebookAds) needs
+// zero changes, but overridable in tests with fakes instead of a live
+// DB/Gemini key.
+export interface ProcessFacebookItemsDeps {
+  recordAdSighting: typeof recordAdSighting;
+  saveAdAnalysis: typeof saveAdAnalysis;
+  markStaleAdsInactive: typeof markStaleAdsInactive;
+  addFacebookPageId: typeof addFacebookPageId;
+  analyzeStaticAd: typeof analyzeStaticAd;
+  listUnanalyzedStaticAds: typeof listUnanalyzedStaticAds;
+  getGeminiClient: typeof getGeminiClient;
+}
+
+const defaultDeps: ProcessFacebookItemsDeps = {
+  recordAdSighting,
+  saveAdAnalysis,
+  markStaleAdsInactive,
+  addFacebookPageId,
+  analyzeStaticAd,
+  listUnanalyzedStaticAds,
+  getGeminiClient,
+};
+
 // Gemini client for the ad-analysis pass below, built once per sync batch
 // (not per ad) and cached as null if GEMINI_API_KEY isn't configured — a
 // missing key skips analysis for the whole batch rather than failing sync.
-function tryGetGeminiClient(errors: string[]): GoogleGenAI | null {
+function tryGetGeminiClient(deps: ProcessFacebookItemsDeps, errors: string[]): GoogleGenAI | null {
   try {
-    return getGeminiClient();
+    return deps.getGeminiClient();
   } catch (err) {
     errors.push(
       `Ad analysis skipped for this sync: ${err instanceof Error ? err.message : String(err)}`
@@ -202,17 +265,31 @@ function tryGetGeminiClient(errors: string[]): GoogleGenAI | null {
 }
 
 // Analyzes one newly-eligible, not-yet-analyzed ad (tags/intent/USP/
-// persona/product). Failures are collected, not thrown — one bad ad's
-// creative (an unreachable URL, a Gemini hiccup) must never fail the sync;
-// analyzed_at stays null so it's retried on the next sync.
-async function analyzeIfNeeded(ad: Ad, ai: GoogleGenAI | null, errors: string[]): Promise<void> {
+// persona/product), optionally resolving its product line via Gemini when
+// `target` is linked to 2+ product lines. Failures are collected, not
+// thrown — one bad ad's creative (an unreachable URL, a Gemini hiccup) must
+// never fail the sync; analyzed_at stays null so it's retried (see the
+// retry pass below, or the next sync of the same accounts).
+async function analyzeIfNeeded(
+  ad: Ad,
+  target: SyncTarget | undefined,
+  ai: GoogleGenAI | null,
+  errors: string[],
+  deps: ProcessFacebookItemsDeps
+): Promise<void> {
   if (!ai || !ad.isStaticEligible || ad.analyzedAt || !ad.creativeUrl) return;
   try {
-    const analysis = await analyzeStaticAd(ai, ad.creativeUrl, {
-      headline: ad.headline,
-      bodyText: ad.bodyText,
-    });
-    await saveAdAnalysis(ad.id, analysis);
+    const candidateIds = target?.candidateProductLineIds ?? [];
+    const candidates = candidateIds.length > 1 ? buildProductLineCandidates(candidateIds) : undefined;
+    const analysis = await deps.analyzeStaticAd(
+      ai,
+      ad.creativeUrl,
+      { headline: ad.headline, bodyText: ad.bodyText },
+      candidates
+    );
+    const defaultId = target?.productLineId ?? ad.productLineId ?? null;
+    const resolvedProductLineId = resolveProductLineId(defaultId, candidateIds, analysis.productLineId);
+    await deps.saveAdAnalysis(ad.id, analysis, resolvedProductLineId);
   } catch (err) {
     errors.push(`Ad analysis failed for ${ad.externalAdId}: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -223,16 +300,18 @@ async function analyzeIfNeeded(ad: Ad, ai: GoogleGenAI | null, errors: string[])
 // actor run, not re-reading its results) without paying for another run.
 export async function processFacebookItems(
   items: FacebookAdItem[],
-  targets: SyncTarget[]
+  targets: SyncTarget[],
+  deps: ProcessFacebookItemsDeps = defaultDeps
 ): Promise<SyncResult[]> {
   const byName = new Map(targets.map((t) => [t.name.toLowerCase(), t]));
   const byPageId = new Map<string, SyncTarget>();
+  const byAccountId = new Map(targets.map((t) => [t.accountId, t]));
   for (const t of targets) {
     for (const pageId of t.facebookPageIds ?? []) byPageId.set(pageId, t);
   }
   const seenByPlatform = new Map<string, string[]>();
   const errors: string[] = [];
-  const ai = tryGetGeminiClient(errors);
+  const ai = tryGetGeminiClient(deps, errors);
 
   for (const item of items) {
     if (!item.ad_archive_id) continue;
@@ -252,7 +331,7 @@ export async function processFacebookItems(
     if (!matchedTarget) continue;
     if (item.page_id && !(matchedTarget.facebookPageIds ?? []).includes(item.page_id)) {
       try {
-        await addFacebookPageId(matchedTarget.accountId, item.page_id);
+        await deps.addFacebookPageId(matchedTarget.accountId, item.page_id);
         matchedTarget.facebookPageIds = [...(matchedTarget.facebookPageIds ?? []), item.page_id];
       } catch (err) {
         errors.push(`Could not record Facebook page id for ${matchedTarget.name}: ${err instanceof Error ? err.message : String(err)}`);
@@ -281,11 +360,11 @@ export async function processFacebookItems(
     };
     for (const platformId of facebookPlatformIds(item)) {
       try {
-        const ad = await recordAdSighting({ ...sighting, platformId });
+        const ad = await deps.recordAdSighting({ ...sighting, platformId });
         const seen = seenByPlatform.get(platformId) ?? [];
         seen.push(item.ad_archive_id);
         seenByPlatform.set(platformId, seen);
-        await analyzeIfNeeded(ad, ai, errors);
+        await analyzeIfNeeded(ad, matchedTarget, ai, errors, deps);
       } catch (err) {
         errors.push(`${item.ad_archive_id} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -293,9 +372,28 @@ export async function processFacebookItems(
   }
 
   const targetAccountIds = targets.map((t) => t.accountId);
+
+  // Bounded retry pass: anything still unanalyzed for these accounts (a
+  // dead creative URL, a Gemini hiccup, a mid-batch quota error on a prior
+  // sync) gets one more attempt now, via the same analyzeIfNeeded path —
+  // matches listUnanalyzedStaticAds' original intent, which had zero
+  // callers before this.
+  const RETRY_LIMIT = 10;
+  if (ai) {
+    try {
+      const retryAds = await deps.listUnanalyzedStaticAds(RETRY_LIMIT, targetAccountIds);
+      for (const ad of retryAds) {
+        const target = ad.accountId ? byAccountId.get(ad.accountId) : undefined;
+        await analyzeIfNeeded(ad, target, ai, errors, deps);
+      }
+    } catch (err) {
+      errors.push(`Retry pass for unanalyzed ads failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   const results: SyncResult[] = [];
   for (const [platformId, seenIds] of seenByPlatform) {
-    const markedInactive = await markStaleAdsInactive(platformId, targetAccountIds, seenIds);
+    const markedInactive = await deps.markStaleAdsInactive(platformId, targetAccountIds, seenIds);
     results.push({ platformId, adsSeen: seenIds.length, markedInactive, errors });
   }
   return results;

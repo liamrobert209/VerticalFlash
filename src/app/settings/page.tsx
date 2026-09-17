@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Image as ImageIcon, Megaphone, Palette, Plug, Settings2, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Image as ImageIcon, Megaphone, Palette, Plug, Settings2, SlidersHorizontal, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Settings · VerticalFlash" };
@@ -30,6 +30,12 @@ const SECTIONS: SettingsSection[] = [
     description: "Logo, colors, and other brand reference files.",
     href: "/settings/brand-assets",
     icon: Palette,
+  },
+  {
+    title: "Product lines",
+    description: "Edit each product line's ideal customer profile — problems solved, loves, hates, and more.",
+    href: "/settings/product-lines",
+    icon: Target,
   },
   {
     title: "Product images",

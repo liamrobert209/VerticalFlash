@@ -26,7 +26,10 @@ const PAGE_SIZE = 5;
 
 function StaticAdCard({ ad }: { ad: AdWithAccount }) {
   return (
-    <div className="w-56 shrink-0 rounded-lg border border-border overflow-hidden">
+    <div
+      className="w-56 shrink-0 rounded-lg border border-border overflow-hidden"
+      title={ad.analysis?.summary}
+    >
       <MediaThumb url={adCreativeSrc(ad)} className="w-full aspect-square" showControls={false} />
       <div className="p-3 space-y-1.5">
         <p className="text-sm font-medium text-foreground line-clamp-2">
@@ -42,6 +45,9 @@ function StaticAdCard({ ad }: { ad: AdWithAccount }) {
             </p>
             <p className="text-xs text-muted-foreground line-clamp-2">
               <span className="font-semibold text-foreground">Persona:</span> {ad.analysis.persona}
+            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              <span className="font-semibold text-foreground">Product:</span> {ad.analysis.productShown}
             </p>
           </div>
         ) : (

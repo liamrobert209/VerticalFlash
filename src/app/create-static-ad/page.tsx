@@ -263,6 +263,12 @@ function CreateStaticAdForm() {
                 <p className="text-sm text-foreground line-clamp-1">
                   {referenceAd.headline || referenceAd.bodyText || "(no headline)"}
                 </p>
+                {referenceAd.analysis && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {referenceAd.analysis.productShown}
+                    {referenceAd.analysis.summary ? ` — ${referenceAd.analysis.summary}` : ""}
+                  </p>
+                )}
                 <button
                   onClick={() => setReferenceAd(null)}
                   className="text-xs text-primary underline-offset-4 hover:underline"

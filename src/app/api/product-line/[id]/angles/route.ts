@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const config = getProductLinesConfig();
-  const icp = resolveIcp(config, id);
+  const icp = await resolveIcp(config, id);
   if (!icp) {
     return NextResponse.json({ error: "Unknown product line" }, { status: 404 });
   }

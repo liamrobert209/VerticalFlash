@@ -8,13 +8,24 @@ import { getGeminiModel } from "./gemini";
 import { AdAnalysisZ, AD_INTENTS, type AdAnalysis } from "./ad-analysis-schema";
 import { fetchImageAsBase64 } from "./fetch-image";
 
+// A product line this competitor is linked to — passed in only when there
+// are 2+ (see weekly-ads-sync.ts's analyzeIfNeeded), so Gemini is asked to
+// disambiguate using the same image it's already looking at instead of the
+// sync defaulting to the competitor's first-linked line unconditionally.
+export interface ProductLineCandidate {
+  id: string;
+  label: string;
+}
+
 // Gemini structured-output schema — keep in sync with AdAnalysisZ. Lives
 // here (not ad-analysis-schema.ts) so that client-safe file never imports
-// @google/genai — see its header comment.
-const adAnalysisResponseSchema = {
-  type: Type.OBJECT,
-  required: ["summary", "intent", "usp", "persona", "productShown", "tags"],
-  properties: {
+// @google/genai — see its header comment. A function (not a constant) so
+// the `productLineId` field can be added, enum-constrained to the given
+// candidate ids, only when candidates are actually supplied — keeping the
+// schema/prompt/cost identical to before for every single-line competitor.
+function buildAdAnalysisResponseSchema(candidates?: ProductLineCandidate[]) {
+  const required = ["summary", "intent", "usp", "persona", "productShown", "tags"];
+  const properties: Record<string, unknown> = {
     summary: {
       type: Type.STRING,
       description: "One or two plain-language sentences describing the ad.",
@@ -39,29 +50,49 @@ const adAnalysisResponseSchema = {
       items: { type: Type.STRING },
       description: "Short lowercase keyword tags for this ad's angle/style/format.",
     },
-  },
-};
+  };
+  if (candidates && candidates.length > 0) {
+    required.push("productLineId");
+    properties.productLineId = {
+      type: Type.STRING,
+      enum: candidates.map((c) => c.id),
+      description: "Which of the given product lines this ad's product most likely belongs to.",
+    };
+  }
+  return { type: Type.OBJECT, required, properties };
+}
 
 interface AdContext {
   headline: string | null;
   bodyText: string | null;
 }
 
-function buildPrompt(context: AdContext): string {
+function buildPrompt(context: AdContext, candidates?: ProductLineCandidate[]): string {
+  const candidateBlock =
+    candidates && candidates.length > 0
+      ? `\n\nThis competitor sells more than one product line. Based on what's visually shown in
+the image, pick exactly one of the following as the productLineId field:
+${candidates.map((c) => `- ${c.id}: ${c.label}`).join("\n")}\n`
+      : "";
+
   return `You are analyzing a competitor's static (still image) ad creative for a
 marketing team that wants to understand its strategy well enough to make
 their own version with a different product.
 
 Ad headline: ${context.headline ?? "(none)"}
 Ad body text: ${context.bodyText ?? "(none)"}
-
+${candidateBlock}
 Look at the attached image and the text above together, then report:
 - intent: the ad's primary goal
 - usp: the single unique selling proposition the ad leads with, in plain language
 - persona: who this ad is targeting, in plain language
 - productShown: what product or product category is visually shown
 - tags: a handful of short lowercase keyword tags for its angle/style/format
-- summary: one or two sentences describing the ad overall
+- summary: one or two sentences describing the ad overall${
+    candidates && candidates.length > 0
+      ? "\n- productLineId: exactly one of the candidate ids listed above"
+      : ""
+  }
 
 Return ONLY valid JSON matching the provided schema.`;
 }
@@ -72,10 +103,12 @@ Return ONLY valid JSON matching the provided schema.`;
 export async function analyzeStaticAd(
   ai: GoogleGenAI,
   imageUrl: string,
-  context: AdContext
+  context: AdContext,
+  candidates?: ProductLineCandidate[]
 ): Promise<AdAnalysis> {
   const { base64, mimeType } = await fetchImageAsBase64(imageUrl);
-  const basePrompt = buildPrompt(context);
+  const basePrompt = buildPrompt(context, candidates);
+  const responseSchema = buildAdAnalysisResponseSchema(candidates);
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -94,7 +127,7 @@ export async function analyzeStaticAd(
       ]),
       config: {
         responseMimeType: "application/json",
-        responseSchema: adAnalysisResponseSchema,
+        responseSchema,
       },
     });
 
