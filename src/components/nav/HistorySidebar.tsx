@@ -18,11 +18,54 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Top-level main-menu rollup: every section (Create, Library, Projects,
+// Weekly Digest, Insights, Settings) collapses to just its header. This is
+// a layer above the existing per-item collapsing inside Projects/Insights
+// (Scan History, Analytics, Ad Insights, ...) — that finer-grained
+// behavior is unchanged, just now nested inside one more toggle.
+function CollapsibleSection({
+  id,
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1 border-t border-border pt-4">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`sidebar-section-${id}`}
+        className="flex w-full items-center gap-1.5 text-left"
+      >
+        <ChevronRight
+          className={`size-3.5 shrink-0 text-muted-foreground/70 transition-transform ${open ? "rotate-90" : ""}`}
+        />
+        <SectionLabel>{label}</SectionLabel>
+      </button>
+      {open && (
+        <div id={`sidebar-section-${id}`} className="space-y-1 pl-1">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HistorySidebar() {
   const { scans, currentScanId, deleteScan } = useScanHistory();
   const pathname = usePathname();
   const [files, setFiles] = useState<DownloadEntry[]>([]);
-  const [open, setOpen] = useState({ scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false });
+  const [open, setOpen] = useState({
+    scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false,
+    createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, settingsSection: true,
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,23 +152,24 @@ export function HistorySidebar() {
 
           <ProductLineSwitcher />
 
-          <div className="space-y-1 border-t border-border pt-4">
-            <SectionLabel>Create</SectionLabel>
+          <CollapsibleSection id="create" label="Create" open={open.createSection}
+            onToggle={() => setOpen((value) => ({ ...value, createSection: !value.createSection }))}>
             <Link href="/" className={navClass}><Home className="size-4 shrink-0" />Start</Link>
             <Link href="/scan" className={navClass}><Search className="size-4 shrink-0" />New scan</Link>
             <Link href="/iterate" className={navClass}><RotateCcw className="size-4 shrink-0" />Iterate on a top video</Link>
             <Link href="/create-ad-hoc?origin=creator" className={navClass}><Sparkles className="size-4 shrink-0" />Iterate creator content</Link>
             <Link href="/create-ad-hoc?origin=ad" className={navClass}><Megaphone className="size-4 shrink-0" />Iterate ad content</Link>
             <Link href="/create-static-ad" className={navClass}><ImageIcon className="size-4 shrink-0" />Create static ad</Link>
-          </div>
+          </CollapsibleSection>
 
-          <div className="border-t border-border pt-4">
-            <SectionLabel>Library</SectionLabel>
+          <CollapsibleSection id="library" label="Library" open={open.librarySection}
+            onToggle={() => setOpen((value) => ({ ...value, librarySection: !value.librarySection }))}>
             <Link href="/library" className={navClass}><Film className="size-4 shrink-0" />Clip library</Link>
-          </div>
+          </CollapsibleSection>
 
-          <section className="border-t border-border pt-4">
-            <SectionLabel>Projects</SectionLabel>
+          <CollapsibleSection id="projects" label="Projects" open={open.projectsSection}
+            onToggle={() => setOpen((value) => ({ ...value, projectsSection: !value.projectsSection }))}>
+          <section>
             <button onClick={() => setOpen((value) => ({ ...value, scans: !value.scans }))}
               aria-expanded={open.scans} aria-controls="sidebar-scans" className="flex w-full items-center gap-2 text-left text-sm font-semibold">
               <ChevronRight className={`size-3.5 shrink-0 ${open.scans ? "rotate-90" : ""}`} />Scan History
@@ -195,16 +239,18 @@ export function HistorySidebar() {
             <p className="break-words">{error}</p>
             <button onClick={loadProjects} className="flex items-center gap-1"><RotateCcw className="size-3" />Retry</button>
           </div>}
+          </CollapsibleSection>
 
-          <div className="space-y-2 border-t border-border pt-4">
-            <SectionLabel>Weekly Digest</SectionLabel>
+          <CollapsibleSection id="weekly-digest" label="Weekly Digest" open={open.weeklyDigestSection}
+            onToggle={() => setOpen((value) => ({ ...value, weeklyDigestSection: !value.weeklyDigestSection }))}>
             <Link href="/weekly-ads" className={navClass}><CalendarClock className="size-4 shrink-0" />Weekly ads</Link>
             <Link href="/weekly-static-ads" className={navClass}><ImageIcon className="size-4 shrink-0" />Weekly static ads</Link>
             <Link href="/weekly-content" className={navClass}><Newspaper className="size-4 shrink-0" />Weekly content</Link>
             <Link href="/weekly-creators" className={navClass}><Users className="size-4 shrink-0" />Weekly creators</Link>
-          </div>
-          <div className="space-y-2 border-t border-border pt-4">
-            <SectionLabel>Insights</SectionLabel>
+          </CollapsibleSection>
+
+          <CollapsibleSection id="insights" label="Insights" open={open.insightsSection}
+            onToggle={() => setOpen((value) => ({ ...value, insightsSection: !value.insightsSection }))}>
             <Link href="/content-history" className={navClass}><FileClock className="size-4 shrink-0" />Content history</Link>
             <div className="flex min-h-7 items-center gap-2">
               <button onClick={() => setOpen((value) => ({ ...value, analytics: !value.analytics }))}
@@ -288,12 +334,13 @@ export function HistorySidebar() {
               </div>
             )}
             <Link href="/benchmarks" className={navClass}><ClipboardCheck className="size-4 shrink-0" />Benchmarks</Link>
-          </div>
-          <div className="border-t border-border pt-4">
-            <SectionLabel>Settings</SectionLabel>
+          </CollapsibleSection>
+
+          <CollapsibleSection id="settings" label="Settings" open={open.settingsSection}
+            onToggle={() => setOpen((value) => ({ ...value, settingsSection: !value.settingsSection }))}>
             <Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}
               className={`${navClass} ${pathname === "/settings" ? "text-primary" : ""}`}><Settings2 className="size-4 shrink-0" />Settings</Link>
-          </div>
+          </CollapsibleSection>
         </nav>
       </aside>
     </>
