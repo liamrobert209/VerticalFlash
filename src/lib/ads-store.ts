@@ -1,13 +1,16 @@
 import type postgres from "postgres";
 import { getDb } from "./db";
 import { AdZ, AdQueryZ, type Ad, type AdSighting, type AdQuery } from "./ads-schema";
+import type { AdAnalysis } from "./ad-analysis-schema";
 
 // postgres.js does not auto-decode jsonb columns into objects (unlike some
-// other Postgres clients) — it hands back the raw JSON text, so `raw` needs
-// an explicit parse before it reaches AdZ's z.record() check.
+// other Postgres clients) — it hands back the raw JSON text, so `raw`/
+// `analysis` need an explicit parse before they reach AdZ's checks.
 function parseAd(row: Record<string, unknown>): Ad {
   const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
-  return AdZ.parse({ ...row, raw });
+  const analysis =
+    typeof row.analysis === "string" ? JSON.parse(row.analysis) : row.analysis;
+  return AdZ.parse({ ...row, raw, analysis });
 }
 
 // Upsert one observed ad: first sighting inserts a fresh row (is_active,
@@ -21,12 +24,14 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
   const rows = await sql`
     insert into ads (
       account_id, platform_id, product_line_id, external_ad_id,
-      headline, body_text, creative_url, landing_url, launch_date, tags, raw
+      headline, body_text, creative_url, landing_url, launch_date, tags, raw,
+      is_static_eligible
     ) values (
       ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
       ${sighting.externalAdId}, ${sighting.headline ?? null}, ${sighting.bodyText ?? null},
       ${sighting.creativeUrl ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
-      ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null}
+      ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null},
+      ${sighting.isStaticEligible ?? false}
     )
     on conflict (platform_id, external_ad_id) do update set
       account_id = coalesce(excluded.account_id, ads.account_id),
@@ -38,6 +43,9 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
       launch_date = coalesce(ads.launch_date, excluded.launch_date),
       tags = case when array_length(excluded.tags, 1) > 0 then excluded.tags else ads.tags end,
       raw = coalesce(excluded.raw, ads.raw),
+      -- Pure function of raw, recomputed every sighting rather than kept
+      -- sticky — a re-scraped ad's creative can change between syncs.
+      is_static_eligible = excluded.is_static_eligible,
       last_seen_at = now(),
       is_active = true,
       updated_at = now()
@@ -118,4 +126,31 @@ export async function getAd(id: string): Promise<Ad | null> {
   const sql = getDb();
   const rows = await sql`select * from ads where id = ${id}`;
   return rows[0] ? parseAd(rows[0]) : null;
+}
+
+export async function saveAdAnalysis(adId: string, analysis: AdAnalysis): Promise<Ad> {
+  const sql = getDb();
+  const rows = await sql`
+    update ads set
+      analysis = ${sql.json(analysis as unknown as postgres.JSONValue)},
+      analyzed_at = now(),
+      updated_at = now()
+    where id = ${adId}
+    returning *
+  `;
+  return parseAd(rows[0]);
+}
+
+// Eligible static ads that haven't been analyzed yet — the sync loop's
+// per-ad analysis call skips anything already analyzed, and this covers
+// retrying ads whose analysis failed on a prior sync.
+export async function listUnanalyzedStaticAds(limit: number): Promise<Ad[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from ads
+    where is_static_eligible = true and analyzed_at is null
+    order by first_seen_at desc
+    limit ${limit}
+  `;
+  return rows.map(parseAd);
 }

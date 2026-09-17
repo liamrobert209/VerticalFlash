@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdAnalysisZ } from "./ad-analysis-schema";
 
 // One row per ad per platform, sourced from ad-transparency APIs (Meta Ad
 // Library, TikTok Commercial Content Library, ...) — populated by the
@@ -21,6 +22,16 @@ export const AdZ = z.object({
   isActive: z.boolean(),
   tags: z.array(z.string()).default([]),
   raw: z.record(z.unknown()).nullable().optional(),
+  // true only for a Facebook/Instagram ad whose raw payload has a genuine
+  // static-image creative (populated `images[]`, empty `videos[]`) — the
+  // Static Ad Generator's eligibility gate for using an ad as a visual
+  // reference. TikTok ads are never eligible: their `coverImageUrl` is a
+  // video poster frame, not an independent static creative.
+  isStaticEligible: z.boolean().default(false),
+  // Automatic Gemini analysis (intent/USP/persona/product), run once per
+  // eligible ad at ingest time — see ad-analyze.ts.
+  analysis: AdAnalysisZ.nullable().optional(),
+  analyzedAt: z.union([z.string(), z.date()]).nullable().optional(),
   createdAt: z.union([z.string(), z.date()]),
   updatedAt: z.union([z.string(), z.date()]),
 });
@@ -41,6 +52,10 @@ export const AdSightingZ = z.object({
   launchDate: z.string().nullable().optional(),
   tags: z.array(z.string()).default([]),
   raw: z.record(z.unknown()).nullable().optional(),
+  // Computed by the sync job from the raw payload (see
+  // isFacebookStaticEligible in weekly-ads-sync.ts) — recomputed on every
+  // sighting since it's a pure function of `raw`, never sticky state.
+  isStaticEligible: z.boolean().default(false),
 });
 
 export type AdSighting = z.infer<typeof AdSightingZ>;

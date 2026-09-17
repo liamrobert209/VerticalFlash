@@ -65,6 +65,14 @@ function facebookCreativeUrl(snapshot: FacebookSnapshot | undefined): string | n
   return snapshot?.images?.[0]?.original_image_url ?? null;
 }
 
+// A genuine static-image ad, eligible as a Static Ad Generator visual
+// reference: the snapshot has a real image and no video at all. An ad with
+// both (e.g. a video ad whose snapshot also includes a thumbnail image) is
+// NOT eligible — that image is a poster frame, not independent creative.
+function isFacebookStaticEligible(snapshot: FacebookSnapshot | undefined): boolean {
+  return !(snapshot?.videos?.length) && !!snapshot?.images?.length;
+}
+
 // Meta's publisherPlatform can list facebook/instagram/messenger/
 // audience_network for the same creative — one ads row per platform we
 // actually track (facebook, instagram) so Weekly Ads' per-platform view is
@@ -125,6 +133,7 @@ export async function processFacebookItems(
       launchDate: toIsoDate(item.startDate),
       tags: [],
       raw: item as unknown as Record<string, unknown>,
+      isStaticEligible: isFacebookStaticEligible(item.snapshot),
     };
     for (const platformId of facebookPlatformIds(item)) {
       try {
@@ -191,6 +200,9 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
         launchDate: item.firstShownDate ?? null,
         tags: item.tags ?? [],
         raw: item as unknown as Record<string, unknown>,
+        // coverImageUrl is a video poster frame, not independent static
+        // creative — TikTok ads are never eligible as a visual reference.
+        isStaticEligible: false,
       });
       seenIds.push(item.adId);
     } catch (err) {
