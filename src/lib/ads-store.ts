@@ -150,30 +150,54 @@ export async function listActiveAdsGroupedByProductLine(
   return byProductLine;
 }
 
-// Newest static-eligible ads per product line — same grouped-window-query
-// shape as listActiveAdsGroupedByProductLine, filtered to ads the Static Ad
-// Generator can actually use as a visual reference.
-export async function listEligibleStaticAdsGroupedByProductLine(
-  limitPerGroup: number
-): Promise<Map<string, Ad[]>> {
+export interface CompetitorAdGroup {
+  accountId: string | null;
+  accountName: string | null;
+  total: number;
+  ads: AdWithAccount[];
+}
+
+// Newest static-eligible ads per (product line, competitor) — like
+// listActiveAdsGroupedByProductLine but partitioned one level deeper, so
+// Weekly Static Ads can render one row per competitor instead of mixing
+// every competitor's ads into one flat per-product-line list. `total` is
+// the competitor's full eligible count (via count(*) over(...)), not just
+// how many are returned — same count(*) over() + windowed-limit pattern
+// content-record-store.ts's listContentRecords already uses for its
+// "N-M of Z" pagination.
+export async function listEligibleStaticAdsGroupedByCompetitor(
+  limitPerCompetitor: number
+): Promise<Map<string, CompetitorAdGroup[]>> {
   const sql = getDb();
   const rows = await sql`
     select * from (
-      select *, row_number() over (
-        partition by product_line_id
-        order by coalesce(launch_date, first_seen_at) desc
-      ) as rn
-      from ads
-      where is_active = true and is_static_eligible = true and product_line_id is not null
+      select a.*, c.name as account_name,
+        count(*) over (partition by a.product_line_id, a.account_id) as total_count,
+        row_number() over (
+          partition by a.product_line_id, a.account_id
+          order by coalesce(a.launch_date, a.first_seen_at) desc
+        ) as rn
+      from ads a
+      left join competitor_accounts c on c.id = a.account_id
+      where a.is_active = true and a.is_static_eligible = true and a.product_line_id is not null
     ) ranked
-    where rn <= ${limitPerGroup}
+    where rn <= ${limitPerCompetitor}
+    order by total_count desc
   `;
-  const byProductLine = new Map<string, Ad[]>();
+  const byProductLine = new Map<string, CompetitorAdGroup[]>();
+  const groupIndex = new Map<string, CompetitorAdGroup>();
   for (const row of rows) {
-    const ad = parseAd(row);
-    const list = byProductLine.get(row.productLineId) ?? [];
-    list.push(ad);
-    byProductLine.set(row.productLineId, list);
+    const ad = parseAdWithAccount(row);
+    const groupKey = `${row.productLineId}::${row.accountId ?? "unknown"}`;
+    let group = groupIndex.get(groupKey);
+    if (!group) {
+      group = { accountId: row.accountId, accountName: row.accountName, total: Number(row.totalCount), ads: [] };
+      groupIndex.set(groupKey, group);
+      const list = byProductLine.get(row.productLineId) ?? [];
+      list.push(group);
+      byProductLine.set(row.productLineId, list);
+    }
+    group.ads.push(ad);
   }
   return byProductLine;
 }

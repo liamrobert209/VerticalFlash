@@ -1,51 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Ad } from "@/lib/ads-schema";
-import type { AdIntent } from "@/lib/ad-analysis-schema";
+import type { AdWithAccount } from "@/lib/ads-schema";
+import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
+import { MediaThumb } from "@/components/weekly-digest/shared";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-interface IntentCount {
-  intent: AdIntent;
-  count: number;
+type Ad = AdWithAccount;
+
+interface CompetitorGroup {
+  accountId: string | null;
+  accountName: string | null;
+  total: number;
+  ads: Ad[];
 }
 
 interface ProductLineSection {
   productLineId: string;
   label: string;
-  ads: Ad[];
-  commonIntents: IntentCount[];
+  competitors: CompetitorGroup[];
 }
 
 interface DigestResponse {
   productLines: ProductLineSection[];
-  // Populated once Phase 4/5 land generated projects.
   ourAds: { accepted: unknown[]; discarded: unknown[]; drafts: unknown[] };
 }
 
-const INTENT_LABELS: Record<AdIntent, string> = {
-  direct_response: "Direct response",
-  brand_awareness: "Brand awareness",
-  retargeting: "Retargeting",
-  seasonal_promo: "Seasonal promo",
-  product_launch: "Product launch",
-  other: "Other",
-};
+const PAGE_SIZE = 5;
 
 function StaticAdCard({ ad }: { ad: Ad }) {
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      {ad.creativeUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={ad.creativeUrl}
-          alt={ad.headline ?? "Competitor static ad"}
-          className="w-full aspect-square object-cover bg-muted"
-          loading="lazy"
-        />
-      ) : (
-        <div className="w-full aspect-square bg-muted" />
-      )}
+    <div className="w-56 shrink-0 rounded-lg border border-border overflow-hidden">
+      <MediaThumb url={ad.creativeUrl} className="w-full aspect-square" showControls={false} />
       <div className="p-3 space-y-1.5">
         <p className="text-sm font-medium text-foreground line-clamp-2">
           {ad.headline || ad.bodyText || "(no headline)"}
@@ -53,7 +40,7 @@ function StaticAdCard({ ad }: { ad: Ad }) {
         {ad.analysis ? (
           <div className="space-y-1">
             <span className="inline-block rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-              {INTENT_LABELS[ad.analysis.intent]}
+              {AD_INTENT_LABELS[ad.analysis.intent]}
             </span>
             <p className="text-xs text-muted-foreground line-clamp-2">
               <span className="font-semibold text-foreground">USP:</span> {ad.analysis.usp}
@@ -71,6 +58,55 @@ function StaticAdCard({ ad }: { ad: Ad }) {
         >
           Create static ad from this ▸
         </Link>
+      </div>
+    </div>
+  );
+}
+
+// One horizontal row per competitor, paged in fixed PAGE_SIZE increments
+// (not smooth-scroll) so the "showing X-Y of Z" label always matches
+// exactly what's in view. Every ad for this competitor is already fetched
+// (bounded by the API's PER_COMPETITOR_LIMIT), so paging is purely
+// client-side — no extra network calls.
+function CompetitorAdRow({ group }: { group: CompetitorGroup }) {
+  const [page, setPage] = useState(0);
+  const start = page * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, group.ads.length);
+  const canPrev = page > 0;
+  const canNext = end < group.ads.length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-foreground">{group.accountName ?? "Unknown brand"}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {start + 1}–{end} of {group.total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p - 1)}
+            disabled={!canPrev}
+            aria-label="Previous"
+            className="flex size-6 items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30"
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!canNext}
+            aria-label="Next"
+            className="flex size-6 items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30"
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {group.ads.slice(start, end).map((ad) => (
+          <StaticAdCard key={ad.id} ad={ad} />
+        ))}
       </div>
     </div>
   );
@@ -100,8 +136,8 @@ export default function WeeklyStaticAdsPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Weekly static ads</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Competitor static-image ad creative, plus the static ads you&apos;ve generated in response. Only
-          genuine static-image ads show here — video ads (even with a poster-frame thumbnail) live on{" "}
+          Competitor static-image ad creative, one row per competitor, plus the static ads you&apos;ve generated in
+          response. Only genuine static-image ads show here — video ads (even with a poster-frame thumbnail) live on{" "}
           <Link href="/weekly-ads" className="text-primary underline-offset-4 hover:underline">
             Weekly ads
           </Link>{" "}
@@ -111,7 +147,7 @@ export default function WeeklyStaticAdsPage() {
 
       {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
 
-      {!loading && sections.every((s) => s.ads.length === 0) && (
+      {!loading && sections.every((s) => s.competitors.length === 0) && (
         <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           No static competitor ads yet — sync some from{" "}
           <Link href="/weekly-ads" className="text-primary underline-offset-4 hover:underline">
@@ -123,31 +159,15 @@ export default function WeeklyStaticAdsPage() {
 
       {!loading &&
         sections
-          .filter((s) => s.ads.length > 0)
+          .filter((s) => s.competitors.length > 0)
           .map((section) => (
-            <section key={section.productLineId} className="space-y-3 rounded-lg border border-border p-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  {section.label}
-                </h2>
-                {section.commonIntents.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {section.commonIntents.map((c) => (
-                      <span
-                        key={c.intent}
-                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
-                      >
-                        {INTENT_LABELS[c.intent]} × {c.count}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {section.ads.map((ad) => (
-                  <StaticAdCard key={ad.id} ad={ad} />
-                ))}
-              </div>
+            <section key={section.productLineId} className="space-y-4 rounded-lg border border-border p-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {section.label}
+              </h2>
+              {section.competitors.map((group) => (
+                <CompetitorAdRow key={group.accountId ?? "unknown"} group={group} />
+              ))}
             </section>
           ))}
 
