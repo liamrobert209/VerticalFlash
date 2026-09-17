@@ -1,6 +1,9 @@
+import type { GoogleGenAI } from "@google/genai";
 import { runApifyActor } from "./apify-client";
-import { recordAdSighting, markStaleAdsInactive } from "./ads-store";
-import type { AdSighting } from "./ads-schema";
+import { recordAdSighting, markStaleAdsInactive, saveAdAnalysis } from "./ads-store";
+import type { AdSighting, Ad } from "./ads-schema";
+import { getGeminiClient } from "./gemini";
+import { analyzeStaticAd } from "./ad-analyze";
 
 // Both actor ids and their I/O shapes were confirmed against Apify's store
 // listings before writing this (apify.com/apify/facebook-ads-scraper,
@@ -100,6 +103,37 @@ export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult
   return processFacebookItems(items, targets);
 }
 
+// Gemini client for the ad-analysis pass below, built once per sync batch
+// (not per ad) and cached as null if GEMINI_API_KEY isn't configured — a
+// missing key skips analysis for the whole batch rather than failing sync.
+function tryGetGeminiClient(errors: string[]): GoogleGenAI | null {
+  try {
+    return getGeminiClient();
+  } catch (err) {
+    errors.push(
+      `Ad analysis skipped for this sync: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return null;
+  }
+}
+
+// Analyzes one newly-eligible, not-yet-analyzed ad (tags/intent/USP/
+// persona/product). Failures are collected, not thrown — one bad ad's
+// creative (an unreachable URL, a Gemini hiccup) must never fail the sync;
+// analyzed_at stays null so it's retried on the next sync.
+async function analyzeIfNeeded(ad: Ad, ai: GoogleGenAI | null, errors: string[]): Promise<void> {
+  if (!ai || !ad.isStaticEligible || ad.analyzedAt || !ad.creativeUrl) return;
+  try {
+    const analysis = await analyzeStaticAd(ai, ad.creativeUrl, {
+      headline: ad.headline,
+      bodyText: ad.bodyText,
+    });
+    await saveAdAnalysis(ad.id, analysis);
+  } catch (err) {
+    errors.push(`Ad analysis failed for ${ad.externalAdId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 // Split from syncFacebookAds so the mapping/filtering logic can be
 // verified against an already-fetched dataset (free — Apify bills the
 // actor run, not re-reading its results) without paying for another run.
@@ -110,6 +144,7 @@ export async function processFacebookItems(
   const byName = new Map(targets.map((t) => [t.name.toLowerCase(), t]));
   const seenByPlatform = new Map<string, string[]>();
   const errors: string[] = [];
+  const ai = tryGetGeminiClient(errors);
 
   for (const item of items) {
     if (!item.adArchiveID) continue;
@@ -137,10 +172,11 @@ export async function processFacebookItems(
     };
     for (const platformId of facebookPlatformIds(item)) {
       try {
-        await recordAdSighting({ ...sighting, platformId });
+        const ad = await recordAdSighting({ ...sighting, platformId });
         const seen = seenByPlatform.get(platformId) ?? [];
         seen.push(item.adArchiveID);
         seenByPlatform.set(platformId, seen);
+        await analyzeIfNeeded(ad, ai, errors);
       } catch (err) {
         errors.push(`${item.adArchiveID} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
       }
