@@ -69,16 +69,27 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
   return parseAd(rows[0]);
 }
 
-// Call once per platform after a sync batch completes: any ad not in
-// `seenExternalIds` wasn't found this round, so it's no longer running.
+// Call once per platform after a sync batch completes: any ad belonging to
+// one of the accounts actually included in this batch (`accountIds`) that
+// wasn't seen this round has stopped running. Scoped to `accountIds` —
+// NOT every ad on the platform — since a sync only ever re-checks the
+// accounts the caller selected; an unrelated account's ads being absent
+// from `seenExternalIds` means nothing (it wasn't looked at, not that it
+// stopped running). A blanket platform-wide version of this previously
+// caused every OTHER synced account's ads on the same platform to be
+// wrongly marked inactive by an unrelated sync.
 export async function markStaleAdsInactive(
   platformId: string,
+  accountIds: (string | null)[],
   seenExternalIds: string[]
 ): Promise<number> {
   const sql = getDb();
+  const ids = accountIds.filter((id): id is string => id != null);
+  if (!ids.length) return 0;
   const result = await sql`
     update ads set is_active = false, updated_at = now()
     where platform_id = ${platformId}
+      and account_id = any(${ids})
       and is_active = true
       and external_ad_id != all(${seenExternalIds})
   `;

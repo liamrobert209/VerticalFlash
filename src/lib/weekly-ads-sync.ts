@@ -253,9 +253,10 @@ export async function processFacebookItems(
     }
   }
 
+  const targetAccountIds = targets.map((t) => t.accountId);
   const results: SyncResult[] = [];
   for (const [platformId, seenIds] of seenByPlatform) {
-    const markedInactive = await markStaleAdsInactive(platformId, seenIds);
+    const markedInactive = await markStaleAdsInactive(platformId, targetAccountIds, seenIds);
     results.push({ platformId, adsSeen: seenIds.length, markedInactive, errors });
   }
   return results;
@@ -316,6 +317,10 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
     }
   }
 
-  const markedInactive = await markStaleAdsInactive("tiktok", seenIds);
+  const markedInactive = await markStaleAdsInactive(
+    "tiktok",
+    targets.map((t) => t.accountId),
+    seenIds
+  );
   return { platformId: "tiktok", adsSeen: seenIds.length, markedInactive, errors };
 }
