@@ -7,14 +7,38 @@ import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
-import { ProductLineSwitcher } from "@/components/nav/ProductLineSwitcher";
 import { ANALYTICS_CHANNELS } from "@/lib/analytics-channels";
+
+const navClass = "flex min-h-7 items-center gap-2 text-sm font-semibold hover:text-primary";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">
       {children}
     </p>
+  );
+}
+
+// Every plain nav link uses this so the current page is always visually
+// obvious — extends the pattern the Settings section already had on its
+// own before this was generalized to the rest of the sidebar.
+function NavLink({
+  href,
+  pathname,
+  icon: Icon,
+  children,
+}: {
+  href: string;
+  pathname: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  const active = pathname === href;
+  return (
+    <Link href={href} aria-current={active ? "page" : undefined} className={`${navClass} ${active ? "text-primary" : ""}`}>
+      <Icon className="size-4 shrink-0" />
+      {children}
+    </Link>
   );
 }
 
@@ -64,7 +88,7 @@ export function HistorySidebar() {
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
     scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false,
-    createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, settingsSection: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, settingsSection: true,
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -125,7 +149,6 @@ export function HistorySidebar() {
     }
   };
 
-  const navClass = "flex min-h-7 items-center gap-2 text-sm font-semibold hover:text-primary";
   const closeMobile = () => setMobileOpen(false);
   const chain: string[] = [];
   let current = scans.find((scan) => scan.id === currentScanId);
@@ -150,21 +173,18 @@ export function HistorySidebar() {
           <button onClick={closeMobile} aria-label="Close navigation" title="Close navigation"
             className="ml-auto flex size-8 items-center justify-center md:hidden"><X className="size-4" /></button>
 
-          <ProductLineSwitcher />
+          <CollapsibleSection id="home" label="Home" open={open.homeSection}
+            onToggle={() => setOpen((value) => ({ ...value, homeSection: !value.homeSection }))}>
+            <NavLink href="/" pathname={pathname} icon={Home}>Start</NavLink>
+          </CollapsibleSection>
 
           <CollapsibleSection id="create" label="Create" open={open.createSection}
             onToggle={() => setOpen((value) => ({ ...value, createSection: !value.createSection }))}>
-            <Link href="/" className={navClass}><Home className="size-4 shrink-0" />Start</Link>
-            <Link href="/scan" className={navClass}><Search className="size-4 shrink-0" />New scan</Link>
-            <Link href="/iterate" className={navClass}><RotateCcw className="size-4 shrink-0" />Iterate on a top video</Link>
-            <Link href="/create-ad-hoc?origin=creator" className={navClass}><Sparkles className="size-4 shrink-0" />Iterate creator content</Link>
-            <Link href="/create-ad-hoc?origin=ad" className={navClass}><Megaphone className="size-4 shrink-0" />Iterate ad content</Link>
-            <Link href="/create-static-ad" className={navClass}><ImageIcon className="size-4 shrink-0" />Create static ad</Link>
-          </CollapsibleSection>
-
-          <CollapsibleSection id="library" label="Library" open={open.librarySection}
-            onToggle={() => setOpen((value) => ({ ...value, librarySection: !value.librarySection }))}>
-            <Link href="/library" className={navClass}><Film className="size-4 shrink-0" />Clip library</Link>
+            <NavLink href="/scan" pathname={pathname} icon={Search}>New scan</NavLink>
+            <NavLink href="/iterate" pathname={pathname} icon={RotateCcw}>Iterate on a top video</NavLink>
+            <NavLink href="/create-ad-hoc?origin=creator" pathname={pathname} icon={Sparkles}>Iterate creator content</NavLink>
+            <NavLink href="/create-ad-hoc?origin=ad" pathname={pathname} icon={Megaphone}>Iterate ad content</NavLink>
+            <NavLink href="/create-static-ad" pathname={pathname} icon={ImageIcon}>Create static ad</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="projects" label="Projects" open={open.projectsSection}
@@ -243,23 +263,24 @@ export function HistorySidebar() {
 
           <CollapsibleSection id="weekly-digest" label="Weekly Digest" open={open.weeklyDigestSection}
             onToggle={() => setOpen((value) => ({ ...value, weeklyDigestSection: !value.weeklyDigestSection }))}>
-            <Link href="/weekly-ads" className={navClass}><CalendarClock className="size-4 shrink-0" />Weekly ads</Link>
-            <Link href="/weekly-static-ads" className={navClass}><ImageIcon className="size-4 shrink-0" />Weekly static ads</Link>
-            <Link href="/weekly-content" className={navClass}><Newspaper className="size-4 shrink-0" />Weekly content</Link>
-            <Link href="/weekly-creators" className={navClass}><Users className="size-4 shrink-0" />Weekly creators</Link>
-            <Link href="/weekly-trending-content" className={navClass}><TrendingUp className="size-4 shrink-0" />Weekly trending content</Link>
+            <NavLink href="/weekly-ads" pathname={pathname} icon={CalendarClock}>Weekly ads</NavLink>
+            <NavLink href="/weekly-static-ads" pathname={pathname} icon={ImageIcon}>Weekly static ads</NavLink>
+            <NavLink href="/weekly-content" pathname={pathname} icon={Newspaper}>Weekly content</NavLink>
+            <NavLink href="/weekly-creators" pathname={pathname} icon={Users}>Weekly creators</NavLink>
+            <NavLink href="/weekly-trending-content" pathname={pathname} icon={TrendingUp}>Weekly trending content</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="insights" label="Insights" open={open.insightsSection}
             onToggle={() => setOpen((value) => ({ ...value, insightsSection: !value.insightsSection }))}>
-            <Link href="/content-history" className={navClass}><FileClock className="size-4 shrink-0" />Content history</Link>
+            <NavLink href="/content-history" pathname={pathname} icon={FileClock}>Content history</NavLink>
             <div className="flex min-h-7 items-center gap-2">
               <button onClick={() => setOpen((value) => ({ ...value, analytics: !value.analytics }))}
                 aria-expanded={open.analytics} aria-controls="sidebar-analytics" aria-label="Toggle Analytics" title="Toggle Analytics"
                 className="flex size-5 shrink-0 items-center justify-center">
                 <ChevronRight className={`size-3.5 ${open.analytics ? "rotate-90" : ""}`} />
               </button>
-              <Link href="/analytics" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+              <Link href="/analytics" aria-current={pathname === "/analytics" ? "page" : undefined}
+                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/analytics" ? "text-primary" : ""}`}>
                 <BarChart3 className="size-4 shrink-0" />Analytics
               </Link>
             </div>
@@ -280,7 +301,8 @@ export function HistorySidebar() {
                 className="flex size-5 shrink-0 items-center justify-center">
                 <ChevronRight className={`size-3.5 ${open.adInsights ? "rotate-90" : ""}`} />
               </button>
-              <Link href="/ad-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+              <Link href="/ad-insights" aria-current={pathname === "/ad-insights" ? "page" : undefined}
+                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/ad-insights" ? "text-primary" : ""}`}>
                 <Megaphone className="size-4 shrink-0" />Ad Insights
               </Link>
             </div>
@@ -300,7 +322,8 @@ export function HistorySidebar() {
                 className="flex size-5 shrink-0 items-center justify-center">
                 <ChevronRight className={`size-3.5 ${open.contentInsights ? "rotate-90" : ""}`} />
               </button>
-              <Link href="/content-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+              <Link href="/content-insights" aria-current={pathname === "/content-insights" ? "page" : undefined}
+                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/content-insights" ? "text-primary" : ""}`}>
                 <Newspaper className="size-4 shrink-0" />Content Insights
               </Link>
             </div>
@@ -320,7 +343,8 @@ export function HistorySidebar() {
                 className="flex size-5 shrink-0 items-center justify-center">
                 <ChevronRight className={`size-3.5 ${open.creatorInsights ? "rotate-90" : ""}`} />
               </button>
-              <Link href="/creator-insights" className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+              <Link href="/creator-insights" aria-current={pathname === "/creator-insights" ? "page" : undefined}
+                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/creator-insights" ? "text-primary" : ""}`}>
                 <Users className="size-4 shrink-0" />Creator Insights
               </Link>
             </div>
@@ -334,23 +358,22 @@ export function HistorySidebar() {
                 ))}
               </div>
             )}
-            <Link href="/benchmarks" className={navClass}><ClipboardCheck className="size-4 shrink-0" />Benchmarks</Link>
+            <NavLink href="/benchmarks" pathname={pathname} icon={ClipboardCheck}>Benchmarks</NavLink>
+          </CollapsibleSection>
+
+          <CollapsibleSection id="library" label="Library" open={open.librarySection}
+            onToggle={() => setOpen((value) => ({ ...value, librarySection: !value.librarySection }))}>
+            <NavLink href="/library" pathname={pathname} icon={Film}>Clip library</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="settings" label="Settings" open={open.settingsSection}
             onToggle={() => setOpen((value) => ({ ...value, settingsSection: !value.settingsSection }))}>
-            <Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings" ? "text-primary" : ""}`}><Settings2 className="size-4 shrink-0" />Overview</Link>
-            <Link href="/settings/agents" aria-current={pathname === "/settings/agents" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings/agents" ? "text-primary" : ""}`}><SlidersHorizontal className="size-4 shrink-0" />Agents</Link>
-            <Link href="/settings/competitors" aria-current={pathname === "/settings/competitors" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings/competitors" ? "text-primary" : ""}`}><Megaphone className="size-4 shrink-0" />Competitors</Link>
-            <Link href="/settings/brand-assets" aria-current={pathname === "/settings/brand-assets" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings/brand-assets" ? "text-primary" : ""}`}><Palette className="size-4 shrink-0" />Brand assets</Link>
-            <Link href="/settings/product-images" aria-current={pathname === "/settings/product-images" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings/product-images" ? "text-primary" : ""}`}><ImageIcon className="size-4 shrink-0" />Product images</Link>
-            <Link href="/settings/agent-kit" aria-current={pathname === "/settings/agent-kit" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings/agent-kit" ? "text-primary" : ""}`}><Plug className="size-4 shrink-0" />Agent kit</Link>
+            <NavLink href="/settings" pathname={pathname} icon={Settings2}>Overview</NavLink>
+            <NavLink href="/settings/agents" pathname={pathname} icon={SlidersHorizontal}>Agents</NavLink>
+            <NavLink href="/settings/competitors" pathname={pathname} icon={Megaphone}>Competitors</NavLink>
+            <NavLink href="/settings/brand-assets" pathname={pathname} icon={Palette}>Brand assets</NavLink>
+            <NavLink href="/settings/product-images" pathname={pathname} icon={ImageIcon}>Product images</NavLink>
+            <NavLink href="/settings/agent-kit" pathname={pathname} icon={Plug}>Agent kit</NavLink>
           </CollapsibleSection>
         </nav>
       </aside>
