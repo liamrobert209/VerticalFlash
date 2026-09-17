@@ -23,7 +23,7 @@ Look at the attached image and the text above together, then report:
 - intent: the ad's primary goal
 - usp: the single unique selling proposition the ad leads with, in plain language
 - persona: who this ad is targeting, in plain language
-- product_shown: what product or product category is visually shown
+- productShown: what product or product category is visually shown
 - tags: a handful of short lowercase keyword tags for its angle/style/format
 - summary: one or two sentences describing the ad overall
 

@@ -15,6 +15,15 @@ export const AD_INTENTS = [
   "other",
 ] as const;
 
+export type AdIntent = (typeof AD_INTENTS)[number];
+
+// Field names are deliberately camelCase, unlike the snake_case convention
+// used by the per-video Gemini analysis schema — this one round-trips
+// through a jsonb column read via a `postgres.camel`-transformed client,
+// which recursively camelCases jsonb object keys on the way out (confirmed:
+// not just column names). Writing camelCase from Gemini directly avoids a
+// snake_case-in/camelCase-out mismatch that would otherwise fail Zod
+// validation on every read.
 export const AdAnalysisZ = z.object({
   summary: z.string(),
   intent: z.enum(AD_INTENTS),
@@ -24,7 +33,7 @@ export const AdAnalysisZ = z.object({
   // vary too much across categories/advertisers to usefully constrain)
   persona: z.string(),
   // What product/category is visually shown in the creative
-  product_shown: z.string(),
+  productShown: z.string(),
   tags: z.array(z.string()).min(1),
 });
 
@@ -33,7 +42,7 @@ export type AdAnalysis = z.infer<typeof AdAnalysisZ>;
 // Gemini structured-output schema — keep in sync with AdAnalysisZ
 export const adAnalysisResponseSchema = {
   type: Type.OBJECT,
-  required: ["summary", "intent", "usp", "persona", "product_shown", "tags"],
+  required: ["summary", "intent", "usp", "persona", "productShown", "tags"],
   properties: {
     summary: {
       type: Type.STRING,
@@ -50,7 +59,7 @@ export const adAnalysisResponseSchema = {
       description:
         "Who this ad is targeting, in plain language (e.g. 'night-shift workers struggling to fall asleep').",
     },
-    product_shown: {
+    productShown: {
       type: Type.STRING,
       description: "What product or product category is visually shown in the creative.",
     },

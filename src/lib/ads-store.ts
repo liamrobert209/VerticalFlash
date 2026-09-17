@@ -122,6 +122,34 @@ export async function listActiveAdsGroupedByProductLine(
   return byProductLine;
 }
 
+// Newest static-eligible ads per product line — same grouped-window-query
+// shape as listActiveAdsGroupedByProductLine, filtered to ads the Static Ad
+// Generator can actually use as a visual reference.
+export async function listEligibleStaticAdsGroupedByProductLine(
+  limitPerGroup: number
+): Promise<Map<string, Ad[]>> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from (
+      select *, row_number() over (
+        partition by product_line_id
+        order by coalesce(launch_date, first_seen_at) desc
+      ) as rn
+      from ads
+      where is_active = true and is_static_eligible = true and product_line_id is not null
+    ) ranked
+    where rn <= ${limitPerGroup}
+  `;
+  const byProductLine = new Map<string, Ad[]>();
+  for (const row of rows) {
+    const ad = parseAd(row);
+    const list = byProductLine.get(row.productLineId) ?? [];
+    list.push(ad);
+    byProductLine.set(row.productLineId, list);
+  }
+  return byProductLine;
+}
+
 export async function getAd(id: string): Promise<Ad | null> {
   const sql = getDb();
   const rows = await sql`select * from ads where id = ${id}`;

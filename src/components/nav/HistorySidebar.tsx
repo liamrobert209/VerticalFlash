@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Megaphone, Menu, Newspaper, RotateCcw, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, RotateCcw, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
@@ -198,6 +198,7 @@ export function HistorySidebar() {
           <div className="space-y-2 border-t border-border pt-4">
             <SectionLabel>Weekly Digest</SectionLabel>
             <Link href="/weekly-ads" className={navClass}><CalendarClock className="size-4 shrink-0" />Weekly ads</Link>
+            <Link href="/weekly-static-ads" className={navClass}><ImageIcon className="size-4 shrink-0" />Weekly static ads</Link>
             <Link href="/weekly-content" className={navClass}><Newspaper className="size-4 shrink-0" />Weekly content</Link>
             <Link href="/weekly-creators" className={navClass}><Users className="size-4 shrink-0" />Weekly creators</Link>
           </div>
