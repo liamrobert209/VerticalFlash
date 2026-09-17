@@ -17,19 +17,29 @@ export function brandAssetFilePath(id: string, filename: string): string {
 
 export async function createBrandAsset(opts: {
   kind: BrandAssetKind;
-  filename: string;
-  mimeType: string | null;
+  // "website" and "color_palette" assets have no uploaded file — filename/
+  // mimeType/buffer are only required together (all three or none).
+  filename?: string | null;
+  mimeType?: string | null;
+  buffer?: Buffer;
   description: string | null;
-  buffer: Buffer;
+  url?: string | null;
+  colors?: string[] | null;
+  productLineId?: string | null;
 }): Promise<BrandAsset> {
   const id = randomUUID();
-  await fs.mkdir(BRAND_ASSETS_DIR, { recursive: true });
-  await fs.writeFile(brandAssetFilePath(id, opts.filename), opts.buffer);
+  if (opts.buffer && opts.filename) {
+    await fs.mkdir(BRAND_ASSETS_DIR, { recursive: true });
+    await fs.writeFile(brandAssetFilePath(id, opts.filename), opts.buffer);
+  }
 
   const sql = getDb();
   const rows = await sql`
-    insert into brand_assets (id, kind, filename, mime_type, description, uploaded_at)
-    values (${id}, ${opts.kind}, ${opts.filename}, ${opts.mimeType}, ${opts.description}, now())
+    insert into brand_assets (id, kind, filename, mime_type, description, url, colors, product_line_id, uploaded_at)
+    values (
+      ${id}, ${opts.kind}, ${opts.filename ?? null}, ${opts.mimeType ?? null}, ${opts.description},
+      ${opts.url ?? null}, ${opts.colors ?? null}, ${opts.productLineId ?? null}, now()
+    )
     returning *
   `;
   return BrandAssetZ.parse(rows[0]);
@@ -39,7 +49,9 @@ export async function deleteBrandAsset(id: string): Promise<boolean> {
   const sql = getDb();
   const rows = await sql`select filename from brand_assets where id = ${id}`;
   if (!rows[0]) return false;
-  await fs.unlink(brandAssetFilePath(id, rows[0].filename as string)).catch(() => {});
+  if (rows[0].filename) {
+    await fs.unlink(brandAssetFilePath(id, rows[0].filename as string)).catch(() => {});
+  }
   const result = await sql`delete from brand_assets where id = ${id}`;
   return result.count > 0;
 }

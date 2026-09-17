@@ -11,6 +11,7 @@ export async function GET(
   const { id } = await params;
   const asset = await getBrandAsset(id);
   if (!asset) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!asset.filename) return NextResponse.json({ error: "This asset has no file" }, { status: 404 });
   const buffer = await fs.readFile(brandAssetFilePath(id, asset.filename)).catch(() => null);
   if (!buffer) return NextResponse.json({ error: "File missing on disk" }, { status: 404 });
   return new NextResponse(new Uint8Array(buffer), {
