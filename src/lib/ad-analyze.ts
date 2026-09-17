@@ -5,6 +5,7 @@ import {
 } from "@google/genai";
 import { getGeminiModel } from "./gemini";
 import { AdAnalysisZ, adAnalysisResponseSchema, type AdAnalysis } from "./ad-analysis-schema";
+import { fetchImageAsBase64 } from "./fetch-image";
 
 interface AdContext {
   headline: string | null;
@@ -28,25 +29,6 @@ Look at the attached image and the text above together, then report:
 - summary: one or two sentences describing the ad overall
 
 Return ONLY valid JSON matching the provided schema.`;
-}
-
-async function fetchImageAsBase64(
-  url: string
-): Promise<{ base64: string; mimeType: string }> {
-  // Some CDNs (confirmed: Wikimedia; ad-network CDNs like Facebook's are a
-  // real risk too) reject requests with no browser-like User-Agent.
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`Fetching ad creative image failed: HTTP ${res.status}`);
-  }
-  const mimeType = res.headers.get("content-type") || "image/jpeg";
-  const buffer = Buffer.from(await res.arrayBuffer());
-  return { base64: buffer.toString("base64"), mimeType };
 }
 
 // Analyze one static ad's creative image + copy. Follows the same

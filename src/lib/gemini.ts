@@ -8,6 +8,14 @@ export const GEMINI_MODEL = "gemini-3.6-flash";
 // interactions API, which needs the Omni family — not GEMINI_MODEL.
 export const GEMINI_VIDEO_MODEL = "gemini-omni-1.1-flash";
 
+// Static Ad Generator image generation/refinement (generateContent +
+// responseModalities: [Modality.IMAGE]). Chosen empirically: of the
+// available image-capable models, this was the only one that actually
+// blended BOTH reference images (a competitor ad's composition + our
+// product photo) instead of just reproducing one of them — confirmed by
+// a real test call, not assumed from the model name.
+export const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
+
 export {
   GEMINI_PRICE_IN_PER_M,
   GEMINI_PRICE_OUT_PER_M,

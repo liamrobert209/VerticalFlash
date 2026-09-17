@@ -9,13 +9,32 @@ import { z } from "zod";
 export const STATIC_AD_STATUSES = ["draft", "accepted", "discarded"] as const;
 export type StaticAdStatus = (typeof STATIC_AD_STATUSES)[number];
 
-// Minimal for now — Phase 5 replaces `attempts`'s item type with the full
-// StaticAdAttemptZ shape once generation exists.
+// One generate/refine call against the project's base image. Mirrors
+// GenerationAttemptZ's shape (video) but keyed by a project-wide attempt
+// number rather than per-shot, and with parent_attempt recording which
+// prior attempt a "refine" edited (refines chain off the *accepted*
+// attempt by default, not necessarily the immediately-prior one).
+export const StaticAdAttemptZ = z.object({
+  attempt: z.number(),
+  kind: z.enum(["generate", "refine"]),
+  prompt: z.string(),
+  parentAttempt: z.number().nullable(),
+  // Basename within static-ads/<projectId>/, e.g. attempt-2.png
+  file: z.string().nullable(),
+  status: z.enum(["ready", "failed"]),
+  error: z.string().nullable(),
+  usage: z.record(z.unknown()).optional(),
+  model: z.string(),
+  createdAt: z.string(),
+});
+
+export type StaticAdAttempt = z.infer<typeof StaticAdAttemptZ>;
+
 export const StaticAdBaseImageZ = z.object({
   status: z.enum(["idle", "generating", "ready", "failed"]),
   startedAt: z.string().nullable(),
   acceptedAttempt: z.number().nullable(),
-  attempts: z.array(z.unknown()),
+  attempts: z.array(StaticAdAttemptZ),
 });
 
 export function emptyBaseImage(): z.infer<typeof StaticAdBaseImageZ> {
@@ -43,3 +62,10 @@ export const StaticAdProjectZ = z.object({
 });
 
 export type StaticAdProject = z.infer<typeof StaticAdProjectZ>;
+
+// Attempt files are named per attempt number so a generated image can
+// never be claimed by another attempt — mirrors generatedClipName's
+// gen_s{shot}_a{attempt}.mp4 convention.
+export function staticAdAttemptName(attempt: number, ext: string): string {
+  return `attempt-${attempt}${ext}`;
+}

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { StaticAdProject } from "@/lib/static-ad-schema";
 import type { Ad } from "@/lib/ads-schema";
+import { BaseImagePanel, type StaticAdBaseImage } from "@/components/static-ads/BaseImagePanel";
 
 export default function StaticAdProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -14,20 +15,14 @@ export default function StaticAdProjectPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    // Loaded via the list endpoint filtered client-side rather than a
-    // dedicated GET /api/static-ads/[id] — that route lands in Phase 5
-    // alongside generate/refine/accept, which all need to look the
-    // project up anyway.
-    fetch(`/api/static-ads`)
-      .then((res) => res.json())
-      .then((data) => {
-        const found = (data.projects ?? []).find((p: StaticAdProject) => p.id === projectId);
-        if (!found) {
-          setNotFound(true);
-          return;
-        }
-        setProject(found);
-        return fetch(`/api/ads/${found.referenceAdId}`)
+    fetch(`/api/static-ads/${projectId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("not found");
+        return res.json();
+      })
+      .then((data: StaticAdProject) => {
+        setProject(data);
+        return fetch(`/api/ads/${data.referenceAdId}`)
           .then((res) => res.json())
           .then((ad) => setReferenceAd(ad?.id ? ad : null));
       })
@@ -73,8 +68,13 @@ export default function StaticAdProjectPage() {
         <p className="text-sm text-foreground">{project.ourUsp}</p>
       </section>
 
-      <section className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        Generation coming soon — this is where you&apos;ll generate the photographic base image and refine it.
+      <section className="rounded-lg border border-border p-4 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Base image</h2>
+        <BaseImagePanel
+          projectId={project.id}
+          baseImage={project.baseImage as StaticAdBaseImage}
+          onUpdated={(baseImage) => setProject((p) => (p ? { ...p, baseImage: baseImage as StaticAdProject["baseImage"] } : p))}
+        />
       </section>
     </div>
   );

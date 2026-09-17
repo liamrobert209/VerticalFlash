@@ -15,6 +15,13 @@ export const GEMINI_OMNI_VIDEO_OUT_PER_SEC: number | null = envPrice(
   "NEXT_PUBLIC_GEMINI_VIDEO_PRICE_PER_SEC"
 );
 
+// Price per generated/refined image (Static Ad Generator). Same
+// no-default treatment as video — until configured, the UI says "pricing
+// not configured" rather than guessing.
+export const GEMINI_IMAGE_PRICE_PER_IMAGE: number | null = envPrice(
+  "NEXT_PUBLIC_GEMINI_IMAGE_PRICE_PER_IMAGE"
+);
+
 function envPrice(name: string): number | null {
   // NEXT_PUBLIC_* values are inlined at build time, so read them by literal
   // name rather than through a dynamic lookup.
@@ -23,7 +30,9 @@ function envPrice(name: string): number | null {
       ? process.env.NEXT_PUBLIC_GEMINI_PRICE_IN_PER_M
       : name === "NEXT_PUBLIC_GEMINI_PRICE_OUT_PER_M"
         ? process.env.NEXT_PUBLIC_GEMINI_PRICE_OUT_PER_M
-        : process.env.NEXT_PUBLIC_GEMINI_VIDEO_PRICE_PER_SEC;
+        : name === "NEXT_PUBLIC_GEMINI_VIDEO_PRICE_PER_SEC"
+          ? process.env.NEXT_PUBLIC_GEMINI_VIDEO_PRICE_PER_SEC
+          : process.env.NEXT_PUBLIC_GEMINI_IMAGE_PRICE_PER_IMAGE;
   if (!raw) return null;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : null;
