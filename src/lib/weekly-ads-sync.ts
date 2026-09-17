@@ -5,11 +5,22 @@ import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
 import { analyzeStaticAd } from "./ad-analyze";
 
-// Both actor ids and their I/O shapes were confirmed against Apify's store
-// listings before writing this (apify.com/apify/facebook-ads-scraper,
-// apify.com/scrapesage/tiktok-ad-library-scraper) — not guessed.
-const FACEBOOK_ACTOR_ID = "apify/facebook-ads-scraper";
+// Both actor ids and their I/O shapes were confirmed against real Apify
+// runs before writing this (not guessed from documentation alone).
+// igolaizola/facebook-ad-library-scraper replaced apify/facebook-ads-scraper
+// (~10-19x cheaper: ~$0.30/1K ads vs $3.40-5.80/1K) — same snapshot.body/
+// videos/images shape, but top-level fields are snake_case
+// (ad_archive_id, page_name, start_date, publisher_platform, is_active)
+// instead of the old actor's camelCase, and it takes one `query` per call
+// instead of a batch of startUrls, so syncFacebookAds now runs one actor
+// call per target instead of one call for the whole batch.
+const FACEBOOK_ACTOR_ID = "igolaizola/facebook-ad-library-scraper";
 const TIKTOK_ACTOR_ID = "scrapesage/tiktok-ad-library-scraper";
+
+// Ads fetched per target per sync — tunable; the old actor had no cap
+// (unbounded "get as many as possible"), this one requires an explicit
+// maxItems. Raise or lower freely; this isn't tied to any other decision.
+const FACEBOOK_MAX_ITEMS_PER_TARGET = 30;
 
 export interface SyncTarget {
   accountId: string;
@@ -34,22 +45,21 @@ interface FacebookSnapshot {
 }
 
 interface FacebookAdItem {
-  adArchiveID: string;
-  pageID?: string;
-  pageName?: string;
-  startDate?: number | string;
-  endDate?: number | string;
-  isActive?: boolean;
-  publisherPlatform?: string[];
+  ad_archive_id: string;
+  page_id?: string;
+  page_name?: string;
+  start_date?: number | string;
+  end_date?: number | string;
+  is_active?: boolean;
+  publisher_platform?: string[];
   snapshot?: FacebookSnapshot;
   [key: string]: unknown;
 }
 
 function toIsoDate(value: number | string | undefined): string | null {
   if (value == null) return null;
-  // The actor documents startDate/endDate as either a unix timestamp
-  // (seconds) or a formatted string depending on the ad — handle both
-  // rather than assume one.
+  // start_date/end_date come back as unix timestamps (seconds) from this
+  // actor, but handle a formatted string too rather than assume one shape.
   if (typeof value === "number") return new Date(value * 1000).toISOString();
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
@@ -82,7 +92,7 @@ function isFacebookStaticEligible(snapshot: FacebookSnapshot | undefined): boole
 // accurate; messenger/audience_network placements aren't distinct creative,
 // so they're not split out separately.
 function facebookPlatformIds(item: FacebookAdItem): string[] {
-  const raw = (item.publisherPlatform ?? []).map((p) => p.toLowerCase());
+  const raw = (item.publisher_platform ?? []).map((p) => p.toLowerCase());
   const ids = new Set<string>();
   if (raw.includes("facebook")) ids.add("facebook");
   if (raw.includes("instagram")) ids.add("instagram");
@@ -90,17 +100,34 @@ function facebookPlatformIds(item: FacebookAdItem): string[] {
 }
 
 export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult[]> {
-  const startUrls = targets.map((t) => ({
-    url: `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(t.name)}&search_type=keyword_unordered`,
-  }));
-  const items = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
-    startUrls,
-    // "" (not "all") is this actor's documented value for "both active and
-    // inactive" — confirmed against a real 400 response during testing.
-    activeStatus: "",
-    isDetailsPerAd: false,
-  });
-  return processFacebookItems(items, targets);
+  // One actor call per target (this actor takes a single `query`, not a
+  // batch of startUrls) — sequential, not parallel, to stay under any
+  // concurrent-run cap on the Apify plan. Cost is identical either way.
+  const items: FacebookAdItem[] = [];
+  const runErrors: string[] = [];
+  for (const target of targets) {
+    try {
+      const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
+        query: target.name,
+        maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
+        // "all" (not "" like the old actor) is this actor's documented
+        // value for "both active and inactive" — confirmed against a real
+        // 400 response during testing ("active"|"inactive"|"all").
+        activeStatus: "all",
+      });
+      items.push(...results);
+    } catch (err) {
+      runErrors.push(`${target.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  const results = await processFacebookItems(items, targets);
+  if (runErrors.length) {
+    for (const result of results) result.errors.push(...runErrors);
+    if (results.length === 0) {
+      results.push({ platformId: "facebook", adsSeen: 0, markedInactive: 0, errors: runErrors });
+    }
+  }
+  return results;
 }
 
 // Gemini client for the ad-analysis pass below, built once per sync batch
@@ -147,25 +174,25 @@ export async function processFacebookItems(
   const ai = tryGetGeminiClient(errors);
 
   for (const item of items) {
-    if (!item.adArchiveID) continue;
-    // The actor's startUrls use a keyword search (Facebook Ad Library has
-    // no exact "ads by this exact page" API mode) — confirmed via a real
-    // run that roughly half the results for a single brand's name search
-    // are OTHER advertisers whose ad text/page merely mentions that word.
-    // Dropping anything that doesn't match one of our target names by
-    // exact page name keeps Weekly Ads to ads we can actually attribute,
-    // rather than mixing in unrelated keyword noise.
-    const matchedTarget = item.pageName ? byName.get(item.pageName.toLowerCase()) : undefined;
+    if (!item.ad_archive_id) continue;
+    // The actor's `query` is a keyword search (Facebook Ad Library has no
+    // exact "ads by this exact page" API mode — pageId would be exact, but
+    // we don't capture competitor page ids yet) — confirmed via a real run
+    // that keyword search can surface other advertisers whose page name
+    // merely contains the searched word. Dropping anything that doesn't
+    // match one of our target names by exact page name keeps Weekly Ads to
+    // ads we can actually attribute, rather than mixing in unrelated noise.
+    const matchedTarget = item.page_name ? byName.get(item.page_name.toLowerCase()) : undefined;
     if (!matchedTarget) continue;
     const sighting: Omit<AdSighting, "platformId"> = {
       accountId: matchedTarget.accountId,
       productLineId: matchedTarget.productLineId ?? null,
-      externalAdId: item.adArchiveID,
+      externalAdId: item.ad_archive_id,
       headline: item.snapshot?.title ?? null,
       bodyText: facebookBodyText(item.snapshot),
       creativeUrl: facebookCreativeUrl(item.snapshot),
       landingUrl: item.snapshot?.link_url ?? null,
-      launchDate: toIsoDate(item.startDate),
+      launchDate: toIsoDate(item.start_date),
       tags: [],
       raw: item as unknown as Record<string, unknown>,
       isStaticEligible: isFacebookStaticEligible(item.snapshot),
@@ -174,11 +201,11 @@ export async function processFacebookItems(
       try {
         const ad = await recordAdSighting({ ...sighting, platformId });
         const seen = seenByPlatform.get(platformId) ?? [];
-        seen.push(item.adArchiveID);
+        seen.push(item.ad_archive_id);
         seenByPlatform.set(platformId, seen);
         await analyzeIfNeeded(ad, ai, errors);
       } catch (err) {
-        errors.push(`${item.adArchiveID} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
+        errors.push(`${item.ad_archive_id} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
