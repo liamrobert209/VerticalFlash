@@ -1,6 +1,14 @@
 import type postgres from "postgres";
 import { getDb } from "./db";
-import { AdZ, AdQueryZ, type Ad, type AdSighting, type AdQuery } from "./ads-schema";
+import {
+  AdZ,
+  AdWithAccountZ,
+  AdQueryZ,
+  type Ad,
+  type AdWithAccount,
+  type AdSighting,
+  type AdQuery,
+} from "./ads-schema";
 import type { AdAnalysis } from "./ad-analysis-schema";
 
 // postgres.js does not auto-decode jsonb columns into objects (unlike some
@@ -11,6 +19,13 @@ function parseAd(row: Record<string, unknown>): Ad {
   const analysis =
     typeof row.analysis === "string" ? JSON.parse(row.analysis) : row.analysis;
   return AdZ.parse({ ...row, raw, analysis });
+}
+
+function parseAdWithAccount(row: Record<string, unknown>): AdWithAccount {
+  const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
+  const analysis =
+    typeof row.analysis === "string" ? JSON.parse(row.analysis) : row.analysis;
+  return AdWithAccountZ.parse({ ...row, raw, analysis });
 }
 
 // Upsert one observed ad: first sighting inserts a fresh row (is_active,
@@ -100,22 +115,23 @@ export async function listAds(query: AdQuery): Promise<Ad[]> {
 export async function listActiveAdsGroupedByProductLine(
   sort: "newest" | "longest_running",
   limitPerGroup: number
-): Promise<Map<string, Ad[]>> {
+): Promise<Map<string, AdWithAccount[]>> {
   const sql = getDb();
   const rows = await sql`
     select * from (
-      select *, row_number() over (
-        partition by product_line_id
-        order by ${sort === "newest" ? sql`coalesce(launch_date, first_seen_at) desc` : sql`(last_seen_at - coalesce(launch_date, first_seen_at)) desc`}
+      select a.*, c.name as account_name, row_number() over (
+        partition by a.product_line_id
+        order by ${sort === "newest" ? sql`coalesce(a.launch_date, a.first_seen_at) desc` : sql`(a.last_seen_at - coalesce(a.launch_date, a.first_seen_at)) desc`}
       ) as rn
-      from ads
-      where is_active = true and product_line_id is not null
+      from ads a
+      left join competitor_accounts c on c.id = a.account_id
+      where a.is_active = true and a.product_line_id is not null
     ) ranked
     where rn <= ${limitPerGroup}
   `;
-  const byProductLine = new Map<string, Ad[]>();
+  const byProductLine = new Map<string, AdWithAccount[]>();
   for (const row of rows) {
-    const ad = parseAd(row);
+    const ad = parseAdWithAccount(row);
     const list = byProductLine.get(row.productLineId) ?? [];
     list.push(ad);
     byProductLine.set(row.productLineId, list);

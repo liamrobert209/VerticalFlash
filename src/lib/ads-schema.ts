@@ -38,6 +38,16 @@ export const AdZ = z.object({
 
 export type Ad = z.infer<typeof AdZ>;
 
+// Extends AdZ with the competitor account's display name, resolved via a
+// join in ads-store.ts's grouped queries — kept separate from AdZ itself
+// so consumers that don't need it (Static Ad Generator, Ad Insights, ...)
+// aren't forced through an extra join they don't use.
+export const AdWithAccountZ = AdZ.extend({
+  accountName: z.string().nullable(),
+});
+
+export type AdWithAccount = z.infer<typeof AdWithAccountZ>;
+
 // Fields a sync job supplies for one observed ad — id/timestamps/is_active
 // are derived server-side by the upsert (see recordAdSighting in ads-store.ts)
 export const AdSightingZ = z.object({

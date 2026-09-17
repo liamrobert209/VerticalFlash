@@ -2,48 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Ad } from "@/lib/ads-schema";
+import type { AdWithAccount } from "@/lib/ads-schema";
+import type { AdIntent } from "@/lib/ad-analysis-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
+import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
 
-// The creative URL can point at either a still image or an mp4 (Facebook's
-// CDN uses opaque paths with no reliable extension to branch on ahead of
-// time), so this renders optimistically as an image and swaps to a native
-// <video> on load failure rather than guessing from the URL shape.
-function AdThumb({
-  url,
-  className,
-  showControls = true,
-}: {
-  url: string | null;
-  className?: string;
-  showControls?: boolean;
-}) {
-  const [failedAsImage, setFailedAsImage] = useState(false);
-
-  if (!url) {
-    return (
-      <div className={`flex items-center justify-center bg-muted text-[10px] text-muted-foreground ${className ?? ""}`}>
-        No preview
-      </div>
-    );
-  }
-
-  if (failedAsImage) {
-    return (
-      <video
-        src={url}
-        controls={showControls}
-        muted
-        playsInline
-        preload="metadata"
-        className={`bg-black object-contain ${className ?? ""}`}
-      />
-    );
-  }
-
-  // eslint-disable-next-line @next/next/no-img-element -- creative comes from Meta/TikTok CDNs, not a local/optimizable asset
-  return <img src={url} alt="" onError={() => setFailedAsImage(true)} className={`object-cover ${className ?? ""}`} />;
-}
+type Ad = AdWithAccount;
 
 interface ProductLineSection {
   productLineId: string;
@@ -56,6 +20,22 @@ const SYNC_PLATFORMS = [
   { id: "facebook", label: "Facebook" },
   { id: "tiktok", label: "TikTok" },
 ];
+
+// Same labels as weekly-static-ads/page.tsx's INTENT_LABELS — kept as a
+// small local copy rather than a shared import since it's just 6 strings.
+const INTENT_LABELS: Record<AdIntent, string> = {
+  direct_response: "Direct response",
+  brand_awareness: "Brand awareness",
+  retargeting: "Retargeting",
+  seasonal_promo: "Seasonal promo",
+  product_launch: "Product launch",
+  other: "Other",
+};
+
+function adAngle(ad: Ad): string {
+  if (ad.analysis) return INTENT_LABELS[ad.analysis.intent];
+  return ad.tags[0] ?? "—";
+}
 
 function runningDays(ad: Ad): number | null {
   const start = ad.launchDate ?? ad.firstSeenAt;
@@ -71,27 +51,36 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left rounded-lg border p-3 transition-colors ${
+      className={`w-80 shrink-0 rounded-lg border p-3 text-left transition-colors ${
         selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
       }`}
     >
       <div className="flex gap-3">
-        <AdThumb url={ad.creativeUrl} className="h-16 w-16 shrink-0 rounded-md" showControls={false} />
-        <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium text-foreground line-clamp-2">
-        {ad.headline || ad.bodyText || "(no headline)"}
-      </p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-        {ad.launchDate && <span>launched {new Date(ad.launchDate).toLocaleDateString()}</span>}
-        {days != null && <span>· running {days}d</span>}
-        {!ad.isActive && (
-          <span className="rounded-full bg-muted px-1.5 py-0.5 font-semibold uppercase text-muted-foreground">
-            stopped
-          </span>
-        )}
+        <MediaThumb url={ad.creativeUrl} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
+        <div className="min-w-0 flex-1 space-y-1 text-xs">
+          <p className="text-sm font-medium text-foreground line-clamp-2">
+            {ad.headline || ad.bodyText || "(no headline)"}
+          </p>
+          <p className="font-semibold text-foreground">{ad.accountName ?? "Unknown brand"}</p>
+          <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 uppercase">{ad.platformId}</span>
+            {days != null && <span>· running {days}d</span>}
+            {!ad.isActive && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 font-semibold uppercase">stopped</span>
+            )}
+          </div>
+          <p className="truncate text-muted-foreground">
+            <span className="font-semibold text-foreground">Angle:</span> {adAngle(ad)}
+          </p>
+          {ad.analysis?.productShown && (
+            <p className="truncate text-muted-foreground">
+              <span className="font-semibold text-foreground">Product:</span> {ad.analysis.productShown}
+            </p>
+          )}
+        </div>
       </div>
       {ad.tags.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap gap-1">
           {ad.tags.slice(0, 4).map((tag) => (
             <span key={tag} className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {tag}
@@ -99,8 +88,6 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
           ))}
         </div>
       )}
-        </div>
-      </div>
     </button>
   );
 }
@@ -116,9 +103,12 @@ function AdDetail({ ad, productLineId }: { ad: Ad; productLineId: string }) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-      <AdThumb url={ad.creativeUrl} className="h-48 w-full rounded-md" />
+      <MediaThumb url={ad.creativeUrl} className="h-48 w-full rounded-md" />
       <div>
         <p className="text-sm font-semibold text-foreground">{ad.headline || "(no headline)"}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {ad.accountName ?? "Unknown brand"} · <span className="uppercase">{ad.platformId}</span>
+        </p>
         {ad.bodyText && <p className="mt-1 text-sm text-muted-foreground">{ad.bodyText}</p>}
       </div>
       {ad.creativeUrl && (
@@ -142,7 +132,20 @@ function AdDetail({ ad, productLineId }: { ad: Ad; productLineId: string }) {
           <p className="font-semibold uppercase tracking-wide text-muted-foreground">Running for</p>
           <p className="mt-0.5 text-foreground">{days != null ? `${days} days` : "—"}{!ad.isActive && " (stopped)"}</p>
         </div>
+        <div>
+          <p className="font-semibold uppercase tracking-wide text-muted-foreground">Angle</p>
+          <p className="mt-0.5 text-foreground">{adAngle(ad)}</p>
+        </div>
+        <div>
+          <p className="font-semibold uppercase tracking-wide text-muted-foreground">Product</p>
+          <p className="mt-0.5 text-foreground">{ad.analysis?.productShown ?? "—"}</p>
+        </div>
       </div>
+      {ad.analysis?.usp && (
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">USP:</span> {ad.analysis.usp}
+        </p>
+      )}
       {ad.tags.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tags</p>
@@ -303,10 +306,10 @@ export default function WeeklyAdsPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 {section.label}
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Newest ads</p>
-                  <div className="space-y-2">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">Newest ads</p>
+                {section.newest.length > 0 ? (
+                  <HorizontalCardRow>
                     {section.newest.map((ad) => (
                       <AdCard
                         key={ad.id}
@@ -315,14 +318,15 @@ export default function WeeklyAdsPage() {
                         onSelect={() => setSelectedAd({ ad, productLineId: section.productLineId })}
                       />
                     ))}
-                    {section.newest.length === 0 && (
-                      <p className="text-xs text-muted-foreground">Nothing yet.</p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Longest-running ads</p>
-                  <div className="space-y-2">
+                  </HorizontalCardRow>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nothing yet.</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">Longest-running ads</p>
+                {section.longestRunning.length > 0 ? (
+                  <HorizontalCardRow>
                     {section.longestRunning.map((ad) => (
                       <AdCard
                         key={ad.id}
@@ -331,25 +335,18 @@ export default function WeeklyAdsPage() {
                         onSelect={() => setSelectedAd({ ad, productLineId: section.productLineId })}
                       />
                     ))}
-                    {section.longestRunning.length === 0 && (
-                      <p className="text-xs text-muted-foreground">Nothing yet.</p>
-                    )}
-                  </div>
-                </div>
+                  </HorizontalCardRow>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nothing yet.</p>
+                )}
               </div>
             </section>
           ))}
 
       {selectedAd && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background p-4 shadow-lg sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-96 sm:rounded-lg sm:border">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ad details</p>
-            <button onClick={() => setSelectedAd(null)} className="text-xs text-muted-foreground hover:text-foreground">
-              Close ✕
-            </button>
-          </div>
+        <DockedDetailPanel title="Ad details" onClose={() => setSelectedAd(null)}>
           <AdDetail ad={selectedAd.ad} productLineId={selectedAd.productLineId} />
-        </div>
+        </DockedDetailPanel>
       )}
     </div>
   );

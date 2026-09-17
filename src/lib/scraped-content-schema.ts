@@ -31,6 +31,15 @@ export const ScrapedContentZ = z.object({
 
 export type ScrapedContent = z.infer<typeof ScrapedContentZ>;
 
+// Extends ScrapedContentZ with the source account's display name, resolved
+// via the join already present in scraped-content-store.ts's grouped query
+// — same rationale as ads-schema.ts's AdWithAccountZ.
+export const ScrapedContentWithAccountZ = ScrapedContentZ.extend({
+  accountName: z.string().nullable(),
+});
+
+export type ScrapedContentWithAccount = z.infer<typeof ScrapedContentWithAccountZ>;
+
 // Fields a sync job supplies for one observed post — engagement counts are
 // a snapshot as of this sync, refreshed on every later sighting
 export const ScrapedContentSightingZ = z.object({

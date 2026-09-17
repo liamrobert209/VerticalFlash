@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { ScrapedContent } from "@/lib/scraped-content-schema";
+import type { ScrapedContentWithAccount } from "@/lib/scraped-content-schema";
+import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+
+type ContentItem = ScrapedContentWithAccount;
 
 interface ProductLineSection {
   productLineId: string;
   label: string;
-  newest: ScrapedContent[];
-  topPerforming: ScrapedContent[];
+  newest: ContentItem[];
+  topPerforming: ContentItem[];
 }
 
 function formatCount(n: number | null): string {
@@ -23,28 +26,41 @@ function ContentCard({
   onSelect,
   selected,
 }: {
-  item: ScrapedContent;
+  item: ContentItem;
   onSelect: () => void;
   selected: boolean;
 }) {
   return (
     <button
       onClick={onSelect}
-      className={`w-full text-left rounded-lg border p-3 transition-colors ${
+      className={`w-80 shrink-0 rounded-lg border p-3 text-left transition-colors ${
         selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
       }`}
     >
-      <p className="text-sm font-medium text-foreground line-clamp-2">
-        {item.caption || "(no caption)"}
-      </p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-        {item.postedAt && <span>{new Date(item.postedAt).toLocaleDateString()}</span>}
-        <span>👁 {formatCount(item.viewCount)}</span>
-        <span>♥ {formatCount(item.likeCount)}</span>
-        <span>💬 {formatCount(item.commentCount)}</span>
+      <div className="flex gap-3">
+        <MediaThumb
+          url={item.thumbnailUrl ?? item.mediaUrl}
+          className="h-24 w-24 shrink-0 rounded-md"
+          showControls={false}
+        />
+        <div className="min-w-0 flex-1 space-y-1 text-xs">
+          <p className="text-sm font-medium text-foreground line-clamp-2">
+            {item.caption || "(no caption)"}
+          </p>
+          <p className="font-semibold text-foreground">{item.accountName ?? "Unknown account"}</p>
+          <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 uppercase">{item.platformId}</span>
+            {item.postedAt && <span>{new Date(item.postedAt).toLocaleDateString()}</span>}
+          </div>
+          <div className="flex flex-wrap gap-2 text-muted-foreground">
+            <span>👁 {formatCount(item.viewCount)}</span>
+            <span>♥ {formatCount(item.likeCount)}</span>
+            <span>💬 {formatCount(item.commentCount)}</span>
+          </div>
+        </div>
       </div>
       {item.tags.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap gap-1">
           {item.tags.slice(0, 4).map((tag) => (
             <span key={tag} className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {tag}
@@ -61,7 +77,7 @@ function ContentDetail({
   productLineId,
   origin,
 }: {
-  item: ScrapedContent;
+  item: ContentItem;
   productLineId: string;
   origin: "creator" | "ad";
 }) {
@@ -73,7 +89,13 @@ function ContentDetail({
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-      <p className="text-sm text-foreground">{item.caption || "(no caption)"}</p>
+      <MediaThumb url={item.mediaUrl ?? item.thumbnailUrl} className="h-48 w-full rounded-md" />
+      <div>
+        <p className="text-sm text-foreground">{item.caption || "(no caption)"}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {item.accountName ?? "Unknown account"} · <span className="uppercase">{item.platformId}</span>
+        </p>
+      </div>
       {item.mediaUrl && (
         <a
           href={item.mediaUrl}
@@ -135,7 +157,7 @@ export function WeeklyContentBoard({
 }) {
   const [sections, setSections] = useState<ProductLineSection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<{ item: ScrapedContent; productLineId: string } | null>(null);
+  const [selected, setSelected] = useState<{ item: ContentItem; productLineId: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -169,10 +191,10 @@ export function WeeklyContentBoard({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {section.label}
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Newest</p>
-                <div className="space-y-2">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Newest</p>
+              {section.newest.length > 0 ? (
+                <HorizontalCardRow>
                   {section.newest.map((item) => (
                     <ContentCard
                       key={item.id}
@@ -181,12 +203,15 @@ export function WeeklyContentBoard({
                       onSelect={() => setSelected({ item, productLineId: section.productLineId })}
                     />
                   ))}
-                  {section.newest.length === 0 && <p className="text-xs text-muted-foreground">Nothing yet.</p>}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Top performing</p>
-                <div className="space-y-2">
+                </HorizontalCardRow>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nothing yet.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Top performing</p>
+              {section.topPerforming.length > 0 ? (
+                <HorizontalCardRow>
                   {section.topPerforming.map((item) => (
                     <ContentCard
                       key={item.id}
@@ -195,23 +220,18 @@ export function WeeklyContentBoard({
                       onSelect={() => setSelected({ item, productLineId: section.productLineId })}
                     />
                   ))}
-                  {section.topPerforming.length === 0 && <p className="text-xs text-muted-foreground">Nothing yet.</p>}
-                </div>
-              </div>
+                </HorizontalCardRow>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nothing yet.</p>
+              )}
             </div>
           </section>
         ))}
 
       {selected && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background p-4 shadow-lg sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-96 sm:rounded-lg sm:border">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</p>
-            <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">
-              Close ✕
-            </button>
-          </div>
+        <DockedDetailPanel title="Details" onClose={() => setSelected(null)}>
           <ContentDetail item={selected.item} productLineId={selected.productLineId} origin={origin} />
-        </div>
+        </DockedDetailPanel>
       )}
     </div>
   );

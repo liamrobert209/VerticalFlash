@@ -2,8 +2,10 @@ import type postgres from "postgres";
 import { getDb } from "./db";
 import {
   ScrapedContentZ,
+  ScrapedContentWithAccountZ,
   ScrapedContentQueryZ,
   type ScrapedContent,
+  type ScrapedContentWithAccount,
   type ScrapedContentSighting,
   type ScrapedContentQuery,
 } from "./scraped-content-schema";
@@ -13,6 +15,11 @@ import {
 function parseContent(row: Record<string, unknown>): ScrapedContent {
   const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
   return ScrapedContentZ.parse({ ...row, raw });
+}
+
+function parseContentWithAccount(row: Record<string, unknown>): ScrapedContentWithAccount {
+  const raw = typeof row.raw === "string" ? JSON.parse(row.raw) : row.raw;
+  return ScrapedContentWithAccountZ.parse({ ...row, raw });
 }
 
 // Upsert one observed post: engagement counts (views/likes/comments/shares)
@@ -90,11 +97,11 @@ export async function listScrapedContentGroupedByProductLine(
   accountType: "brand" | "creator",
   sort: "newest" | "top_performing",
   limitPerGroup: number
-): Promise<Map<string, ScrapedContent[]>> {
+): Promise<Map<string, ScrapedContentWithAccount[]>> {
   const sql = getDb();
   const rows = await sql`
     select * from (
-      select sc.*, row_number() over (
+      select sc.*, a.name as account_name, row_number() over (
         partition by sc.product_line_id
         order by ${sort === "newest" ? sql`sc.posted_at desc nulls last` : sql`coalesce(sc.view_count, 0) desc`}
       ) as rn
@@ -104,9 +111,9 @@ export async function listScrapedContentGroupedByProductLine(
     ) ranked
     where rn <= ${limitPerGroup}
   `;
-  const byProductLine = new Map<string, ScrapedContent[]>();
+  const byProductLine = new Map<string, ScrapedContentWithAccount[]>();
   for (const row of rows) {
-    const item = parseContent(row);
+    const item = parseContentWithAccount(row);
     const list = byProductLine.get(row.productLineId) ?? [];
     list.push(item);
     byProductLine.set(row.productLineId, list);
