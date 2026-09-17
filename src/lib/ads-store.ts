@@ -207,6 +207,47 @@ export async function listEligibleStaticAdsGroupedByCompetitor(
   return byProductLine;
 }
 
+// Every active ad (static AND video, unlike listEligibleStaticAdsGrouped-
+// ByCompetitor's is_static_eligible filter) for one product line, grouped
+// by competitor — the same per-competitor-row shape reused as-is by the Ad
+// Insights "suggested action" category pages, just scoped to a single
+// product line instead of every product line at once.
+export async function listAllAdsGroupedByCompetitorForProductLine(
+  productLineId: string,
+  limitPerCompetitor: number
+): Promise<CompetitorAdGroup[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from (
+      select a.*, c.name as account_name,
+        count(*) over (partition by a.account_id) as total_count,
+        row_number() over (
+          partition by a.account_id
+          order by coalesce(a.launch_date, a.first_seen_at) desc
+        ) as rn
+      from ads a
+      left join competitor_accounts c on c.id = a.account_id
+      where a.is_active = true and a.product_line_id = ${productLineId}
+    ) ranked
+    where rn <= ${limitPerCompetitor}
+    order by total_count desc
+  `;
+  const groupIndex = new Map<string, CompetitorAdGroup>();
+  const groups: CompetitorAdGroup[] = [];
+  for (const row of rows) {
+    const ad = parseAdWithAccount(row);
+    const groupKey = row.accountId ?? "unknown";
+    let group = groupIndex.get(groupKey);
+    if (!group) {
+      group = { accountId: row.accountId, accountName: row.accountName, total: Number(row.totalCount), ads: [] };
+      groupIndex.set(groupKey, group);
+      groups.push(group);
+    }
+    group.ads.push(ad);
+  }
+  return groups;
+}
+
 export async function getAd(id: string): Promise<Ad | null> {
   const sql = getDb();
   const rows = await sql`select * from ads where id = ${id}`;

@@ -32,3 +32,16 @@ export const TagPerformanceZ = z.object({
 });
 
 export type TagPerformance = z.infer<typeof TagPerformanceZ>;
+
+// One row per product_category, aggregated from adnova_ad_insights_daily
+// (a different, per-day-per-ad table than adnova_ai_tag_performance_90d
+// above) — confirmed real columns via direct introspection. Powers Ad
+// Insights' budget/CPA/spend panel.
+export const CategorySpendZ = z.object({
+  productCategory: z.string(),
+  totalSpend: z.number(),
+  totalPurchases: z.number(),
+  avgCostPerPurchase: z.number().nullable(),
+});
+
+export type CategorySpend = z.infer<typeof CategorySpendZ>;

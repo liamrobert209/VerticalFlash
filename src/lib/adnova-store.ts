@@ -1,5 +1,5 @@
 import { getAdnovaDb } from "./adnova-db";
-import { TagPerformanceZ, type TagPerformance } from "./adnova-schema";
+import { TagPerformanceZ, CategorySpendZ, type TagPerformance, type CategorySpend } from "./adnova-schema";
 
 // postgres.js returns numeric/bigint columns as strings (to avoid silent
 // precision loss on large bigints) — coerce before Zod validation, same
@@ -53,4 +53,32 @@ export async function listTagPerformance(
     byAttr.set(parsed.attr, list);
   }
   return byAttr;
+}
+
+// Total spend/purchases/CPA per product_category, from a different table
+// (adnova_ad_insights_daily, per-day-per-ad) than listAdnovaCategories'/
+// listTagPerformance's adnova_ai_tag_performance_90d — real spend numbers
+// confirmed via direct introspection (10 categories, $37.3k-$0.008k range).
+// avgCostPerPurchase is computed from the totals rather than averaged from
+// each row's own cost_per_purchase, so categories with many zero-purchase
+// days don't skew the average.
+export async function listSpendByCategory(): Promise<CategorySpend[]> {
+  const sql = getAdnovaDb();
+  const rows = await sql`
+    select product_category,
+      sum(spend) as total_spend,
+      sum(purchase_count) as total_purchases,
+      case when sum(purchase_count) > 0 then sum(spend) / sum(purchase_count) else null end as avg_cost_per_purchase
+    from adnova_ad_insights_daily
+    group by product_category
+    order by total_spend desc
+  `;
+  return rows.map((r) =>
+    CategorySpendZ.parse({
+      ...r,
+      totalSpend: Number(r.totalSpend),
+      totalPurchases: Number(r.totalPurchases),
+      avgCostPerPurchase: r.avgCostPerPurchase == null ? null : Number(r.avgCostPerPurchase),
+    })
+  );
 }

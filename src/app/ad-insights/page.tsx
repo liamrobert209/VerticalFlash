@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ANALYTICS_CHANNELS } from "@/lib/analytics-channels";
+import { BudgetSpendPanel } from "@/components/insights/BudgetSpendPanel";
 
 const ADNOVA_PLATFORMS = new Set(["facebook", "instagram"]);
 
@@ -12,6 +13,8 @@ export default function AdInsightsSummaryPage() {
           Best-performing hooks, USPs, and formats from our own ad campaigns, plus what competitors are currently running. Click a channel for its full breakdown.
         </p>
       </header>
+
+      <BudgetSpendPanel />
 
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         {ANALYTICS_CHANNELS.map((channel) => (
