@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, RotateCcw, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, Palette, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
@@ -339,7 +339,17 @@ export function HistorySidebar() {
           <CollapsibleSection id="settings" label="Settings" open={open.settingsSection}
             onToggle={() => setOpen((value) => ({ ...value, settingsSection: !value.settingsSection }))}>
             <Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}
-              className={`${navClass} ${pathname === "/settings" ? "text-primary" : ""}`}><Settings2 className="size-4 shrink-0" />Settings</Link>
+              className={`${navClass} ${pathname === "/settings" ? "text-primary" : ""}`}><Settings2 className="size-4 shrink-0" />Overview</Link>
+            <Link href="/settings/agents" aria-current={pathname === "/settings/agents" ? "page" : undefined}
+              className={`${navClass} ${pathname === "/settings/agents" ? "text-primary" : ""}`}><SlidersHorizontal className="size-4 shrink-0" />Agents</Link>
+            <Link href="/settings/competitors" aria-current={pathname === "/settings/competitors" ? "page" : undefined}
+              className={`${navClass} ${pathname === "/settings/competitors" ? "text-primary" : ""}`}><Megaphone className="size-4 shrink-0" />Competitors</Link>
+            <Link href="/settings/brand-assets" aria-current={pathname === "/settings/brand-assets" ? "page" : undefined}
+              className={`${navClass} ${pathname === "/settings/brand-assets" ? "text-primary" : ""}`}><Palette className="size-4 shrink-0" />Brand assets</Link>
+            <Link href="/settings/product-images" aria-current={pathname === "/settings/product-images" ? "page" : undefined}
+              className={`${navClass} ${pathname === "/settings/product-images" ? "text-primary" : ""}`}><ImageIcon className="size-4 shrink-0" />Product images</Link>
+            <Link href="/settings/agent-kit" aria-current={pathname === "/settings/agent-kit" ? "page" : undefined}
+              className={`${navClass} ${pathname === "/settings/agent-kit" ? "text-primary" : ""}`}><Plug className="size-4 shrink-0" />Agent kit</Link>
           </CollapsibleSection>
         </nav>
       </aside>
