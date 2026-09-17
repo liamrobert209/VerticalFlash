@@ -338,6 +338,10 @@ export async function processFacebookItems(
     for (const pageId of t.facebookPageIds ?? []) byPageId.set(pageId, t);
   }
   const seenByPlatform = new Map<string, string[]>();
+  // Confirmed-ended count per platform, straight from Meta's own signal —
+  // reported in SyncResult.markedInactive in place of the old "wasn't seen
+  // this sync" bulk deactivation (removed; see recordAdSighting's comment).
+  const confirmedInactiveByPlatform = new Map<string, number>();
   const errors: string[] = [];
   const ai = tryGetGeminiClient(deps, errors);
 
@@ -385,6 +389,11 @@ export async function processFacebookItems(
       tags: [],
       raw: item as unknown as Record<string, unknown>,
       isStaticEligible,
+      // Meta's own per-ad signal (queried with activeStatus: "all", so
+      // this is populated for both currently-running and ended ads) —
+      // see recordAdSighting's comment for why this replaced the old
+      // "wasn't seen in this sync" inference.
+      isActive: item.is_active ?? true,
     };
     for (const platformId of facebookPlatformIds(item)) {
       try {
@@ -392,6 +401,9 @@ export async function processFacebookItems(
         const seen = seenByPlatform.get(platformId) ?? [];
         seen.push(item.ad_archive_id);
         seenByPlatform.set(platformId, seen);
+        if (item.is_active === false) {
+          confirmedInactiveByPlatform.set(platformId, (confirmedInactiveByPlatform.get(platformId) ?? 0) + 1);
+        }
         await analyzeIfNeeded(ad, matchedTarget, ai, errors, deps);
       } catch (err) {
         errors.push(`${item.ad_archive_id} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
@@ -421,8 +433,12 @@ export async function processFacebookItems(
 
   const results: SyncResult[] = [];
   for (const [platformId, seenIds] of seenByPlatform) {
-    const markedInactive = await deps.markStaleAdsInactive(platformId, targetAccountIds, seenIds);
-    results.push({ platformId, adsSeen: seenIds.length, markedInactive, errors });
+    results.push({
+      platformId,
+      adsSeen: seenIds.length,
+      markedInactive: confirmedInactiveByPlatform.get(platformId) ?? 0,
+      errors,
+    });
   }
   return results;
 }
@@ -482,12 +498,12 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
     }
   }
 
-  const markedInactive = await markStaleAdsInactive(
-    "tiktok",
-    targets.map((t) => t.accountId),
-    seenIds
-  );
-  return { platformId: "tiktok", adsSeen: seenIds.length, markedInactive, errors };
+  // No "wasn't seen this sync" deactivation here (or in syncFacebookAds
+  // above) — see recordAdSighting's comment. This actor's output has no
+  // per-ad active/ended signal at all (unlike Facebook's activeStatus:
+  // "all"), so TikTok ads are never auto-deactivated; markedInactive is
+  // always 0 for this platform until a real signal exists.
+  return { platformId: "tiktok", adsSeen: seenIds.length, markedInactive: 0, errors };
 }
 
 // --- Ranked cron target selection ---------------------------------------

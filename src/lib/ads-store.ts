@@ -34,23 +34,34 @@ function parseAdWithAccount(row: Record<string, unknown>): AdWithAccount {
 
 // Upsert one observed ad: first sighting inserts a fresh row (is_active,
 // first_seen_at/last_seen_at all set now); every later sighting bumps
-// last_seen_at, flips is_active back on (an ad can stop and restart
-// between syncs), and refreshes the mutable creative fields — but
+// last_seen_at and refreshes the mutable creative fields — but
 // launch_date/first_seen_at are never overwritten once set, since they're
 // "when this ad actually started", not "when we last saw it".
+//
+// is_active is set from `sighting.isActive` — a direct, per-ad signal from
+// the source itself (Meta's Ad Library reports each ad's real status when
+// queried with activeStatus: "all"; see processFacebookItems), defaulting
+// to true when the source has no such signal (e.g. TikTok). This is the
+// ONLY thing that ever sets is_active false — there is deliberately no
+// separate "wasn't seen in this sync, so mark it inactive" pass anymore:
+// that inference broke under any partial/ranked/capped sync (an account
+// with 22 real active ads would have ~17 wrongly hidden by a sync that
+// only requested 5), and more fundamentally is a weaker signal than what
+// the source already tells us directly.
 export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
   const sql = getDb();
+  const isActive = sighting.isActive ?? true;
   const rows = await sql`
     insert into ads (
       account_id, platform_id, product_line_id, external_ad_id,
       headline, body_text, creative_url, creative_local_file, landing_url, launch_date, tags, raw,
-      is_static_eligible
+      is_static_eligible, is_active
     ) values (
       ${sighting.accountId ?? null}, ${sighting.platformId}, ${sighting.productLineId ?? null},
       ${sighting.externalAdId}, ${sighting.headline ?? null}, ${sighting.bodyText ?? null},
       ${sighting.creativeUrl ?? null}, ${sighting.creativeLocalFile ?? null}, ${sighting.landingUrl ?? null}, ${sighting.launchDate ?? null},
       ${sighting.tags}, ${sighting.raw ? sql.json(sighting.raw as postgres.JSONValue) : null},
-      ${sighting.isStaticEligible ?? false}
+      ${sighting.isStaticEligible ?? false}, ${isActive}
     )
     on conflict (platform_id, external_ad_id) do update set
       account_id = coalesce(excluded.account_id, ads.account_id),
@@ -71,8 +82,8 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
       -- Pure function of raw, recomputed every sighting rather than kept
       -- sticky — a re-scraped ad's creative can change between syncs.
       is_static_eligible = excluded.is_static_eligible,
+      is_active = excluded.is_active,
       last_seen_at = now(),
-      is_active = true,
       updated_at = now()
     returning *
   `;

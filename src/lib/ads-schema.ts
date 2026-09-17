@@ -73,6 +73,12 @@ export const AdSightingZ = z.object({
   // isFacebookStaticEligible in weekly-ads-sync.ts) — recomputed on every
   // sighting since it's a pure function of `raw`, never sticky state.
   isStaticEligible: z.boolean().default(false),
+  // Whether the SOURCE (Meta's Ad Library, via `activeStatus: "all"`)
+  // reports this specific ad as currently running — a positive signal
+  // straight from the sighting, not an inference from absence elsewhere.
+  // Omitted (no signal available, e.g. TikTok) defaults to true: an ad we
+  // can currently see should read as active unless told otherwise.
+  isActive: z.boolean().optional(),
 });
 
 export type AdSighting = z.infer<typeof AdSightingZ>;

@@ -206,8 +206,17 @@ async function syncAds() {
     return;
   }
 
+  // maxItemsPerTarget intentionally left at its default (30, the same as
+  // the manual sync button) rather than capped down for cost — Facebook is
+  // the cheapest actor by far ($0.30/1,000), so there's no real cost
+  // reason to shrink it, and doing so previously caused a real bug: any
+  // account with more real active ads than the cap would have the excess
+  // wrongly marked inactive by the old "wasn't seen this sync" pass (now
+  // removed anyway — see recordAdSighting's comment). Cost is controlled
+  // by how many ACCOUNTS get walked (targetsWithAdsGoal /
+  // WEEKLY_SYNC_MAX_ADS_ACCOUNTS_TOTAL), not by shrinking each one's
+  // result set.
   const { facebook, tiktok } = await syncRankedAdsForProductLines(accounts, {
-    maxItemsPerTarget: 5,
     targetsWithAdsGoal: 5,
   });
 
