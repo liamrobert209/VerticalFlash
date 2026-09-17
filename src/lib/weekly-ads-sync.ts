@@ -4,6 +4,7 @@ import { recordAdSighting, markStaleAdsInactive, saveAdAnalysis } from "./ads-st
 import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
 import { analyzeStaticAd } from "./ad-analyze";
+import { addFacebookPageId } from "./competitor-store";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
 // runs before writing this (not guessed from documentation alone).
@@ -26,6 +27,9 @@ export interface SyncTarget {
   accountId: string;
   name: string;
   productLineId?: string | null;
+  // Known Facebook Page ids for this account (see facebook-schema's
+  // comment) — matched first, before falling back to page-name matching.
+  facebookPageIds?: string[];
 }
 
 export interface SyncResult {
@@ -169,21 +173,38 @@ export async function processFacebookItems(
   targets: SyncTarget[]
 ): Promise<SyncResult[]> {
   const byName = new Map(targets.map((t) => [t.name.toLowerCase(), t]));
+  const byPageId = new Map<string, SyncTarget>();
+  for (const t of targets) {
+    for (const pageId of t.facebookPageIds ?? []) byPageId.set(pageId, t);
+  }
   const seenByPlatform = new Map<string, string[]>();
   const errors: string[] = [];
   const ai = tryGetGeminiClient(errors);
 
   for (const item of items) {
     if (!item.ad_archive_id) continue;
-    // The actor's `query` is a keyword search (Facebook Ad Library has no
-    // exact "ads by this exact page" API mode — pageId would be exact, but
-    // we don't capture competitor page ids yet) — confirmed via a real run
-    // that keyword search can surface other advertisers whose page name
-    // merely contains the searched word. Dropping anything that doesn't
-    // match one of our target names by exact page name keeps Weekly Ads to
-    // ads we can actually attribute, rather than mixing in unrelated noise.
-    const matchedTarget = item.page_name ? byName.get(item.page_name.toLowerCase()) : undefined;
+    // Page id is exact and display-name-independent — tried first. Falls
+    // back to matching by exact page name (the actor's `query` is a
+    // keyword search, which can surface other advertisers whose page name
+    // merely contains the searched word — dropping anything that doesn't
+    // match a saved name keeps this to ads we can actually attribute). A
+    // name match auto-records its page id below so the *next* sync for
+    // that same page matches by id even if its display name ever changes;
+    // it does NOT retroactively catch a brand's other regional Pages
+    // (each is a genuinely distinct Page/id) — add those ids manually
+    // once you've spotted them in a sync's results.
+    const matchedTarget =
+      (item.page_id && byPageId.get(item.page_id)) ||
+      (item.page_name ? byName.get(item.page_name.toLowerCase()) : undefined);
     if (!matchedTarget) continue;
+    if (item.page_id && !(matchedTarget.facebookPageIds ?? []).includes(item.page_id)) {
+      try {
+        await addFacebookPageId(matchedTarget.accountId, item.page_id);
+        matchedTarget.facebookPageIds = [...(matchedTarget.facebookPageIds ?? []), item.page_id];
+      } catch (err) {
+        errors.push(`Could not record Facebook page id for ${matchedTarget.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     const sighting: Omit<AdSighting, "platformId"> = {
       accountId: matchedTarget.accountId,
       productLineId: matchedTarget.productLineId ?? null,

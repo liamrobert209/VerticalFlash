@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       accountId: account.id,
       name: account.name,
       productLineId: account.productLineIds[0] ?? null,
+      facebookPageIds: account.facebookPageIds,
     });
   }
   if (!targets.length) {

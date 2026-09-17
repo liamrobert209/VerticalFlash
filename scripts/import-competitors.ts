@@ -50,6 +50,7 @@ async function main() {
       instagramFollowers: row.instagramFollowers,
       facebookHandle: row.facebookHandle,
       facebookFollowers: row.facebookFollowers,
+      facebookPageIds: [],
       tiktokHandle: row.tiktokHandle,
       tiktokStatus: row.tiktokStatus,
       positioning: row.positioning,

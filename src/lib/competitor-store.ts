@@ -118,13 +118,13 @@ export async function createCompetitor(input: CompetitorAccountInput): Promise<C
       insert into competitor_accounts (
         id, name, account_type, region, website,
         instagram_handle, instagram_url, instagram_followers,
-        facebook_handle, facebook_url, facebook_followers,
+        facebook_handle, facebook_url, facebook_followers, facebook_page_ids,
         tiktok_handle, tiktok_url, tiktok_status,
         positioning, cross_category_flag, notes, created_at, updated_at
       ) values (
         ${id}, ${input.name}, ${input.accountType}, ${input.region}, ${input.website ?? null},
         ${input.instagramHandle ?? null}, ${input.instagramUrl ?? null}, ${input.instagramFollowers ?? null},
-        ${input.facebookHandle ?? null}, ${input.facebookUrl ?? null}, ${input.facebookFollowers ?? null},
+        ${input.facebookHandle ?? null}, ${input.facebookUrl ?? null}, ${input.facebookFollowers ?? null}, ${input.facebookPageIds},
         ${input.tiktokHandle ?? null}, ${input.tiktokUrl ?? null}, ${input.tiktokStatus},
         ${input.positioning ?? null}, ${input.crossCategoryFlag}, ${input.notes ?? null},
         now(), now()
@@ -164,6 +164,7 @@ export async function updateCompetitor(
         facebook_handle = ${input.facebookHandle !== undefined ? input.facebookHandle : existing.facebookHandle},
         facebook_url = ${input.facebookUrl !== undefined ? input.facebookUrl : existing.facebookUrl},
         facebook_followers = ${input.facebookFollowers !== undefined ? input.facebookFollowers : existing.facebookFollowers},
+        facebook_page_ids = ${input.facebookPageIds !== undefined ? input.facebookPageIds : existing.facebookPageIds},
         tiktok_handle = ${input.tiktokHandle !== undefined ? input.tiktokHandle : existing.tiktokHandle},
         tiktok_url = ${input.tiktokUrl !== undefined ? input.tiktokUrl : existing.tiktokUrl},
         tiktok_status = ${input.tiktokStatus ?? existing.tiktokStatus},
@@ -192,4 +193,18 @@ export async function deleteCompetitor(id: string): Promise<boolean> {
   const sql = getDb();
   const result = await sql`delete from competitor_accounts where id = ${id}`;
   return result.count > 0;
+}
+
+// Auto-capture, called during a Facebook sync whenever an ad is matched by
+// page name — records that page's id for future syncs to match on
+// directly, display-name-independent. The WHERE guard makes this a no-op
+// write once the id is already known (no duplicate array entries, no
+// wasted round trip on the common repeat-sync case).
+export async function addFacebookPageId(accountId: string, pageId: string): Promise<void> {
+  const sql = getDb();
+  await sql`
+    update competitor_accounts
+    set facebook_page_ids = facebook_page_ids || array[${pageId}]::text[]
+    where id = ${accountId} and not (${pageId} = any(facebook_page_ids))
+  `;
 }

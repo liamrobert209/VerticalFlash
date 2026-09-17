@@ -52,6 +52,13 @@ export const CompetitorAccountZ = z.object({
   facebookHandle: z.string().nullable(),
   facebookUrl: z.string().nullable(),
   facebookFollowers: z.number().int().nullable(),
+  // Facebook Page ids this account is known to run ads from — matched
+  // first (exact, display-name-independent) during a sync, before falling
+  // back to matching by page name. A brand's regional storefronts (e.g.
+  // "Barner Brand KW") are genuinely distinct Pages with their own ids, so
+  // this can hold more than one; populated manually and auto-appended
+  // whenever a sync matches an ad by name for the first time.
+  facebookPageIds: z.array(z.string()).default([]),
   tiktokHandle: z.string().nullable(),
   tiktokUrl: z.string().nullable(),
   tiktokStatus: z.enum(TIKTOK_STATUSES),
@@ -78,6 +85,7 @@ export const CompetitorAccountInputZ = z.object({
   facebookHandle: z.string().nullable().optional(),
   facebookUrl: z.string().nullable().optional(),
   facebookFollowers: z.number().int().nullable().optional(),
+  facebookPageIds: z.array(z.string()).default([]),
   tiktokHandle: z.string().nullable().optional(),
   tiktokUrl: z.string().nullable().optional(),
   tiktokStatus: z.enum(TIKTOK_STATUSES).default("not_found"),

@@ -54,6 +54,7 @@ const EMPTY_FORM: CompetitorAccountInput = {
   facebookHandle: null,
   facebookUrl: null,
   facebookFollowers: null,
+  facebookPageIds: [],
   tiktokHandle: null,
   tiktokUrl: null,
   tiktokStatus: "not_found",
@@ -215,6 +216,27 @@ function AccountForm({
             />
           </label>
         </div>
+
+        <label className="block text-sm">
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Facebook Page IDs (comma-separated)
+          </span>
+          <input
+            value={form.facebookPageIds.join(", ")}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                facebookPageIds: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+              })
+            }
+            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            placeholder="e.g. 960356770836501 — a brand's regional Pages each have their own id"
+          />
+          <span className="mt-1 block text-xs text-muted-foreground">
+            Matched exactly during a sync, regardless of the Page&apos;s display name. Add a regional Page&apos;s id
+            here once you&apos;ve spotted it in a sync&apos;s results — the main username/link above only covers one Page.
+          </span>
+        </label>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-sm">
@@ -579,6 +601,7 @@ export function CompetitorsBoard() {
                           facebookHandle: account.facebookHandle,
                           facebookUrl: account.facebookUrl,
                           facebookFollowers: account.facebookFollowers,
+                          facebookPageIds: account.facebookPageIds,
                           tiktokHandle: account.tiktokHandle,
                           tiktokUrl: account.tiktokUrl,
                           tiktokStatus: account.tiktokStatus,
