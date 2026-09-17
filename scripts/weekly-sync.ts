@@ -10,6 +10,14 @@
  * Usage:
  *   node --import tsx scripts/weekly-sync.ts              # real run
  *   node --import tsx scripts/weekly-sync.ts --dry-run    # log targets, no Apify calls
+ *
+ * Optional per-run caps (unset = no cap, run the full list) — set these as
+ * Railway env vars on the weekly-sync service to bound cost/volume without
+ * touching code:
+ *   WEEKLY_SYNC_MAX_FACEBOOK_TARGETS   e.g. "30"
+ *   WEEKLY_SYNC_MAX_TIKTOK_TARGETS     e.g. "10"
+ *   WEEKLY_SYNC_MAX_TRENDING_CATEGORIES e.g. "3"
+ *   WEEKLY_SYNC_MAX_HASHTAGS           e.g. "50"
  */
 import { listCompetitors } from "../src/lib/competitor-store";
 import { syncFacebookAds, syncTikTokAds, type SyncTarget } from "../src/lib/weekly-ads-sync";
@@ -19,6 +27,21 @@ import { TIKTOK_TREND_INDUSTRIES } from "../src/lib/tiktok-trends-schema";
 import { syncHashtagVideos } from "../src/lib/tiktok-hashtag-sync";
 
 const DRY_RUN = process.argv.includes("--dry-run");
+
+function envLimit(name: string): number | undefined {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
+// Applies a cap (if set) and logs what got dropped — no silent truncation,
+// since a capped run should read as "capped", not "this is everything."
+function applyLimit<T>(items: T[], limit: number | undefined, envVarName: string): T[] {
+  if (limit == null || items.length <= limit) return items;
+  console.log(`[weekly-sync] capped to ${limit} of ${items.length} (${envVarName} is set)`);
+  return items.slice(0, limit);
+}
 
 // --- Tracked hashtags (Ocushield marketing categories, Sept 2026) --------
 // One flat list per category for readability/maintenance; deduped at
@@ -132,30 +155,70 @@ function toSyncTarget(account: CompetitorAccount): SyncTarget {
 // are unpopulated for every account on file) — many rows are the SAME
 // brand tagged once per region (e.g. "Belkin" uk/eu/us all point at the
 // same Instagram/Facebook presence), so syncing every row would issue
-// identical duplicate Ad Library searches. Dedupe to one representative
-// row per distinct name, preferring a row that already has a known
-// facebookPageIds match (seeded by the page-id auto-capture logic in
-// weekly-ads-sync.ts) over an arbitrary regional row.
+// identical duplicate Ad Library searches. Two accounts are treated as the
+// same real target if EITHER their names match OR they share a known
+// Facebook page id (page-id match is the stronger signal — it catches a
+// same-brand-different-spelling case name matching would miss — but as of
+// this writing only a handful of accounts have a populated
+// facebook_page_ids, so name matching still does most of the work). A
+// simple union-find groups accounts linked by either signal, then one
+// representative per group is kept — preferring a row that already has a
+// known facebookPageIds match over an arbitrary regional row.
 function dedupeFacebookTargets(accounts: CompetitorAccount[]): SyncTarget[] {
-  const byName = new Map<string, CompetitorAccount>();
-  for (const account of accounts) {
-    const key = account.name.trim().toLowerCase();
-    const existing = byName.get(key);
-    if (!existing || (account.facebookPageIds.length > 0 && existing.facebookPageIds.length === 0)) {
-      byName.set(key, account);
+  const parent = accounts.map((_, i) => i);
+  function find(i: number): number {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
     }
+    return i;
   }
-  return Array.from(byName.values()).map(toSyncTarget);
+  function union(a: number, b: number): void {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  }
+
+  const byName = new Map<string, number>();
+  const byPageId = new Map<string, number>();
+  accounts.forEach((account, i) => {
+    const nameKey = account.name.trim().toLowerCase();
+    const nameMatch = byName.get(nameKey);
+    if (nameMatch != null) union(i, nameMatch);
+    else byName.set(nameKey, i);
+
+    for (const pageId of account.facebookPageIds) {
+      const pageMatch = byPageId.get(pageId);
+      if (pageMatch != null) union(i, pageMatch);
+      else byPageId.set(pageId, i);
+    }
+  });
+
+  const groups = new Map<number, CompetitorAccount[]>();
+  accounts.forEach((account, i) => {
+    const root = find(i);
+    const group = groups.get(root) ?? [];
+    group.push(account);
+    groups.set(root, group);
+  });
+
+  const representatives: CompetitorAccount[] = [];
+  for (const group of groups.values()) {
+    const withPageId = group.find((a) => a.facebookPageIds.length > 0);
+    representatives.push(withPageId ?? group[0]);
+  }
+  return representatives.map(toSyncTarget);
 }
 
 async function syncAds() {
   const accounts = await listCompetitors({});
   console.log(`[weekly-sync] ads: ${accounts.length} competitor account rows on file`);
 
-  const facebookTargets = dedupeFacebookTargets(accounts);
+  let facebookTargets = dedupeFacebookTargets(accounts);
   console.log(
     `[weekly-sync] ads: facebook — ${facebookTargets.length} deduped targets (from ${accounts.length} rows)`
   );
+  facebookTargets = applyLimit(facebookTargets, envLimit("WEEKLY_SYNC_MAX_FACEBOOK_TARGETS"), "WEEKLY_SYNC_MAX_FACEBOOK_TARGETS");
   if (!DRY_RUN) {
     const results = await syncFacebookAds(facebookTargets);
     const adsSeen = results.reduce((sum, r) => sum + r.adsSeen, 0);
@@ -164,8 +227,9 @@ async function syncAds() {
     if (errors.length) console.log(errors.slice(0, 20).join("\n"));
   }
 
-  const tiktokTargets = accounts.filter((a) => a.tiktokHandle).map(toSyncTarget);
+  let tiktokTargets = accounts.filter((a) => a.tiktokHandle).map(toSyncTarget);
   console.log(`[weekly-sync] ads: tiktok — ${tiktokTargets.length} accounts with a handle`);
+  tiktokTargets = applyLimit(tiktokTargets, envLimit("WEEKLY_SYNC_MAX_TIKTOK_TARGETS"), "WEEKLY_SYNC_MAX_TIKTOK_TARGETS");
   if (!DRY_RUN && tiktokTargets.length > 0) {
     const result = await syncTikTokAds(tiktokTargets);
     console.log(`[weekly-sync] ads: tiktok done — ${result.adsSeen} ads seen, ${result.errors.length} errors`);
@@ -178,9 +242,14 @@ async function syncAds() {
 // the full 5-country x 6-category matrix; easy to widen later by looping
 // TIKTOK_TREND_VIDEO_COUNTRIES too.
 async function syncTrending() {
-  console.log(`[weekly-sync] trending: ${TIKTOK_TREND_INDUSTRIES.length} categories, US, 7-day, top 10`);
+  const categories = applyLimit(
+    [...TIKTOK_TREND_INDUSTRIES],
+    envLimit("WEEKLY_SYNC_MAX_TRENDING_CATEGORIES"),
+    "WEEKLY_SYNC_MAX_TRENDING_CATEGORIES"
+  );
+  console.log(`[weekly-sync] trending: ${categories.length} categories, US, 7-day, top 10`);
   if (DRY_RUN) return;
-  for (const industry of TIKTOK_TREND_INDUSTRIES) {
+  for (const industry of categories) {
     try {
       const result = await syncTrendingVideos({
         industry: industry.id,
@@ -200,10 +269,11 @@ async function syncTrending() {
 }
 
 async function syncHashtags() {
-  const hashtags = uniqueHashtags();
+  const allHashtags = uniqueHashtags();
   console.log(
-    `[weekly-sync] hashtags: ${hashtags.length} unique tags across ${Object.keys(HASHTAG_CATEGORIES).length} categories`
+    `[weekly-sync] hashtags: ${allHashtags.length} unique tags across ${Object.keys(HASHTAG_CATEGORIES).length} categories`
   );
+  const hashtags = applyLimit(allHashtags, envLimit("WEEKLY_SYNC_MAX_HASHTAGS"), "WEEKLY_SYNC_MAX_HASHTAGS");
   if (DRY_RUN) return;
   for (const hashtag of hashtags) {
     try {

@@ -216,10 +216,8 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
   };
 
   return (
-    <details className="rounded-lg border border-dashed border-border p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-foreground">
-        Sync ads from saved accounts
-      </summary>
+    <div className="rounded-lg border border-dashed border-border p-4">
+      <p className="text-sm font-semibold text-foreground">Sync ads from saved accounts</p>
       <div className="mt-3 space-y-3">
         <select
           value={platformId}
@@ -253,7 +251,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
         {result && <p className="text-xs text-muted-foreground">{result}</p>}
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
-    </details>
+    </div>
   );
 }
 

@@ -177,10 +177,8 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
   };
 
   return (
-    <details className="rounded-lg border border-dashed border-border p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-foreground">
-        Sync trending videos
-      </summary>
+    <div className="rounded-lg border border-dashed border-border p-4">
+      <p className="text-sm font-semibold text-foreground">Sync trending videos</p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="text-xs">
           <span className="mb-1 block font-medium text-muted-foreground">Content tag</span>
@@ -247,7 +245,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
       </div>
       {result && <p className="mt-2 text-xs text-muted-foreground">{result}</p>}
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-    </details>
+    </div>
   );
 }
 
