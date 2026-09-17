@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { StaticAdProject } from "@/lib/static-ad-schema";
 import type { Ad } from "@/lib/ads-schema";
 import { BaseImagePanel, type StaticAdBaseImage } from "@/components/static-ads/BaseImagePanel";
+import { OverlayEditor, type StaticAdTextOverlay } from "@/components/static-ads/OverlayEditor";
 
 export default function StaticAdProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -76,6 +77,26 @@ export default function StaticAdProjectPage() {
           onUpdated={(baseImage) => setProject((p) => (p ? { ...p, baseImage: baseImage as StaticAdProject["baseImage"] } : p))}
         />
       </section>
+
+      {project.baseImage.acceptedAttempt != null && (
+        <section className="rounded-lg border border-border p-4 space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Text &amp; call to action
+          </h2>
+          <OverlayEditor
+            projectId={project.id}
+            initialOverlay={project.textOverlay as StaticAdTextOverlay | null}
+            finalImage={project.finalImage}
+            onApplied={({ textOverlay, finalImage }) =>
+              setProject((p) =>
+                p
+                  ? { ...p, textOverlay: textOverlay as StaticAdProject["textOverlay"], finalImage }
+                  : p
+              )
+            }
+          />
+        </section>
+      )}
     </div>
   );
 }

@@ -50,6 +50,7 @@ export async function createStaticAdProject(input: {
     ourProductImage: input.ourProductImage,
     baseImage: emptyBaseImage(),
     textOverlay: null,
+    finalImage: null,
   };
   await saveStaticAdProject(project);
   return project;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StaticAdTextOverlayZ } from "./static-ad-overlays-schema";
 
 // A Static Ad Generator project: one competitor reference ad, swapped in
 // with our own product/USP, worked through generation + refinement + a
@@ -57,8 +58,11 @@ export const StaticAdProjectZ = z.object({
   // product-images-store.ts, reused as-is — no new upload mechanism).
   ourProductImage: z.string(),
   baseImage: StaticAdBaseImageZ,
-  // Populated in Phase 6.
-  textOverlay: z.unknown().nullable(),
+  textOverlay: StaticAdTextOverlayZ.nullable(),
+  // Basename within static-ads/<projectId>/ of the base image + overlay
+  // composited together — the project's actual deliverable. Null until
+  // the overlay is applied at least once; re-applying overwrites it.
+  finalImage: z.string().nullable(),
 });
 
 export type StaticAdProject = z.infer<typeof StaticAdProjectZ>;
