@@ -7,16 +7,17 @@ import type { FacebookPost, InstagramPost, FacebookDailyMetric, InstagramDailyMe
 // Ocushield's own Facebook/Instagram account performance — read from a
 // separate social-metrics database (social-metrics-store.ts), not the
 // scraped_content-backed AccountInsightsChannelPage every other channel
-// still uses. Two tabs on one shared component (rather than one page per
-// platform) so switching between "Facebook Post Insights" and "Instagram
-// Post Insights" doesn't require a full navigation.
+// still uses. One platform per page (no in-page tab switcher) — the
+// Facebook page shows only Facebook, the Instagram page shows only
+// Instagram; "Facebook Post Insights"/"Instagram Post Insights" is a fixed
+// heading, not a control.
 
 type Platform = "facebook" | "instagram";
 
-const TABS: { id: Platform; label: string }[] = [
-  { id: "facebook", label: "Facebook Post Insights" },
-  { id: "instagram", label: "Instagram Post Insights" },
-];
+const TAB_LABELS: Record<Platform, string> = {
+  facebook: "Facebook Post Insights",
+  instagram: "Instagram Post Insights",
+};
 
 function formatCount(n: number | null): string {
   if (n == null) return "—";
@@ -202,8 +203,7 @@ function InstagramPostsTable({ posts }: { posts: InstagramPost[] }) {
   );
 }
 
-export function SocialPostInsights({ initialPlatform }: { initialPlatform: Platform }) {
-  const [activeTab, setActiveTab] = useState<Platform>(initialPlatform);
+export function SocialPostInsights({ platform }: { platform: Platform }) {
   const [facebookPosts, setFacebookPosts] = useState<FacebookPost[] | null>(null);
   const [facebookDaily, setFacebookDaily] = useState<FacebookDailyMetric[] | null>(null);
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[] | null>(null);
@@ -215,15 +215,15 @@ export function SocialPostInsights({ initialPlatform }: { initialPlatform: Platf
     setLoading(true);
     setError(null);
     Promise.all([
-      fetch(`/api/content-insights/${activeTab}/posts`, { cache: "no-store" }).then((r) => r.json()),
-      fetch(`/api/content-insights/${activeTab}/daily`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/content-insights/${platform}/posts`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/content-insights/${platform}/daily`, { cache: "no-store" }).then((r) => r.json()),
     ])
       .then(([postsData, dailyData]) => {
         if (postsData.error || dailyData.error) {
           setError(postsData.error || dailyData.error);
           return;
         }
-        if (activeTab === "facebook") {
+        if (platform === "facebook") {
           setFacebookPosts(postsData.posts ?? []);
           setFacebookDaily(dailyData.metrics ?? []);
         } else {
@@ -233,30 +233,16 @@ export function SocialPostInsights({ initialPlatform }: { initialPlatform: Platf
       })
       .catch(() => setError("Failed to load"))
       .finally(() => setLoading(false));
-  }, [activeTab]);
+  }, [platform]);
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-border">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? "border-b-2 border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <p className="border-b border-border pb-2 text-sm font-semibold text-foreground">{TAB_LABELS[platform]}</p>
 
       {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {!loading && !error && activeTab === "facebook" && facebookDaily && facebookPosts && (
+      {!loading && !error && platform === "facebook" && facebookDaily && facebookPosts && (
         <>
           <div className="rounded-lg border border-border p-4">
             <p className="mb-2 text-sm font-semibold text-foreground">Daily performance</p>
@@ -277,7 +263,7 @@ export function SocialPostInsights({ initialPlatform }: { initialPlatform: Platf
         </>
       )}
 
-      {!loading && !error && activeTab === "instagram" && instagramDaily && instagramPosts && (
+      {!loading && !error && platform === "instagram" && instagramDaily && instagramPosts && (
         <>
           <div className="rounded-lg border border-border p-4">
             <p className="mb-2 text-sm font-semibold text-foreground">Daily performance</p>

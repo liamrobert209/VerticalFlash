@@ -23,7 +23,7 @@ export default async function ContentInsightsChannelPage({
             {platform === "facebook" ? "Facebook" : "Instagram"} content insights
           </h1>
         </header>
-        <SocialPostInsights initialPlatform={platform} />
+        <SocialPostInsights platform={platform} />
       </div>
     );
   }

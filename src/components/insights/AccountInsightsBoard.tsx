@@ -33,11 +33,17 @@ export function AccountInsightsBoard({
   description,
   backHref,
   emptyStateHint,
+  channelHints,
 }: {
   title: string;
   description: string;
   backHref: string;
   emptyStateHint: string;
+  // Per-channel override for emptyStateHint — for channels that actually
+  // have real backing data (e.g. Content Insights' Facebook/Instagram,
+  // read from the social-metrics DB) the generic "no content synced yet"
+  // blurb is simply wrong. Channels not listed here keep emptyStateHint.
+  channelHints?: Partial<Record<string, string>>;
 }) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-5 py-8 sm:p-10">
@@ -56,7 +62,7 @@ export function AccountInsightsBoard({
               className="rounded-lg border border-border p-4 transition-colors hover:border-primary/60 hover:bg-muted/40"
             >
               <p className="font-semibold text-foreground">{channel?.label ?? id}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{emptyStateHint}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{channelHints?.[id] ?? emptyStateHint}</p>
             </Link>
           );
         })}
