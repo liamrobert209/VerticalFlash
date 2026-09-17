@@ -173,19 +173,42 @@ export async function syncFacebookAds(targets: SyncTarget[]): Promise<SyncResult
   // One actor call per target (this actor takes a single `query`, not a
   // batch of startUrls) — sequential, not parallel, to stay under any
   // concurrent-run cap on the Apify plan. Cost is identical either way.
+  //
+  // `query` is a fuzzy full-text search across ad content, NOT an exact
+  // advertiser-name match — confirmed by direct testing: searching a real
+  // brand's exact name routinely returns pages with no relation to it at
+  // all (e.g. "3M" → random unrelated shops/clinics/restaurants). Combined
+  // with processFacebookItems' exact-name match against our stored
+  // `name`, this meant almost nothing without an already-known
+  // facebookPageIds ever matched. Once we DO know a target's real page
+  // id(s) (seeded by a prior name-match hit, or added manually in
+  // Settings > Competitors), always look it up directly via `pageId`
+  // instead — an exact, reliable lookup with no keyword-search noise.
   const items: FacebookAdItem[] = [];
   const runErrors: string[] = [];
   for (const target of targets) {
+    const knownPageIds = target.facebookPageIds ?? [];
     try {
-      const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
-        query: target.name,
-        maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
-        // "all" (not "" like the old actor) is this actor's documented
-        // value for "both active and inactive" — confirmed against a real
-        // 400 response during testing ("active"|"inactive"|"all").
-        activeStatus: "all",
-      });
-      items.push(...results);
+      if (knownPageIds.length > 0) {
+        for (const pageId of knownPageIds) {
+          const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
+            pageId,
+            maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
+            activeStatus: "all",
+          });
+          items.push(...results);
+        }
+      } else {
+        const results = await runApifyActor<FacebookAdItem>(FACEBOOK_ACTOR_ID, {
+          query: target.name,
+          maxItems: FACEBOOK_MAX_ITEMS_PER_TARGET,
+          // "all" (not "" like the old actor) is this actor's documented
+          // value for "both active and inactive" — confirmed against a real
+          // 400 response during testing ("active"|"inactive"|"all").
+          activeStatus: "all",
+        });
+        items.push(...results);
+      }
     } catch (err) {
       runErrors.push(`${target.name}: ${err instanceof Error ? err.message : String(err)}`);
     }

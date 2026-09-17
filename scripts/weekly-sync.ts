@@ -18,6 +18,11 @@
  *   WEEKLY_SYNC_MAX_TIKTOK_TARGETS     e.g. "10"
  *   WEEKLY_SYNC_MAX_TRENDING_CATEGORIES e.g. "3"
  *   WEEKLY_SYNC_MAX_HASHTAGS           e.g. "50"
+ *
+ * Hashtags are also rotated 1/5th per weekday (Mon-Fri) rather than
+ * running the full tracked list every day — see `todaysHashtagSlice`.
+ * Pass --day=0..6 (0=Sunday) to force a specific day's slice, e.g. for
+ * testing: `node --import tsx scripts/weekly-sync.ts --dry-run --day=1`.
  */
 import { listCompetitors } from "../src/lib/competitor-store";
 import { syncFacebookAds, syncTikTokAds, type SyncTarget } from "../src/lib/weekly-ads-sync";
@@ -41,6 +46,31 @@ function applyLimit<T>(items: T[], limit: number | undefined, envVarName: string
   if (limit == null || items.length <= limit) return items;
   console.log(`[weekly-sync] capped to ${limit} of ${items.length} (${envVarName} is set)`);
   return items.slice(0, limit);
+}
+
+const HASHTAG_ROTATION_DAYS = 5;
+
+function dayOverride(): number | undefined {
+  const arg = process.argv.find((a) => a.startsWith("--day="));
+  if (!arg) return undefined;
+  const n = Number(arg.split("=")[1]);
+  return Number.isInteger(n) && n >= 0 && n <= 6 ? n : undefined;
+}
+
+// The hashtag scraper is the single most expensive piece of this run
+// ($5/1,000 results — see the cost breakdown that motivated this) — at
+// full volume every weekday that's ~5x the cost of running it once a
+// week. Splitting the tracked list into 5 slices and running one slice
+// per weekday keeps the DAILY cost down to ~1/5th while still covering
+// every tracked hashtag once per work week. Rotation is keyed off the
+// UTC day-of-week (0=Sunday..6=Saturday) — Mon-Fri map to slices 0-4;
+// a weekend/manual run falls back to Friday's slice rather than throwing.
+function todaysHashtagSlice(all: string[]): string[] {
+  const chunkSize = Math.ceil(all.length / HASHTAG_ROTATION_DAYS);
+  const dayOfWeek = dayOverride() ?? new Date().getUTCDay();
+  const mondayIndexed = dayOfWeek >= 1 && dayOfWeek <= 5 ? dayOfWeek - 1 : HASHTAG_ROTATION_DAYS - 1;
+  const start = mondayIndexed * chunkSize;
+  return all.slice(start, start + chunkSize);
 }
 
 // --- Tracked hashtags (Ocushield marketing categories, Sept 2026) --------
@@ -270,10 +300,11 @@ async function syncTrending() {
 
 async function syncHashtags() {
   const allHashtags = uniqueHashtags();
+  const todaysSlice = todaysHashtagSlice(allHashtags);
   console.log(
-    `[weekly-sync] hashtags: ${allHashtags.length} unique tags across ${Object.keys(HASHTAG_CATEGORIES).length} categories`
+    `[weekly-sync] hashtags: ${allHashtags.length} unique tags total across ${Object.keys(HASHTAG_CATEGORIES).length} categories — today's slice: ${todaysSlice.length}`
   );
-  const hashtags = applyLimit(allHashtags, envLimit("WEEKLY_SYNC_MAX_HASHTAGS"), "WEEKLY_SYNC_MAX_HASHTAGS");
+  const hashtags = applyLimit(todaysSlice, envLimit("WEEKLY_SYNC_MAX_HASHTAGS"), "WEEKLY_SYNC_MAX_HASHTAGS");
   if (DRY_RUN) return;
   for (const hashtag of hashtags) {
     try {
