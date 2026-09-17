@@ -5,6 +5,46 @@ import Link from "next/link";
 import type { Ad } from "@/lib/ads-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
 
+// The creative URL can point at either a still image or an mp4 (Facebook's
+// CDN uses opaque paths with no reliable extension to branch on ahead of
+// time), so this renders optimistically as an image and swaps to a native
+// <video> on load failure rather than guessing from the URL shape.
+function AdThumb({
+  url,
+  className,
+  showControls = true,
+}: {
+  url: string | null;
+  className?: string;
+  showControls?: boolean;
+}) {
+  const [failedAsImage, setFailedAsImage] = useState(false);
+
+  if (!url) {
+    return (
+      <div className={`flex items-center justify-center bg-muted text-[10px] text-muted-foreground ${className ?? ""}`}>
+        No preview
+      </div>
+    );
+  }
+
+  if (failedAsImage) {
+    return (
+      <video
+        src={url}
+        controls={showControls}
+        muted
+        playsInline
+        preload="metadata"
+        className={`bg-black object-contain ${className ?? ""}`}
+      />
+    );
+  }
+
+  // eslint-disable-next-line @next/next/no-img-element -- creative comes from Meta/TikTok CDNs, not a local/optimizable asset
+  return <img src={url} alt="" onError={() => setFailedAsImage(true)} className={`object-cover ${className ?? ""}`} />;
+}
+
 interface ProductLineSection {
   productLineId: string;
   label: string;
@@ -35,6 +75,9 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
         selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
       }`}
     >
+      <div className="flex gap-3">
+        <AdThumb url={ad.creativeUrl} className="h-16 w-16 shrink-0 rounded-md" showControls={false} />
+        <div className="min-w-0 flex-1">
       <p className="text-sm font-medium text-foreground line-clamp-2">
         {ad.headline || ad.bodyText || "(no headline)"}
       </p>
@@ -56,6 +99,8 @@ function AdCard({ ad, onSelect, selected }: { ad: Ad; onSelect: () => void; sele
           ))}
         </div>
       )}
+        </div>
+      </div>
     </button>
   );
 }
@@ -71,6 +116,7 @@ function AdDetail({ ad, productLineId }: { ad: Ad; productLineId: string }) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+      <AdThumb url={ad.creativeUrl} className="h-48 w-full rounded-md" />
       <div>
         <p className="text-sm font-semibold text-foreground">{ad.headline || "(no headline)"}</p>
         {ad.bodyText && <p className="mt-1 text-sm text-muted-foreground">{ad.bodyText}</p>}

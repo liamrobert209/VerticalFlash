@@ -39,6 +39,12 @@ export interface SyncResult {
   errors: string[];
 }
 
+interface FacebookSnapshotCard {
+  video_hd_url?: string;
+  video_sd_url?: string;
+  original_image_url?: string;
+}
+
 interface FacebookSnapshot {
   title?: string;
   body?: { text?: string } | string;
@@ -46,6 +52,9 @@ interface FacebookSnapshot {
   link_url?: string;
   videos?: { video_hd_url?: string; video_sd_url?: string }[];
   images?: { original_image_url?: string }[];
+  // Carousel-format ads put their creative here instead of in the
+  // top-level images/videos arrays — each card is one carousel slide.
+  cards?: FacebookSnapshotCard[];
 }
 
 interface FacebookAdItem {
@@ -79,15 +88,28 @@ function facebookCreativeUrl(snapshot: FacebookSnapshot | undefined): string | n
   if (video?.video_hd_url || video?.video_sd_url) {
     return video.video_hd_url ?? video.video_sd_url ?? null;
   }
-  return snapshot?.images?.[0]?.original_image_url ?? null;
+  if (snapshot?.images?.[0]?.original_image_url) {
+    return snapshot.images[0].original_image_url;
+  }
+  // Carousel ads (multiple products/cards in one ad) carry no top-level
+  // images/videos at all — fall back to the first card's creative.
+  const card = snapshot?.cards?.[0];
+  if (card?.video_hd_url || card?.video_sd_url) {
+    return card.video_hd_url ?? card.video_sd_url ?? null;
+  }
+  return card?.original_image_url ?? null;
 }
 
 // A genuine static-image ad, eligible as a Static Ad Generator visual
-// reference: the snapshot has a real image and no video at all. An ad with
-// both (e.g. a video ad whose snapshot also includes a thumbnail image) is
-// NOT eligible — that image is a poster frame, not independent creative.
+// reference: the snapshot (top-level or, for carousels, any card) has a
+// real image and no video anywhere. An ad with both (e.g. a video ad whose
+// snapshot also includes a thumbnail image) is NOT eligible — that image
+// is a poster frame, not independent creative.
 function isFacebookStaticEligible(snapshot: FacebookSnapshot | undefined): boolean {
-  return !(snapshot?.videos?.length) && !!snapshot?.images?.length;
+  const hasVideo =
+    !!snapshot?.videos?.length || !!snapshot?.cards?.some((c) => c.video_hd_url || c.video_sd_url);
+  if (hasVideo) return false;
+  return !!snapshot?.images?.length || !!snapshot?.cards?.some((c) => c.original_image_url);
 }
 
 // Meta's publisherPlatform can list facebook/instagram/messenger/
