@@ -669,6 +669,11 @@ export async function walkRankedTargets(
         continue;
       }
       totalRealSynced.add(target.accountId);
+      // This walk can otherwise run silent for many minutes (one real,
+      // sequential Apify call per account, sometimes with a Gemini
+      // analysis call on top) — a visible line per real call is the
+      // difference between "still working" and "looks hung."
+      console.log(`[weekly-sync] ads: syncing ${target.name} (${platform})...`);
       if (platform === "facebook") {
         rows = await deps.syncFacebookAds([target], maxItemsPerTarget);
         entry.facebook = rows;

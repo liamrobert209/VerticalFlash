@@ -27,12 +27,16 @@
  * touching code:
  *   WEEKLY_SYNC_MAX_ADS_ACCOUNTS_TOTAL  e.g. "60" (see weekly-ads-sync.ts)
  *   WEEKLY_SYNC_MAX_TRENDING_CATEGORIES e.g. "3"
- *   WEEKLY_SYNC_MAX_HASHTAGS           e.g. "50"
+ *   WEEKLY_SYNC_MAX_HASHTAGS           e.g. "5" (bucket size is already ~10)
  *
- * Hashtags are also rotated 1/5th per weekday (Mon-Fri) rather than
- * running the full tracked list every day — see `todaysHashtagSlice`.
- * Pass --day=0..6 (0=Sunday) to force a specific day's slice, e.g. for
- * testing: `node --import tsx scripts/weekly-sync.ts --dry-run --day=1`.
+ * Hashtags are rotated in small daily buckets rather than running the
+ * full tracked list every day — see `todaysHashtagSlice`. Bucket size is
+ * fixed at HASHTAG_PER_RUN_TARGET (~10), timed against a real measured
+ * ~14-25s per hashtag call to reliably finish in well under 5 minutes;
+ * full coverage of the tracked list takes several weeks to cycle through
+ * rather than one week, as a direct tradeoff for that speed. Pass
+ * --bucket=N to force a specific bucket for testing, e.g.:
+ * `node --import tsx scripts/weekly-sync.ts --dry-run --bucket=0`.
  */
 import { listCompetitors } from "../src/lib/competitor-store";
 import { syncRankedAdsForProductLines } from "../src/lib/weekly-ads-sync";
@@ -61,29 +65,49 @@ function applyLimit<T>(items: T[], limit: number | undefined, envVarName: string
   return items.slice(0, limit);
 }
 
-const HASHTAG_ROTATION_DAYS = 5;
+// Real measured latency (3 live calls): 13.8s / 18.7s / 25.2s, avg ~19s —
+// 10 hashtags/run keeps even a slow run (10 x 25s = 250s) comfortably
+// under 5 minutes. The hashtag scraper is also the single most expensive
+// piece of this run ($5/1,000 results), so a small daily bucket keeps
+// per-run cost down too, at the cost of taking several weeks (not one
+// week) to cycle through the full tracked list once.
+const HASHTAG_PER_RUN_TARGET = 10;
 
-function dayOverride(): number | undefined {
-  const arg = process.argv.find((a) => a.startsWith("--day="));
-  if (!arg) return undefined;
-  const n = Number(arg.split("=")[1]);
-  return Number.isInteger(n) && n >= 0 && n <= 6 ? n : undefined;
+// A fixed Monday reference point — arbitrary, just needs to be a real
+// anchor for counting weekday runs from.
+const HASHTAG_ROTATION_EPOCH = Date.UTC(2026, 0, 5);
+
+// Counts actual weekdays (Mon-Fri) between the epoch and `nowMs`, treating
+// weekends as if they don't exist — so the bucket index advances by
+// exactly one on every real cron run, with nothing skipped or
+// double-visited around a weekend gap (a plain calendar-day-mod would
+// skip some buckets forever, since only 5 of every 7 calendar days are
+// ever actually run).
+function weekdayRunsSince(epochMs: number, nowMs: number): number {
+  let count = 0;
+  let cursor = epochMs;
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  while (cursor < nowMs) {
+    const day = new Date(cursor).getUTCDay();
+    if (day >= 1 && day <= 5) count++;
+    cursor += oneDayMs;
+  }
+  return count;
 }
 
-// The hashtag scraper is the single most expensive piece of this run
-// ($5/1,000 results — see the cost breakdown that motivated this) — at
-// full volume every weekday that's ~5x the cost of running it once a
-// week. Splitting the tracked list into 5 slices and running one slice
-// per weekday keeps the DAILY cost down to ~1/5th while still covering
-// every tracked hashtag once per work week. Rotation is keyed off the
-// UTC day-of-week (0=Sunday..6=Saturday) — Mon-Fri map to slices 0-4;
-// a weekend/manual run falls back to Friday's slice rather than throwing.
+function bucketOverride(): number | undefined {
+  const arg = process.argv.find((a) => a.startsWith("--bucket="));
+  if (!arg) return undefined;
+  const n = Number(arg.split("=")[1]);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
 function todaysHashtagSlice(all: string[]): string[] {
-  const chunkSize = Math.ceil(all.length / HASHTAG_ROTATION_DAYS);
-  const dayOfWeek = dayOverride() ?? new Date().getUTCDay();
-  const mondayIndexed = dayOfWeek >= 1 && dayOfWeek <= 5 ? dayOfWeek - 1 : HASHTAG_ROTATION_DAYS - 1;
-  const start = mondayIndexed * chunkSize;
-  return all.slice(start, start + chunkSize);
+  const bucketCount = Math.ceil(all.length / HASHTAG_PER_RUN_TARGET);
+  const runIndex = bucketOverride() ?? weekdayRunsSince(HASHTAG_ROTATION_EPOCH, Date.now());
+  const bucketIndex = ((runIndex % bucketCount) + bucketCount) % bucketCount;
+  const start = bucketIndex * HASHTAG_PER_RUN_TARGET;
+  return all.slice(start, start + HASHTAG_PER_RUN_TARGET);
 }
 
 // --- Tracked hashtags (Ocushield marketing categories, Sept 2026) --------
