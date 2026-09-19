@@ -91,3 +91,26 @@ export async function getLatestColorPalette(): Promise<{
   if (!primaryColor && !accentColor) return null;
   return { primaryColor, accentColor };
 }
+
+// The most recently added "logo"-kind asset — same "latest wins" pattern
+// as getLatestColorPalette. Read by the static ad overlay compositor for
+// the corner watermark (see static-ad-overlays.ts). Whichever logo variant
+// this resolves to (full lockup, eye mark, white, or black) is composited
+// onto a small light chip rather than directly on the photo, so it stays
+// legible regardless of which variant happens to be "latest" or what's
+// behind it in the photo.
+export async function getLatestLogo(): Promise<{ path: string; mimeType: string } | null> {
+  const sql = getDb();
+  const rows = await sql`
+    select id, filename, mime_type from brand_assets
+    where kind = 'logo' and filename is not null
+    order by uploaded_at desc
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    path: brandAssetFilePath(row.id as string, row.filename as string),
+    mimeType: (row.mime_type as string | null) ?? "image/png",
+  };
+}

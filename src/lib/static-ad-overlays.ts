@@ -235,10 +235,50 @@ function layoutByPosition(
   return grouped;
 }
 
+// The guideline's stated digital minimum for the primary logo (page 10:
+// "never be reproduced smaller than 70px in width... in any digital
+// communication"). Exported so the Brand QA gate can verify the actual
+// rendered size against the same real number rather than assuming this
+// function always respects it.
+export const LOGO_MIN_WIDTH_PX = 70;
+
+export function logoMarkWidthPx(canvasWidth: number): number {
+  return Math.max(LOGO_MIN_WIDTH_PX, Math.round(canvasWidth * 0.14));
+}
+
+// Draws the logo watermark on a small light chip (not directly on the
+// photo) so it stays legible regardless of which logo variant was
+// resolved or what's behind it in the photo — same reasoning as
+// getLatestLogo's header comment.
+async function drawLogoMark(
+  ctx: SKRSContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  logoPath: string,
+  corner: "top-left" | "top-right" | "bottom-left" | "bottom-right"
+): Promise<void> {
+  const logoImage = await loadImage(logoPath);
+  const logoWidth = logoMarkWidthPx(canvasWidth);
+  const logoHeight = logoWidth * (logoImage.height / logoImage.width);
+  const chipPad = logoWidth * 0.22;
+  const chipWidth = logoWidth + chipPad * 2;
+  const chipHeight = logoHeight + chipPad * 2;
+  const margin = canvasWidth * 0.04;
+
+  const x = corner.includes("left") ? margin : canvasWidth - margin - chipWidth;
+  const y = corner.includes("top") ? margin : canvasHeight - margin - chipHeight;
+
+  ctx.fillStyle = "rgba(255,255,255,0.94)";
+  roundedRectPath(ctx, x, y, chipWidth, chipHeight, chipHeight * 0.22);
+  ctx.fill();
+  ctx.drawImage(logoImage, x + chipPad, y + chipPad, logoWidth, logoHeight);
+}
+
 export async function compositeStaticAd(
   baseImagePath: string,
   overlay: StaticAdTextOverlay,
-  palette?: OverlayPalette
+  palette?: OverlayPalette,
+  logoPath?: string | null
 ): Promise<Buffer> {
   ensureStaticAdFontsRegistered();
   const image = await loadImage(baseImagePath);
@@ -284,6 +324,10 @@ export async function compositeStaticAd(
       ctx.drawImage(block.canvas, x, cursor);
       cursor += block.height + gap;
     }
+  }
+
+  if (overlay.logoMark.include && logoPath) {
+    await drawLogoMark(ctx, image.width, image.height, logoPath, overlay.logoMark.corner);
   }
 
   return canvas.encode("png");

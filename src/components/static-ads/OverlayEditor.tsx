@@ -8,6 +8,7 @@ import { useState } from "react";
 export type OverlayRole = "headline" | "subhead" | "cta" | "badge";
 export type OverlayPosition = "top" | "center" | "bottom";
 export type OverlayLayout = "stacked" | "split_band";
+export type LogoCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export interface StaticAdOverlayElement {
   role: OverlayRole;
@@ -16,9 +17,15 @@ export interface StaticAdOverlayElement {
   position: OverlayPosition;
 }
 
+export interface StaticAdLogoMark {
+  include: boolean;
+  corner: LogoCorner;
+}
+
 export interface StaticAdTextOverlay {
   elements: StaticAdOverlayElement[];
   layout: OverlayLayout;
+  logoMark: StaticAdLogoMark;
 }
 
 const ROLE_LABELS: Record<OverlayRole, string> = {
@@ -33,7 +40,15 @@ const LAYOUT_LABELS: Record<OverlayLayout, string> = {
   split_band: "Bottom band",
 };
 
+const CORNER_LABELS: Record<LogoCorner, string> = {
+  "top-left": "Top left",
+  "top-right": "Top right",
+  "bottom-left": "Bottom left",
+  "bottom-right": "Bottom right",
+};
+
 const POSITIONS: OverlayPosition[] = ["top", "center", "bottom"];
+const CORNERS: LogoCorner[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
 
 // Seeds from the AI-written copy (static-ad-copy.ts) when present, so the
 // overlay's defaults are our own on-angle copy instead of blank text — the
@@ -49,6 +64,7 @@ function defaultOverlay(copy: { headline: string; subhead: string; cta: string }
       { role: "badge", text: "", include: false, position: "bottom" },
     ],
     layout: "stacked",
+    logoMark: { include: false, corner: "bottom-right" },
   };
 }
 
@@ -150,6 +166,34 @@ export function OverlayEditor({ projectId, initialOverlay, initialCopy, finalIma
           </select>
         </div>
       ))}
+
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1.5 w-8 shrink-0">
+          <input
+            type="checkbox"
+            checked={overlay.logoMark.include}
+            onChange={(e) =>
+              setOverlay((prev) => ({ ...prev, logoMark: { ...prev.logoMark, include: e.target.checked } }))
+            }
+            className="size-3.5 rounded border-input accent-primary"
+          />
+        </label>
+        <span className="w-28 shrink-0 text-xs font-semibold text-muted-foreground">Logo watermark</span>
+        <select
+          value={overlay.logoMark.corner}
+          onChange={(e) =>
+            setOverlay((prev) => ({ ...prev, logoMark: { ...prev.logoMark, corner: e.target.value as LogoCorner } }))
+          }
+          disabled={!overlay.logoMark.include}
+          className="h-8 rounded-md border border-input bg-background px-1.5 text-xs disabled:opacity-50"
+        >
+          {CORNERS.map((c) => (
+            <option key={c} value={c}>
+              {CORNER_LABELS[c]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 

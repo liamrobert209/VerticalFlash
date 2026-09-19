@@ -31,9 +31,33 @@ export const StaticAdOverlayElementZ = z.object({
 
 export type StaticAdOverlayElement = z.infer<typeof StaticAdOverlayElementZ>;
 
+// The logo watermark — a real image, not text, so it doesn't fit the
+// role/position/text shape above: it needs a 2D corner anchor instead of a
+// vertical band, and no text content at all. Which actual logo file to use
+// isn't stored here — compositeStaticAd resolves the latest "logo"-kind
+// brand asset at render time (same "latest wins" pattern as the color
+// palette), so re-uploading a better logo later updates every ad without
+// needing to touch this field.
+export const LOGO_CORNERS = ["top-left", "top-right", "bottom-left", "bottom-right"] as const;
+export type LogoCorner = (typeof LOGO_CORNERS)[number];
+
+export const StaticAdLogoMarkZ = z.object({
+  include: z.boolean(),
+  corner: z.enum(LOGO_CORNERS),
+});
+
+export type StaticAdLogoMark = z.infer<typeof StaticAdLogoMarkZ>;
+
+export function defaultLogoMark(): StaticAdLogoMark {
+  return { include: false, corner: "bottom-right" };
+}
+
 export const StaticAdTextOverlayZ = z.object({
   elements: z.array(StaticAdOverlayElementZ),
   layout: z.enum(OVERLAY_LAYOUTS).default("stacked"),
+  // Optional/defaulted so existing project.json overlays without this
+  // field (every one applied before this existed) keep parsing.
+  logoMark: StaticAdLogoMarkZ.default(defaultLogoMark),
 });
 
 export type StaticAdTextOverlay = z.infer<typeof StaticAdTextOverlayZ>;
@@ -47,5 +71,6 @@ export function defaultTextOverlay(): StaticAdTextOverlay {
       { role: "badge", text: "Rated 4.8 · 10,000+ reviews", include: false, position: "bottom" },
     ],
     layout: "stacked",
+    logoMark: defaultLogoMark(),
   };
 }
