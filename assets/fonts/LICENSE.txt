@@ -1,0 +1,10 @@
+Bitter-Bold.ttf, Manrope-Regular.ttf, Manrope-Bold.ttf
+
+These are Google Fonts, licensed under the SIL Open Font License, Version
+1.1 (https://openfontlicense.org), which explicitly permits bundling,
+redistribution, and embedding in software. Fetched directly from Google's
+font CDN (fonts.gstatic.com).
+
+Used as free stand-ins for the brand guideline's actual typefaces (Quincy
+CF — a paid MyFonts license — and Filson Pro — an Adobe Fonts subscription
+font), which are not available to bundle. See src/lib/static-ad-fonts.ts.

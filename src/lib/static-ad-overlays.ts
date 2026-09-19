@@ -5,6 +5,7 @@ import type {
   StaticAdOverlayElement,
   StaticAdTextOverlay,
 } from "./static-ad-overlays-schema";
+import { ensureStaticAdFontsRegistered, HEADLINE_FONT_FAMILY, BODY_FONT_FAMILY } from "./static-ad-fonts";
 
 // Adapted from png-overlays.ts's rasterization technique (same @napi-rs/
 // canvas approach, rounded pill backgrounds, stroke/shadow) but
@@ -13,12 +14,16 @@ import type {
 // of one full-width band — a static ad needs several simultaneous
 // elements (headline/subhead/CTA), not one caption.
 
-const DEFAULT_FONT_STACK = '"Arial Black", "Helvetica Neue", "Apple Color Emoji"';
-
 interface RolePresetSpec {
   fontScale: number; // relative to canvas width
   weight: "bold" | "normal";
-  fill: { pad: number; radius: number; color: string } | null;
+  fontFamily: string;
+  // rotationDeg gives the fill pill the brand's "shield" look — the
+  // guidelines' shields are literally rounded rectangles at an angle, not
+  // a unique polygon (see brand asset guideline-shields-intro.png) — so a
+  // small rotation on the pill alone (text stays level for legibility) is
+  // an authentic, low-risk way to render one.
+  fill: { pad: number; radius: number; color: string; rotationDeg?: number } | null;
   stroke: { widthScale: number; color: string } | null;
   textColor: string;
 }
@@ -37,15 +42,20 @@ const DEFAULT_ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
   headline: {
     fontScale: 0.075,
     weight: "bold",
-    fill: { pad: 0.35, radius: 0.25, color: "rgba(0,0,0,0.65)" },
+    fontFamily: HEADLINE_FONT_FAMILY,
+    fill: { pad: 0.35, radius: 0.25, color: "rgba(0,0,0,0.65)", rotationDeg: -2.5 },
     stroke: null,
     textColor: "#ffffff",
   },
   subhead: {
     fontScale: 0.045,
     weight: "normal",
-    fill: null,
-    stroke: { widthScale: 0.09, color: "#000000" },
+    fontFamily: BODY_FONT_FAMILY,
+    // A soft dark pill instead of bare stroked text floating on the photo
+    // — legible on any background, and gives the subhead a real surface
+    // like every other element instead of being the one exception.
+    fill: { pad: 0.4, radius: 0.3, color: "rgba(0,0,0,0.55)" },
+    stroke: null,
     textColor: "#ffffff",
   },
   // A filled button/badge, distinct from headline/subhead's caption-style
@@ -53,15 +63,18 @@ const DEFAULT_ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
   cta: {
     fontScale: 0.04,
     weight: "bold",
-    fill: { pad: 0.7, radius: 0.5, color: "#e8482c" },
+    fontFamily: BODY_FONT_FAMILY,
+    fill: { pad: 0.7, radius: 0.5, color: "#e8482c", rotationDeg: 2.5 },
     stroke: null,
     textColor: "#ffffff",
   },
   // Trust factor (rating, review count, certification, "as seen in") — a
-  // small, understated pill rather than a loud CTA-style button.
+  // small, understated, level (not tilted) pill so a real stat stays
+  // easy to read rather than looking like a decorative accent.
   badge: {
     fontScale: 0.03,
     weight: "bold",
+    fontFamily: BODY_FONT_FAMILY,
     fill: { pad: 0.5, radius: 0.5, color: "rgba(255,255,255,0.92)" },
     stroke: null,
     textColor: "#1a1a1a",
@@ -72,8 +85,8 @@ const DEFAULT_ROLE_PRESETS: Record<OverlayRole, RolePresetSpec> = {
 // palette can plausibly override (headline/CTA fill) and the font, so an
 // incomplete palette (e.g. just accentColor) doesn't blow away the rest of
 // the design.
-function resolvePresets(palette?: OverlayPalette): { presets: Record<OverlayRole, RolePresetSpec>; fontStack: string } {
-  if (!palette) return { presets: DEFAULT_ROLE_PRESETS, fontStack: DEFAULT_FONT_STACK };
+function resolvePresets(palette?: OverlayPalette): Record<OverlayRole, RolePresetSpec> {
+  if (!palette) return DEFAULT_ROLE_PRESETS;
   const presets = { ...DEFAULT_ROLE_PRESETS };
   if (palette.primaryColor) {
     presets.headline = { ...presets.headline, fill: { ...presets.headline.fill!, color: palette.primaryColor } };
@@ -81,7 +94,12 @@ function resolvePresets(palette?: OverlayPalette): { presets: Record<OverlayRole
   if (palette.accentColor) {
     presets.cta = { ...presets.cta, fill: { ...presets.cta.fill!, color: palette.accentColor } };
   }
-  return { presets, fontStack: palette.fontFamily || DEFAULT_FONT_STACK };
+  if (palette.fontFamily) {
+    for (const role of Object.keys(presets) as OverlayRole[]) {
+      presets[role] = { ...presets[role], fontFamily: palette.fontFamily };
+    }
+  }
+  return presets;
 }
 
 function wrapLines(ctx: SKRSContext2D, text: string, maxWidth: number): string[] {
@@ -115,18 +133,27 @@ function roundedRectPath(ctx: SKRSContext2D, x: number, y: number, w: number, h:
   ctx.closePath();
 }
 
+// How much extra canvas margin a WxH box needs on each axis once rotated
+// by rotationDeg, so its corners never clip — standard rotated-bounding-box
+// trig, halved since the margin is added symmetrically on both sides.
+function rotatedExtraMargin(width: number, height: number, rotationDeg: number): { x: number; y: number } {
+  const rad = (rotationDeg * Math.PI) / 180;
+  const rotatedW = Math.abs(width * Math.cos(rad)) + Math.abs(height * Math.sin(rad));
+  const rotatedH = Math.abs(width * Math.sin(rad)) + Math.abs(height * Math.cos(rad));
+  return { x: Math.max(0, rotatedW - width) / 2, y: Math.max(0, rotatedH - height) / 2 };
+}
+
 // Rasterizes one element to its own transparent block, sized to its text —
 // not a full-width band, since a CTA badge should hug its own text.
 function renderElementBlock(
   text: string,
   role: OverlayRole,
   canvasWidth: number,
-  presets: Record<OverlayRole, RolePresetSpec>,
-  fontStack: string
+  presets: Record<OverlayRole, RolePresetSpec>
 ): { canvas: Canvas; width: number; height: number } {
   const preset = presets[role];
   const fontsize = Math.round(canvasWidth * preset.fontScale);
-  const font = `${preset.weight === "bold" ? "900" : "400"} ${fontsize}px ${fontStack}`;
+  const font = `${preset.weight === "bold" ? "700" : "400"} ${fontsize}px "${preset.fontFamily}"`;
   const sideMargin = canvasWidth * 0.08;
   const strokeW = preset.stroke ? Math.max(2, Math.round(fontsize * preset.stroke.widthScale)) : 0;
   const pad = preset.fill ? Math.round(fontsize * preset.fill.pad) : 0;
@@ -147,7 +174,14 @@ function renderElementBlock(
   const blockWidth = Math.min(widestLine + 2 * (pad + strokeW), canvasWidth - 2 * sideMargin);
   const blockHeight = lines.length * rowHeight + (lines.length - 1) * lineGap + 2 * bleed;
 
-  const canvas = createCanvas(Math.ceil(blockWidth), Math.ceil(blockHeight));
+  const fillWidth = Math.min(widestLine + 2 * pad, blockWidth);
+  const fillHeight = blockHeight - 2 * bleed;
+  const rotationDeg = preset.fill?.rotationDeg ?? 0;
+  // Extra canvas margin so the rotated pill's corners don't clip — zero
+  // when rotationDeg is 0 (subhead/badge), so their canvas is unaffected.
+  const margin = rotationDeg ? rotatedExtraMargin(fillWidth, fillHeight, rotationDeg) : { x: 0, y: 0 };
+
+  const canvas = createCanvas(Math.ceil(blockWidth + margin.x * 2), Math.ceil(blockHeight + margin.y * 2));
   const ctx = canvas.getContext("2d");
   ctx.font = font;
   ctx.textAlign = "center";
@@ -157,14 +191,21 @@ function renderElementBlock(
   // One pill behind the whole block (not per line) — a multi-line headline
   // is one statement, not a stack of separate captions.
   if (preset.fill) {
-    const fillWidth = Math.min(widestLine + 2 * pad, canvas.width);
-    const fillHeight = canvas.height - 2 * bleed;
     ctx.fillStyle = preset.fill.color;
-    roundedRectPath(ctx, centerX - fillWidth / 2, bleed, fillWidth, fillHeight, fontsize * preset.fill.radius);
-    ctx.fill();
+    if (rotationDeg) {
+      ctx.save();
+      ctx.translate(centerX, margin.y + bleed + fillHeight / 2);
+      ctx.rotate((rotationDeg * Math.PI) / 180);
+      roundedRectPath(ctx, -fillWidth / 2, -fillHeight / 2, fillWidth, fillHeight, fontsize * preset.fill.radius);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      roundedRectPath(ctx, centerX - fillWidth / 2, margin.y + bleed, fillWidth, fillHeight, fontsize * preset.fill.radius);
+      ctx.fill();
+    }
   }
 
-  let top = bleed;
+  let top = margin.y + bleed;
   for (const line of lines) {
     const baseline = top + pad + ascent;
     if (preset.stroke) {
@@ -199,12 +240,13 @@ export async function compositeStaticAd(
   overlay: StaticAdTextOverlay,
   palette?: OverlayPalette
 ): Promise<Buffer> {
+  ensureStaticAdFontsRegistered();
   const image = await loadImage(baseImagePath);
   const canvas = createCanvas(image.width, image.height);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(image, 0, 0, image.width, image.height);
 
-  const { presets, fontStack } = resolvePresets(palette);
+  const presets = resolvePresets(palette);
 
   // "split_band" draws a solid color band across the bottom third before
   // any text, so bottom-anchored elements sit on a clean surface instead
@@ -223,7 +265,7 @@ export async function compositeStaticAd(
   const blocks = Object.entries(grouped).flatMap(([position, els]) =>
     els.map((el) => ({
       position: position as OverlayPosition,
-      block: renderElementBlock(el.text, el.role, image.width, presets, fontStack),
+      block: renderElementBlock(el.text, el.role, image.width, presets),
     }))
   );
 
