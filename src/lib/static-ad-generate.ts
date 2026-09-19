@@ -6,6 +6,7 @@ import {
 } from "@google/genai";
 import { GEMINI_IMAGE_MODEL } from "./gemini";
 import type { ImageBytes } from "./fetch-image";
+import { checkProductPlacement, placementFixupInstruction, type PlacementQaResult } from "./static-ad-qa";
 
 export type { ImageBytes };
 
@@ -13,6 +14,10 @@ export interface GeneratedImage {
   base64: string;
   mimeType: string;
   usage: Record<string, unknown> | undefined;
+  // Set only by generateBaseImageWithQa — absent for plain generateBaseImage/
+  // refineImage calls (the manual "make lighting warmer" refine path isn't
+  // QA'd, by design; see static-ad-qa.ts's header comment for scope).
+  qa?: PlacementQaResult;
 }
 
 function extractImage(response: {
@@ -86,6 +91,40 @@ separately. Photorealistic, no watermarks.`;
   });
 
   return extractImage(response);
+}
+
+// Product placement QA, layered on top of generateBaseImage: check the
+// freshly-generated image, and if the compositing looks off, attempt ONE
+// automatic fix-up edit (reusing the same refine mechanism a user would
+// type manually) and re-check once. Bounded to a single retry so a
+// stubborn image can't loop forever — whatever the second check says is
+// final, and the (possibly still-flagged) result is what gets shown to the
+// user, qa result attached so the UI can surface it rather than silently
+// hide it.
+export async function generateBaseImageWithQa(
+  ai: GoogleGenAI,
+  reference: ImageBytes,
+  products: ImageBytes[],
+  brief: StaticAdBrief
+): Promise<GeneratedImage> {
+  let image = await generateBaseImage(ai, reference, products, brief);
+  let qa = await checkProductPlacement(ai, image);
+
+  if (!qa.passed) {
+    try {
+      const fixed = await refineImage(ai, image, placementFixupInstruction(qa.issues));
+      const recheck = await checkProductPlacement(ai, fixed);
+      image = fixed;
+      qa = recheck;
+    } catch (error) {
+      // Keep the original image + its QA result if the fix-up call itself
+      // fails — a failed fix-up shouldn't discard an otherwise-usable
+      // attempt, just leave it flagged.
+      console.error("Product placement fix-up failed:", error);
+    }
+  }
+
+  return { ...image, qa };
 }
 
 // Tier (a), sequential refinement: an edit-style follow-up against the

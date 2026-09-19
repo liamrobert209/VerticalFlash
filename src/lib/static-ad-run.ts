@@ -162,6 +162,7 @@ export async function executeStaticAdBatchGenerate(
         file,
         status: file ? "ready" : "failed",
         error,
+        ...(outcome.status === "fulfilled" && outcome.value.qa ? { qa: outcome.value.qa } : {}),
         model: GEMINI_IMAGE_MODEL,
         createdAt: new Date().toISOString(),
       });

@@ -266,9 +266,16 @@ function CreateStaticAdForm() {
 
   const canSubmit =
     !!productLineId && !!referenceAd && !!ourUsp.trim() && !!angleLabel.trim() && stage === "idle";
+  // "up to" — each attempt runs an automatic placement-QA check and, if
+  // flagged, one fix-up edit, so actual cost can run up to ~2x the base
+  // image count.
   const costHint =
     GEMINI_IMAGE_PRICE_PER_IMAGE != null
-      ? `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)} for ${VERSIONS_PER_BATCH}`
+      ? `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)}-$${(
+          GEMINI_IMAGE_PRICE_PER_IMAGE *
+          VERSIONS_PER_BATCH *
+          2
+        ).toFixed(2)} for ${VERSIONS_PER_BATCH}`
       : null;
 
   const submit = async () => {

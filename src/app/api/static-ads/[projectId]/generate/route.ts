@@ -6,7 +6,7 @@ import { getAd, loadAdCreativeImageBytes } from "@/lib/ads-store";
 import { loadStaticAdProject } from "@/lib/static-ad-store";
 import { getProductImageSlots, productImagePath } from "@/lib/product-images-store";
 import type { ImageBytes } from "@/lib/fetch-image";
-import { generateBaseImage } from "@/lib/static-ad-generate";
+import { generateBaseImageWithQa } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
 import { describeAngle } from "@/lib/icp-angles";
 
@@ -81,7 +81,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
       projectId,
       count: VERSIONS_PER_BATCH,
       prompt: project.ourUsp,
-      run: () => generateBaseImage(ai, referenceBytes, productBytes, brief),
+      run: () => generateBaseImageWithQa(ai, referenceBytes, productBytes, brief),
     });
 
     if ("notFound" in outcome) {

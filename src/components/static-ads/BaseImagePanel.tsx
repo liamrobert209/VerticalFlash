@@ -14,6 +14,10 @@ export interface StaticAdAttempt {
   file: string | null;
   status: "ready" | "failed";
   error: string | null;
+  // Automated product-placement compositing check (shadow/color/edges/
+  // scale) — absent for "refine" attempts and any "generate" attempt made
+  // before this existed.
+  qa?: { passed: boolean; issues: string[] };
   model: string;
   createdAt: string;
 }
@@ -38,9 +42,17 @@ function costLine(): string | null {
   return `~$${GEMINI_IMAGE_PRICE_PER_IMAGE.toFixed(3)}`;
 }
 
+// Each attempt now includes an automatic placement-QA check and, if it
+// flags something, one fix-up image edit — so actual cost can run up to
+// ~2x the base image count, not a fixed multiple. "up to" makes that
+// honest without pretending to compute the exact figure.
 function batchCostLine(): string | null {
   if (GEMINI_IMAGE_PRICE_PER_IMAGE == null) return null;
-  return `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)} for ${VERSIONS_PER_BATCH}`;
+  return `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)}-$${(
+    GEMINI_IMAGE_PRICE_PER_IMAGE *
+    VERSIONS_PER_BATCH *
+    2
+  ).toFixed(2)} for ${VERSIONS_PER_BATCH}`;
 }
 
 export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePanelProps) {
@@ -156,6 +168,18 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
               ) : (
                 <div className="w-full aspect-square bg-muted flex items-center justify-center text-xs text-destructive p-2 text-center">
                   {attempt.error || "Failed"}
+                </div>
+              )}
+              {attempt.qa && (
+                <div
+                  className={`px-2 py-1 text-[11px] ${
+                    attempt.qa.passed ? "text-muted-foreground" : "text-amber-600 dark:text-amber-500"
+                  }`}
+                  title={attempt.qa.issues.join("; ") || undefined}
+                >
+                  {attempt.qa.passed
+                    ? "✓ Placement QA passed"
+                    : `⚠ Placement QA flagged: ${attempt.qa.issues.join("; ")}`}
                 </div>
               )}
               <div className="p-2 flex items-center justify-between gap-2">

@@ -27,6 +27,11 @@ export const StaticAdAttemptZ = z.object({
   status: z.enum(["ready", "failed"]),
   error: z.string().nullable(),
   usage: z.record(z.unknown()).optional(),
+  // Automated product-placement compositing check (shadow/color/edges/
+  // scale) — see static-ad-qa.ts. Absent for "refine" attempts (the manual
+  // instruction-driven edit path isn't QA'd) and for any "generate" attempt
+  // made before this existed.
+  qa: z.object({ passed: z.boolean(), issues: z.array(z.string()) }).optional(),
   model: z.string(),
   createdAt: z.string(),
 });
