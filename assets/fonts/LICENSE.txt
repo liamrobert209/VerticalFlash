@@ -1,4 +1,4 @@
-Bitter-Bold.ttf, Manrope-Regular.ttf, Manrope-Bold.ttf
+Fraunces-Black.ttf, Manrope-Regular.ttf, Manrope-Bold.ttf
 
 These are Google Fonts, licensed under the SIL Open Font License, Version
 1.1 (https://openfontlicense.org), which explicitly permits bundling,
@@ -6,5 +6,9 @@ redistribution, and embedding in software. Fetched directly from Google's
 font CDN (fonts.gstatic.com).
 
 Used as free stand-ins for the brand guideline's actual typefaces (Quincy
-CF — a paid MyFonts license — and Filson Pro — an Adobe Fonts subscription
-font), which are not available to bundle. See src/lib/static-ad-fonts.ts.
+CF and Filson Pro), both confirmed no longer available for purchase —
+Quincy CF's MyFonts listing literally states "The font is no longer
+available for purchase"; Filson Pro was reported the same on Adobe Fonts.
+Fraunces was chosen specifically as the closest free match to Quincy CF's
+soft, rounded-terminal display-serif character (replacing an earlier,
+stiffer Bitter substitute). See src/lib/static-ad-fonts.ts.
