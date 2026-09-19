@@ -224,11 +224,10 @@ function CreateStaticAdForm() {
   const [angleCategory, setAngleCategory] = useState<AngleSourceList | null>(null);
   const [angleLabel, setAngleLabel] = useState("");
   const [persona, setPersona] = useState("");
-  const [headline, setHeadline] = useState("");
   const [ourUsp, setOurUsp] = useState("");
   const [backgroundInstruction, setBackgroundInstruction] = useState(DEFAULT_BACKGROUND_BRIEF);
   const [productPhotosKey, setProductPhotosKey] = useState(0);
-  const [stage, setStage] = useState<"idle" | "creating" | "generating">("idle");
+  const [stage, setStage] = useState<"idle" | "creating" | "writing_copy" | "generating">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -255,7 +254,6 @@ function CreateStaticAdForm() {
         if (ad.productLineId) setProductLineId(ad.productLineId);
         if (ad.analysis?.usp) setOurUsp(ad.analysis.usp);
         if (ad.analysis?.persona) setPersona(ad.analysis.persona);
-        if (ad.headline) setHeadline(ad.headline);
       })
       .catch(() => {});
   }, [preselectedAdId]);
@@ -264,7 +262,6 @@ function CreateStaticAdForm() {
     setReferenceAd(ad);
     if (ad.analysis?.usp) setOurUsp(ad.analysis.usp);
     if (ad.analysis?.persona) setPersona(ad.analysis.persona);
-    if (ad.headline) setHeadline(ad.headline);
   }, []);
 
   const canSubmit =
@@ -289,12 +286,16 @@ function CreateStaticAdForm() {
           angleCategory,
           angleLabel: angleLabel.trim(),
           persona: persona.trim(),
-          headline: headline.trim(),
           backgroundInstruction: backgroundInstruction.trim() || null,
         }),
       });
       const project = await createRes.json();
       if (!createRes.ok) throw new Error(project.error || "Could not create the project");
+
+      // Best-effort: a copy-generation failure shouldn't block image
+      // generation — the overlay step's text stays editable regardless.
+      setStage("writing_copy");
+      await fetch(`/api/static-ads/${project.id}/copy`, { method: "POST" }).catch(() => {});
 
       setStage("generating");
       const generateRes = await fetch(`/api/static-ads/${project.id}/generate`, { method: "POST" });
@@ -406,17 +407,7 @@ function CreateStaticAdForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">5. Headline</label>
-            <input
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="A short headline for the overlay"
-              className="w-full rounded-lg border border-border bg-background p-2 text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">6. Copy / USP</label>
+            <label className="text-sm font-semibold text-foreground">5. Copy / USP</label>
             <textarea
               value={ourUsp}
               onChange={(e) => setOurUsp(e.target.value)}
@@ -429,11 +420,15 @@ function CreateStaticAdForm() {
                 Pre-filled from the reference ad&apos;s USP — edit freely to say what our product actually offers.
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Headline/subhead/CTA copy will be written automatically from your angle and USP above once you
+              generate — you can review and edit it on the next screen.
+            </p>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-foreground">7. Background</label>
+              <label className="text-sm font-semibold text-foreground">6. Background</label>
               <button
                 onClick={() => setBackgroundInstruction("")}
                 disabled={!backgroundInstruction}
@@ -452,7 +447,7 @@ function CreateStaticAdForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">8. Product photos</label>
+            <label className="text-sm font-semibold text-foreground">7. Product photos</label>
             <ProductPhotoAvailability key={productPhotosKey} productLineId={productLineId} />
           </div>
         </>
@@ -466,6 +461,7 @@ function CreateStaticAdForm() {
         className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
         {stage === "creating" && "Creating project…"}
+        {stage === "writing_copy" && "Writing headline/subhead/CTA copy…"}
         {stage === "generating" && `Generating ${VERSIONS_PER_BATCH} versions… this can take a minute`}
         {stage === "idle" && (
           <>

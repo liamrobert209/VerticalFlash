@@ -35,13 +35,18 @@ const LAYOUT_LABELS: Record<OverlayLayout, string> = {
 
 const POSITIONS: OverlayPosition[] = ["top", "center", "bottom"];
 
-function defaultOverlay(): StaticAdTextOverlay {
+// Seeds from the AI-written copy (static-ad-copy.ts) when present, so the
+// overlay's defaults are our own on-angle copy instead of blank text — the
+// user can still edit or clear any element. Never fabricates a trust badge
+// (no default "Rated 4.8..." text) — a real stat has to come from
+// somewhere, so it starts blank/excluded like everything else without one.
+function defaultOverlay(copy: { headline: string; subhead: string; cta: string }): StaticAdTextOverlay {
   return {
     elements: [
-      { role: "headline", text: "", include: false, position: "top" },
-      { role: "subhead", text: "", include: false, position: "top" },
-      { role: "cta", text: "Shop now", include: false, position: "bottom" },
-      { role: "badge", text: "Rated 4.8 · 10,000+ reviews", include: false, position: "bottom" },
+      { role: "headline", text: copy.headline, include: !!copy.headline, position: "top" },
+      { role: "subhead", text: copy.subhead, include: !!copy.subhead, position: "top" },
+      { role: "cta", text: copy.cta || "Shop now", include: !!copy.cta, position: "bottom" },
+      { role: "badge", text: "", include: false, position: "bottom" },
     ],
     layout: "stacked",
   };
@@ -50,12 +55,13 @@ function defaultOverlay(): StaticAdTextOverlay {
 export interface OverlayEditorProps {
   projectId: string;
   initialOverlay: StaticAdTextOverlay | null;
+  initialCopy: { headline: string; subhead: string; cta: string };
   finalImage: string | null;
   onApplied: (project: { textOverlay: StaticAdTextOverlay; finalImage: string }) => void;
 }
 
-export function OverlayEditor({ projectId, initialOverlay, finalImage, onApplied }: OverlayEditorProps) {
-  const [overlay, setOverlay] = useState<StaticAdTextOverlay>(initialOverlay ?? defaultOverlay());
+export function OverlayEditor({ projectId, initialOverlay, initialCopy, finalImage, onApplied }: OverlayEditorProps) {
+  const [overlay, setOverlay] = useState<StaticAdTextOverlay>(initialOverlay ?? defaultOverlay(initialCopy));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -87,6 +87,7 @@ export default function StaticAdProjectPage() {
           <OverlayEditor
             projectId={project.id}
             initialOverlay={project.textOverlay as StaticAdTextOverlay | null}
+            initialCopy={{ headline: project.headline, subhead: project.subhead, cta: project.cta }}
             finalImage={project.finalImage}
             onApplied={({ textOverlay, finalImage }) =>
               setProject((p) =>

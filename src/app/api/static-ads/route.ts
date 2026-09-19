@@ -15,7 +15,6 @@ const CreateBodyZ = z.object({
   angleCategory: z.enum(ANGLE_SOURCE_LISTS).nullable(),
   angleLabel: z.string().min(1),
   persona: z.string().default(""),
-  headline: z.string().default(""),
   backgroundInstruction: z.string().nullable().default(null),
 });
 

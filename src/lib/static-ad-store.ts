@@ -40,7 +40,6 @@ export async function createStaticAdProject(input: {
   angleCategory: AngleSourceList | null;
   angleLabel: string;
   persona: string;
-  headline: string;
   backgroundInstruction: string | null;
 }): Promise<StaticAdProject> {
   const now = new Date().toISOString();
@@ -56,7 +55,12 @@ export async function createStaticAdProject(input: {
     angleCategory: input.angleCategory,
     angleLabel: input.angleLabel,
     persona: input.persona,
-    headline: input.headline,
+    // Written by generateAdCopy right after creation (see the /copy
+    // route) — starts blank so the project is always immediately valid
+    // even if that call hasn't run yet or fails.
+    headline: "",
+    subhead: "",
+    cta: "",
     backgroundInstruction: input.backgroundInstruction,
     baseImage: emptyBaseImage(),
     textOverlay: null,

@@ -70,9 +70,16 @@ export const StaticAdProjectZ = z.object({
   // angleCategory, or freely typed when angleCategory is null/custom.
   angleLabel: z.string().default(""),
   persona: z.string().default(""),
-  // Pre-filled from the reference ad's own headline; feeds the text
-  // overlay step's default headline once a base image is accepted.
+  // AI-written copy (see static-ad-copy.ts's generateAdCopy) — real text,
+  // authored once at project-creation time from angleCategory/angleLabel/
+  // ourUsp/persona and the reference ad's structure, never the
+  // competitor's literal words. Seeds the text overlay step's default
+  // elements once a base image is accepted; user-editable there.
+  // Best-effort: stays "" if copy generation failed, same as before this
+  // existed (an empty overlay element the user fills in manually).
   headline: z.string().default(""),
+  subhead: z.string().default(""),
+  cta: z.string().default(""),
   // Free-text brief for the generated backdrop/scene — pre-filled with a
   // default suggestion, editable, clearable back to null ("delete the
   // current suggestion").

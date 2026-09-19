@@ -37,6 +37,14 @@ export interface AngleOption {
   source: AngleSourceList;
 }
 
+// Turns an angleCategory/angleLabel pair into one descriptive string for
+// prompts — e.g. "Problem we solve: eye strain from prolonged screen use"
+// — used by both the base-image generation brief and ad-copy generation so
+// neither has to duplicate the category-label lookup.
+export function describeAngle(category: AngleSourceList | null, label: string): string {
+  return category ? `${ANGLE_SOURCE_LABELS[category]}: ${label}` : label;
+}
+
 export function angleOptionsForIcp(icp: IcpProfile): AngleOption[] {
   const options: AngleOption[] = [];
   for (const source of ANGLE_SOURCE_LISTS) {
