@@ -3,8 +3,11 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Ad } from "@/lib/ads-schema";
-import { AD_INTENTS, AD_INTENT_LABELS, type AdIntent } from "@/lib/ad-analysis-schema";
 import { GEMINI_IMAGE_PRICE_PER_IMAGE } from "@/lib/gemini-pricing";
+import { ANGLE_SOURCE_LABELS, type AngleOption, type AngleSourceList } from "@/lib/icp-angles";
+
+const CUSTOM_CATEGORY = "custom" as const;
+const CUSTOM_DETAIL = "__custom__";
 
 const VERSIONS_PER_BATCH = 5;
 const DEFAULT_BACKGROUND_BRIEF = "Match the reference ad's setting, lighting, and composition.";
@@ -63,6 +66,92 @@ function ReferencePicker({
           <p className="p-2 text-xs text-foreground line-clamp-2">{ad.headline || ad.bodyText || "(no headline)"}</p>
         </button>
       ))}
+    </div>
+  );
+}
+
+// Two-step category → detailed-angle picker, drawn from the product
+// line's ICP (the same closed vocabulary create-ad-hoc already uses via
+// angleOptionsForIcp/the /angles endpoint) instead of the old AD_INTENTS
+// dropdown, which had nothing to do with our actual ICP pain points.
+function AnglePicker({
+  productLineId,
+  category,
+  label,
+  onChange,
+}: {
+  productLineId: string;
+  category: AngleSourceList | null;
+  label: string;
+  onChange: (category: AngleSourceList | null, label: string) => void;
+}) {
+  const [options, setOptions] = useState<AngleOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [detailChoice, setDetailChoice] = useState<string>(label ? label : CUSTOM_DETAIL);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/product-line/${encodeURIComponent(productLineId)}/angles`)
+      .then((res) => res.json())
+      .then((data) => setOptions(data.options ?? []))
+      .catch(() => setOptions([]))
+      .finally(() => setLoading(false));
+  }, [productLineId]);
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading angle options…</p>;
+
+  const categories = Array.from(new Set(options.map((o) => o.source)));
+  const categoryValue: string = category ?? CUSTOM_CATEGORY;
+  const detailOptions = category ? options.filter((o) => o.source === category) : [];
+
+  return (
+    <div className="space-y-2">
+      <select
+        value={categoryValue}
+        onChange={(e) => {
+          const next = e.target.value === CUSTOM_CATEGORY ? null : (e.target.value as AngleSourceList);
+          setDetailChoice(CUSTOM_DETAIL);
+          onChange(next, "");
+        }}
+        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+      >
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {ANGLE_SOURCE_LABELS[c]}
+          </option>
+        ))}
+        <option value={CUSTOM_CATEGORY}>Custom (not tied to an ICP category)</option>
+      </select>
+
+      {category && detailOptions.length > 0 ? (
+        <select
+          value={detailChoice}
+          onChange={(e) => {
+            setDetailChoice(e.target.value);
+            onChange(category, e.target.value === CUSTOM_DETAIL ? "" : e.target.value);
+          }}
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value={CUSTOM_DETAIL} disabled>
+            Pick a specific angle…
+          </option>
+          {detailOptions.map((o) => (
+            <option key={o.label} value={o.label}>
+              {o.label}
+            </option>
+          ))}
+          <option value={CUSTOM_DETAIL}>Other (type my own)</option>
+        </select>
+      ) : null}
+
+      {(!category || detailOptions.length === 0 || detailChoice === CUSTOM_DETAIL) && (
+        <input
+          value={label}
+          onChange={(e) => onChange(category, e.target.value)}
+          placeholder="The specific angle this ad should lead with"
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+        />
+      )}
     </div>
   );
 }
@@ -132,7 +221,8 @@ function CreateStaticAdForm() {
   const [productLines, setProductLines] = useState<ProductLineOption[]>([]);
   const [productLineId, setProductLineId] = useState<string>(searchParams.get("productLineId") ?? "");
   const [referenceAd, setReferenceAd] = useState<Ad | null>(null);
-  const [angle, setAngle] = useState<AdIntent>("other");
+  const [angleCategory, setAngleCategory] = useState<AngleSourceList | null>(null);
+  const [angleLabel, setAngleLabel] = useState("");
   const [persona, setPersona] = useState("");
   const [headline, setHeadline] = useState("");
   const [ourUsp, setOurUsp] = useState("");
@@ -164,7 +254,6 @@ function CreateStaticAdForm() {
         setReferenceAd(ad);
         if (ad.productLineId) setProductLineId(ad.productLineId);
         if (ad.analysis?.usp) setOurUsp(ad.analysis.usp);
-        if (ad.analysis?.intent) setAngle(ad.analysis.intent);
         if (ad.analysis?.persona) setPersona(ad.analysis.persona);
         if (ad.headline) setHeadline(ad.headline);
       })
@@ -174,12 +263,12 @@ function CreateStaticAdForm() {
   const selectReference = useCallback((ad: Ad) => {
     setReferenceAd(ad);
     if (ad.analysis?.usp) setOurUsp(ad.analysis.usp);
-    if (ad.analysis?.intent) setAngle(ad.analysis.intent);
     if (ad.analysis?.persona) setPersona(ad.analysis.persona);
     if (ad.headline) setHeadline(ad.headline);
   }, []);
 
-  const canSubmit = !!productLineId && !!referenceAd && !!ourUsp.trim() && stage === "idle";
+  const canSubmit =
+    !!productLineId && !!referenceAd && !!ourUsp.trim() && !!angleLabel.trim() && stage === "idle";
   const costHint =
     GEMINI_IMAGE_PRICE_PER_IMAGE != null
       ? `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)} for ${VERSIONS_PER_BATCH}`
@@ -197,7 +286,8 @@ function CreateStaticAdForm() {
           referenceAdId: referenceAd.id,
           productLineId,
           ourUsp: ourUsp.trim(),
-          angle,
+          angleCategory,
+          angleLabel: angleLabel.trim(),
           persona: persona.trim(),
           headline: headline.trim(),
           backgroundInstruction: backgroundInstruction.trim() || null,
@@ -236,6 +326,8 @@ function CreateStaticAdForm() {
             setProductLineId(e.target.value);
             setReferenceAd(null);
             setProductPhotosKey((k) => k + 1);
+            setAngleCategory(null);
+            setAngleLabel("");
           }}
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
         >
@@ -287,20 +379,20 @@ function CreateStaticAdForm() {
         <>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground">3. Angle</label>
-            <select
-              value={angle}
-              onChange={(e) => setAngle(e.target.value as AdIntent)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {AD_INTENTS.map((intent) => (
-                <option key={intent} value={intent}>
-                  {AD_INTENT_LABELS[intent]}
-                </option>
-              ))}
-            </select>
-            {referenceAd.analysis && (
-              <p className="text-xs text-muted-foreground">Pre-filled from the reference ad — change it freely.</p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              What&apos;s the goal of this ad — pick the ICP category it&apos;s targeting, then the specific angle
+              within it.
+            </p>
+            <AnglePicker
+              key={productLineId}
+              productLineId={productLineId}
+              category={angleCategory}
+              label={angleLabel}
+              onChange={(nextCategory, nextLabel) => {
+                setAngleCategory(nextCategory);
+                setAngleLabel(nextLabel);
+              }}
+            />
           </div>
 
           <div className="space-y-2">

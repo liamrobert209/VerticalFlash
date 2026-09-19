@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { StaticAdTextOverlayZ } from "./static-ad-overlays-schema";
 import { AD_INTENTS } from "./ad-analysis-schema";
+import { ANGLE_SOURCE_LISTS } from "./icp-angles";
 
 // A Static Ad Generator project: one competitor reference ad, swapped in
 // with our own product/USP, worked through generation + refinement + a
@@ -55,9 +56,19 @@ export const StaticAdProjectZ = z.object({
   // The USP we're leading with, pre-filled from the reference ad's
   // analysis but user-editable — the "swap" the whole project is about.
   ourUsp: z.string(),
-  // Pre-filled from the reference ad's analysis.intent/persona but
-  // user-editable — drives the generation brief alongside ourUsp.
+  // Deprecated — was "our" marketing angle, reusing the competitor-ad
+  // intent enum. Kept only so the ~16 pre-existing project.json files on
+  // disk (all still "draft") continue to parse; no longer read or written
+  // by anything. Superseded by angleCategory/angleLabel below.
   angle: z.enum(AD_INTENTS).default("other"),
+  // The ICP category this ad's angle is drawn from (one of
+  // ANGLE_SOURCE_LISTS), or null for a fully custom angle not tied to any
+  // ICP list. Paired with angleLabel to drive both the generation brief and
+  // (once built) the copy-generation step.
+  angleCategory: z.enum(ANGLE_SOURCE_LISTS).nullable().default(null),
+  // The specific angle text — either one of the ICP's ranked items under
+  // angleCategory, or freely typed when angleCategory is null/custom.
+  angleLabel: z.string().default(""),
   persona: z.string().default(""),
   // Pre-filled from the reference ad's own headline; feeds the text
   // overlay step's default headline once a base image is accepted.

@@ -8,6 +8,7 @@ import { getProductImageSlots, productImagePath } from "@/lib/product-images-sto
 import type { ImageBytes } from "@/lib/fetch-image";
 import { generateBaseImage } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
+import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -67,9 +68,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
       ...filledSlots.map((s) => loadProductImageBytes(project.productLineId, s.filename as string)),
     ]);
 
+    // Descriptive angle string for the generation prompt — the ICP
+    // category label plus the specific angle text, e.g. "Problem we solve:
+    // eye strain from prolonged screen use" — replaces the old raw
+    // AD_INTENTS key (e.g. "product_launch"), which said nothing about our
+    // actual ICP pain points.
+    const angle = project.angleCategory
+      ? `${ANGLE_SOURCE_LABELS[project.angleCategory]}: ${project.angleLabel}`
+      : project.angleLabel;
+
     const brief = {
       usp: project.ourUsp,
-      angle: project.angle,
+      angle,
       persona: project.persona,
       backgroundInstruction: project.backgroundInstruction,
     };

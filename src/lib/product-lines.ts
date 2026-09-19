@@ -154,29 +154,11 @@ export function toPublicProductLines(cfg: ProductLinesConfig): PublicProductLine
   return cfg.productLines.map((p) => ({ id: p.id, label: p.label, shortName: p.shortName, icpRef: p.icpRef }));
 }
 
-// A closed vocabulary of hook/angle options for a product's ICP, used by the
-// iterate-on-content tool's angle pickers. Each option carries which list it
-// came from so content records can store that provenance.
-export const ANGLE_SOURCE_LISTS = [
-  "problemsSolved",
-  "loves",
-  "purchaseDrivers",
-  "nearMissObjections",
-] as const;
-
-export type AngleSourceList = (typeof ANGLE_SOURCE_LISTS)[number];
-
-export interface AngleOption {
-  label: string;
-  source: AngleSourceList;
-}
-
-export function angleOptionsForIcp(icp: IcpProfile): AngleOption[] {
-  const options: AngleOption[] = [];
-  for (const source of ANGLE_SOURCE_LISTS) {
-    for (const item of icp[source]) {
-      options.push({ label: item.label, source });
-    }
-  }
-  return options;
-}
+// The angle-options vocabulary (ANGLE_SOURCE_LISTS/angleOptionsForIcp/...)
+// moved to ./icp-angles — a genuinely client-safe module, unlike this one
+// (resolveIcp's dynamic import("./icp-store") drags in the postgres client,
+// which breaks the browser build the moment a client component imports a
+// *value* — not just a type — from this file). Re-exported here so
+// existing server-side imports from "@/lib/product-lines" keep working.
+export { ANGLE_SOURCE_LISTS, ANGLE_SOURCE_LABELS, angleOptionsForIcp } from "./icp-angles";
+export type { AngleSourceList, AngleOption } from "./icp-angles";

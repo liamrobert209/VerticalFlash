@@ -8,7 +8,7 @@ import {
   type StaticAdProject,
   type StaticAdStatus,
 } from "./static-ad-schema";
-import type { AdIntent } from "./ad-analysis-schema";
+import type { AngleSourceList } from "./icp-angles";
 
 function projectPath(id: string): string {
   return join(STATIC_ADS_DIR, id, "project.json");
@@ -37,7 +37,8 @@ export async function createStaticAdProject(input: {
   referenceAdId: string;
   productLineId: string;
   ourUsp: string;
-  angle: AdIntent;
+  angleCategory: AngleSourceList | null;
+  angleLabel: string;
   persona: string;
   headline: string;
   backgroundInstruction: string | null;
@@ -51,7 +52,9 @@ export async function createStaticAdProject(input: {
     referenceAdId: input.referenceAdId,
     productLineId: input.productLineId,
     ourUsp: input.ourUsp,
-    angle: input.angle,
+    angle: "other",
+    angleCategory: input.angleCategory,
+    angleLabel: input.angleLabel,
     persona: input.persona,
     headline: input.headline,
     backgroundInstruction: input.backgroundInstruction,

@@ -4,7 +4,7 @@ import { getAd } from "@/lib/ads-store";
 import { getProductLinesConfig } from "@/lib/config";
 import { createStaticAdProject, listStaticAdProjects } from "@/lib/static-ad-store";
 import { STATIC_AD_STATUSES } from "@/lib/static-ad-schema";
-import { AD_INTENTS } from "@/lib/ad-analysis-schema";
+import { ANGLE_SOURCE_LISTS } from "@/lib/icp-angles";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,8 @@ const CreateBodyZ = z.object({
   referenceAdId: z.string().min(1),
   productLineId: z.string().min(1),
   ourUsp: z.string().min(1),
-  angle: z.enum(AD_INTENTS),
+  angleCategory: z.enum(ANGLE_SOURCE_LISTS).nullable(),
+  angleLabel: z.string().min(1),
   persona: z.string().default(""),
   headline: z.string().default(""),
   backgroundInstruction: z.string().nullable().default(null),
