@@ -4,6 +4,7 @@ import type {
   OverlayRole,
   StaticAdOverlayElement,
   StaticAdTextOverlay,
+  StaticAdAnchor,
 } from "./static-ad-overlays-schema";
 import { ensureStaticAdFontsRegistered, HEADLINE_FONT_FAMILY, BODY_FONT_FAMILY } from "./static-ad-fonts";
 
@@ -149,9 +150,10 @@ function renderElementBlock(
   text: string,
   role: OverlayRole,
   canvasWidth: number,
-  presets: Record<OverlayRole, RolePresetSpec>
+  presets: Record<OverlayRole, RolePresetSpec>,
+  textColorOverride?: string | null
 ): { canvas: Canvas; width: number; height: number } {
-  const preset = presets[role];
+  const preset = textColorOverride ? { ...presets[role], textColor: textColorOverride } : presets[role];
   const fontsize = Math.round(canvasWidth * preset.fontScale);
   const font = `${preset.weight === "bold" ? "700" : "400"} ${fontsize}px "${preset.fontFamily}"`;
   const sideMargin = canvasWidth * 0.08;
@@ -224,15 +226,46 @@ function renderElementBlock(
 
 // Elements sharing a position stack in reading order for top/center, and
 // bottom-up for "bottom" so the bottom-most element stays anchored to the
-// true bottom margin regardless of how many share that position.
+// true bottom margin regardless of how many share that position. Elements
+// with a free `anchor` set are excluded here — they render independently
+// via drawAnchoredElements instead of the stack, so they're never counted
+// in both places.
 function layoutByPosition(
   elements: StaticAdOverlayElement[]
 ): Record<OverlayPosition, StaticAdOverlayElement[]> {
   const grouped: Record<OverlayPosition, StaticAdOverlayElement[]> = { top: [], center: [], bottom: [] };
   for (const el of elements) {
-    if (el.include && el.text.trim()) grouped[el.position].push(el);
+    if (el.include && el.text.trim() && !el.anchor) grouped[el.position].push(el);
   }
   return grouped;
+}
+
+// Draws each anchor-placed element at its own free position, independent
+// of the top/center/bottom stack — the block itself still renders exactly
+// like a stacked one (same pill/rotation/font treatment), only where it
+// gets drawn differs. xPct/yPct mark the block's top-left corner adjusted
+// for `align` (left = that x is the left edge, center = that x is the
+// horizontal center, right = that x is the right edge); yPct is always the
+// top edge. Clamped so a suggestion near an edge can't draw off-canvas.
+function drawAnchoredElements(
+  ctx: SKRSContext2D,
+  elements: StaticAdOverlayElement[],
+  canvasWidth: number,
+  canvasHeight: number,
+  presets: Record<OverlayRole, RolePresetSpec>
+): void {
+  for (const el of elements) {
+    if (!el.include || !el.text.trim() || !el.anchor) continue;
+    const anchor = el.anchor as StaticAdAnchor;
+    const block = renderElementBlock(el.text, el.role, canvasWidth, presets, el.textColorOverride);
+    const targetX = anchor.xPct * canvasWidth;
+    const targetY = anchor.yPct * canvasHeight;
+    const x =
+      anchor.align === "left" ? targetX : anchor.align === "right" ? targetX - block.width : targetX - block.width / 2;
+    const clampedX = Math.max(0, Math.min(x, canvasWidth - block.width));
+    const clampedY = Math.max(0, Math.min(targetY, canvasHeight - block.height));
+    ctx.drawImage(block.canvas, clampedX, clampedY);
+  }
 }
 
 // The guideline's stated digital minimum for the primary logo (page 10:
@@ -305,7 +338,7 @@ export async function compositeStaticAd(
   const blocks = Object.entries(grouped).flatMap(([position, els]) =>
     els.map((el) => ({
       position: position as OverlayPosition,
-      block: renderElementBlock(el.text, el.role, image.width, presets),
+      block: renderElementBlock(el.text, el.role, image.width, presets, el.textColorOverride),
     }))
   );
 
@@ -325,6 +358,8 @@ export async function compositeStaticAd(
       cursor += block.height + gap;
     }
   }
+
+  drawAnchoredElements(ctx, overlay.elements, image.width, image.height, presets);
 
   if (overlay.logoMark.include && logoPath) {
     await drawLogoMark(ctx, image.width, image.height, logoPath, overlay.logoMark.corner);

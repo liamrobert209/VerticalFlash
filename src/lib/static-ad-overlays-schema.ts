@@ -22,11 +22,35 @@ export type OverlayPosition = (typeof OVERLAY_POSITIONS)[number];
 export const OVERLAY_LAYOUTS = ["stacked", "split_band"] as const;
 export type OverlayLayout = (typeof OVERLAY_LAYOUTS)[number];
 
+// A free-position placement, set by the smart-placement suggestion
+// (static-ad-placement.ts) or a manual override — takes over from the
+// role's position-based stacking entirely when present. xPct/yPct are
+// normalized (0-1) coordinates of the text block's anchor point; align
+// says which edge of the block sits at that point. Optional/nullable so
+// every existing overlay (position-only) keeps working exactly as before —
+// this is additive, not a replacement for the position enum.
+export const StaticAdAnchorZ = z.object({
+  xPct: z.number().min(0).max(1),
+  yPct: z.number().min(0).max(1),
+  align: z.enum(["left", "center", "right"]),
+});
+
+export type StaticAdAnchor = z.infer<typeof StaticAdAnchorZ>;
+
 export const StaticAdOverlayElementZ = z.object({
   role: z.enum(OVERLAY_ROLES),
   text: z.string(),
   include: z.boolean(),
   position: z.enum(OVERLAY_POSITIONS),
+  // When set, this element renders at the free anchor point instead of
+  // being stacked with other elements sharing `position`. Cleared by
+  // manually changing `position` in the editor, so the two never silently
+  // fight each other.
+  anchor: StaticAdAnchorZ.nullable().default(null),
+  // Overrides the role's default text color (e.g. a palette color picked
+  // for contrast against a specific patch of the photo). Null uses the
+  // role's normal default.
+  textColorOverride: z.string().nullable().default(null),
 });
 
 export type StaticAdOverlayElement = z.infer<typeof StaticAdOverlayElementZ>;
@@ -65,10 +89,17 @@ export type StaticAdTextOverlay = z.infer<typeof StaticAdTextOverlayZ>;
 export function defaultTextOverlay(): StaticAdTextOverlay {
   return {
     elements: [
-      { role: "headline", text: "", include: false, position: "top" },
-      { role: "subhead", text: "", include: false, position: "top" },
-      { role: "cta", text: "Shop now", include: false, position: "bottom" },
-      { role: "badge", text: "Rated 4.8 · 10,000+ reviews", include: false, position: "bottom" },
+      { role: "headline", text: "", include: false, position: "top", anchor: null, textColorOverride: null },
+      { role: "subhead", text: "", include: false, position: "top", anchor: null, textColorOverride: null },
+      { role: "cta", text: "Shop now", include: false, position: "bottom", anchor: null, textColorOverride: null },
+      {
+        role: "badge",
+        text: "Rated 4.8 · 10,000+ reviews",
+        include: false,
+        position: "bottom",
+        anchor: null,
+        textColorOverride: null,
+      },
     ],
     layout: "stacked",
     logoMark: defaultLogoMark(),

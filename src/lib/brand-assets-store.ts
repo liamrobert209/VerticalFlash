@@ -92,6 +92,24 @@ export async function getLatestColorPalette(): Promise<{
   return { primaryColor, accentColor };
 }
 
+// Every hex code from the most recent primary + secondary palette assets
+// (not just the first of each, unlike getLatestColorPalette) — the full
+// candidate set for the smart-placement contrast picker (static-ad-
+// placement.ts), which needs real options to choose the best-contrast one
+// from, not just the two "headline/CTA" defaults.
+export async function getFullColorPalette(): Promise<string[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select colors from brand_assets
+    where kind in ('color_palette_primary', 'color_palette_secondary') and colors is not null and array_length(colors, 1) > 0
+  `;
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const hex of row.colors as string[]) seen.add(hex);
+  }
+  return [...seen];
+}
+
 // The most recently added "logo"-kind asset — same "latest wins" pattern
 // as getLatestColorPalette. Read by the static ad overlay compositor for
 // the corner watermark (see static-ad-overlays.ts). Whichever logo variant
