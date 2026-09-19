@@ -33,11 +33,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    const colors = await getLatestColorPalette();
-    // First color = primary/headline, second = accent/CTA — matches the
-    // order the brand-assets UI asks colors to be entered in.
-    const palette: OverlayPalette | undefined = colors
-      ? { primaryColor: colors[0], accentColor: colors[1] }
+    const stored = await getLatestColorPalette();
+    const palette: OverlayPalette | undefined = stored
+      ? { primaryColor: stored.primaryColor ?? undefined, accentColor: stored.accentColor ?? undefined }
       : undefined;
     const composited = await compositeStaticAd(
       staticAdAttemptImagePath(projectId, accepted.file),

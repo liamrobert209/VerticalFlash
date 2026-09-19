@@ -17,8 +17,9 @@ export function brandAssetFilePath(id: string, filename: string): string {
 
 export async function createBrandAsset(opts: {
   kind: BrandAssetKind;
-  // "website" and "color_palette" assets have no uploaded file — filename/
-  // mimeType/buffer are only required together (all three or none).
+  // "website" and the color-palette kinds have no *required* file —
+  // filename/mimeType/buffer are only required together (all three or
+  // none).
   filename?: string | null;
   mimeType?: string | null;
   buffer?: Buffer;
@@ -26,6 +27,7 @@ export async function createBrandAsset(opts: {
   url?: string | null;
   colors?: string[] | null;
   productLineId?: string | null;
+  useCase?: string | null;
 }): Promise<BrandAsset> {
   const id = randomUUID();
   if (opts.buffer && opts.filename) {
@@ -35,10 +37,10 @@ export async function createBrandAsset(opts: {
 
   const sql = getDb();
   const rows = await sql`
-    insert into brand_assets (id, kind, filename, mime_type, description, url, colors, product_line_id, uploaded_at)
+    insert into brand_assets (id, kind, filename, mime_type, description, url, colors, product_line_id, use_case, uploaded_at)
     values (
       ${id}, ${opts.kind}, ${opts.filename ?? null}, ${opts.mimeType ?? null}, ${opts.description},
-      ${opts.url ?? null}, ${opts.colors ?? null}, ${opts.productLineId ?? null}, now()
+      ${opts.url ?? null}, ${opts.colors ?? null}, ${opts.productLineId ?? null}, ${opts.useCase ?? null}, now()
     )
     returning *
   `;
@@ -62,18 +64,30 @@ export async function getBrandAsset(id: string): Promise<BrandAsset | null> {
   return rows[0] ? BrandAssetZ.parse(rows[0]) : null;
 }
 
-// The most recently added color-palette asset — brand color is treated as
-// one global identity, not per-product-line, so this is a flat "latest
-// wins" lookup rather than filtered by product line. Read by the static ad
-// overlay compositor to style headline/CTA text on-brand instead of the
-// hardcoded defaults.
-export async function getLatestColorPalette(): Promise<string[] | null> {
+// The most recently added primary/secondary color-palette assets — brand
+// color is treated as one global identity, not per-product-line, so this is
+// a flat "latest wins" lookup per kind rather than filtered by product
+// line. Read by the static ad overlay compositor to style headline/CTA
+// text on-brand instead of the hardcoded defaults. Returns null only when
+// neither palette has been set yet.
+export async function getLatestColorPalette(): Promise<{
+  primaryColor: string | null;
+  accentColor: string | null;
+} | null> {
   const sql = getDb();
-  const rows = await sql`
-    select colors from brand_assets
-    where kind = 'color_palette' and colors is not null and array_length(colors, 1) > 0
-    order by uploaded_at desc
-    limit 1
-  `;
-  return rows[0] ? (rows[0].colors as string[]) : null;
+  const latest = async (kind: "color_palette_primary" | "color_palette_secondary") => {
+    const rows = await sql`
+      select colors from brand_assets
+      where kind = ${kind} and colors is not null and array_length(colors, 1) > 0
+      order by uploaded_at desc
+      limit 1
+    `;
+    return rows[0] ? ((rows[0].colors as string[])[0] ?? null) : null;
+  };
+  const [primaryColor, accentColor] = await Promise.all([
+    latest("color_palette_primary"),
+    latest("color_palette_secondary"),
+  ]);
+  if (!primaryColor && !accentColor) return null;
+  return { primaryColor, accentColor };
 }

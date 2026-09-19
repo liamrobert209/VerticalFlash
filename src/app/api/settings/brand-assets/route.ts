@@ -6,9 +6,16 @@ export const runtime = "nodejs";
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
-// "website" and "color_palette" assets have no uploaded file — everything
-// else keeps the original file-required behavior.
-const FILELESS_KINDS = new Set<BrandAssetKind>(["website", "color_palette"]);
+// "website" (url and/or an uploaded mockup) and the two color-palette
+// kinds (hex codes only) never require a file. "typography" accepts an
+// optional specimen image but doesn't require one — text specs alone are
+// valid. Everything else keeps the original file-required behavior.
+const FILELESS_KINDS = new Set<BrandAssetKind>([
+  "website",
+  "color_palette_primary",
+  "color_palette_secondary",
+  "typography",
+]);
 
 export async function GET() {
   try {
@@ -39,6 +46,7 @@ export async function POST(request: NextRequest) {
   const url = form.get("url");
   const colorsRaw = form.get("colors");
   const productLineId = form.get("productLineId");
+  const useCase = form.get("useCase");
 
   if (typeof kind !== "string" || !(BRAND_ASSET_KINDS as readonly string[]).includes(kind)) {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
@@ -46,10 +54,16 @@ export async function POST(request: NextRequest) {
   const assetKind = kind as BrandAssetKind;
 
   if (FILELESS_KINDS.has(assetKind)) {
-    if (assetKind === "website" && (typeof url !== "string" || !url.trim())) {
-      return NextResponse.json({ error: "A URL is required for a website asset" }, { status: 400 });
+    if (assetKind === "website" && !(typeof url === "string" && url.trim()) && !(file instanceof File)) {
+      return NextResponse.json(
+        { error: "A URL or an image is required for a website asset" },
+        { status: 400 }
+      );
     }
-    if (assetKind === "color_palette" && (typeof colorsRaw !== "string" || !colorsRaw.trim())) {
+    if (
+      (assetKind === "color_palette_primary" || assetKind === "color_palette_secondary") &&
+      (typeof colorsRaw !== "string" || !colorsRaw.trim())
+    ) {
       return NextResponse.json({ error: "At least one color is required" }, { status: 400 });
     }
   } else if (!(file instanceof File)) {
@@ -75,6 +89,7 @@ export async function POST(request: NextRequest) {
       url: typeof url === "string" && url.trim() ? url.trim() : null,
       colors,
       productLineId: typeof productLineId === "string" && productLineId.trim() ? productLineId.trim() : null,
+      useCase: typeof useCase === "string" && useCase.trim() ? useCase.trim() : null,
     });
     return NextResponse.json({ asset }, { status: 201 });
   } catch (error) {

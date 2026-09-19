@@ -8,7 +8,10 @@ import { BRAND_ASSET_KINDS, type BrandAsset, type BrandAssetKind } from "@/lib/b
 const KIND_LABELS: Record<BrandAssetKind, string> = {
   guideline: "Branding guideline",
   logo: "Logo",
-  color_palette: "Color palette",
+  illustration: "Illustration",
+  typography: "Typography",
+  color_palette_primary: "Primary color palette",
+  color_palette_secondary: "Secondary color palette",
   website: "Website",
   social_example: "Social media example image",
   ad_example: "Ad example image",
@@ -20,8 +23,11 @@ const KIND_LABELS: Record<BrandAssetKind, string> = {
 const KIND_HINTS: Record<BrandAssetKind, string> = {
   guideline: "Style guide, tone-of-voice doc, or any other branding reference file.",
   logo: "The brand mark, in whatever formats you have on hand.",
-  color_palette: "Hex codes read by the static-ad overlay compositor for on-brand text.",
-  website: "Our business site, a competitor's site, or any other reference URL.",
+  illustration: "A brand illustration or an example of one in use. Real source files may live in an external asset library — these can be reference crops.",
+  typography: "A typeface used in brand communications — name/weight/license go in the description, tagged by use case, with an optional specimen image.",
+  color_palette_primary: "Hex codes for the primary palette — read by the static-ad overlay compositor for on-brand text.",
+  color_palette_secondary: "Hex codes for the secondary/accent palette.",
+  website: "Our business site, a competitor's site, an uploaded mockup image, or any combination.",
   social_example: "A reference screenshot of a social post worth emulating.",
   ad_example: "A reference screenshot of an ad worth emulating.",
   product_image: "A reference photo of the product, tied to a specific product line.",
@@ -29,7 +35,17 @@ const KIND_HINTS: Record<BrandAssetKind, string> = {
   competitor_source: "The source document a competitor's seed data was built from.",
 };
 
-const FILELESS_KINDS = new Set<BrandAssetKind>(["website", "color_palette"]);
+// Kinds whose file is never required — some (website, typography) can
+// still take one optionally, handled via NO_FILE_KINDS below.
+const FILELESS_KINDS = new Set<BrandAssetKind>([
+  "website",
+  "color_palette_primary",
+  "color_palette_secondary",
+  "typography",
+]);
+// Kinds that never show a file input at all — pure data, no image.
+const NO_FILE_KINDS = new Set<BrandAssetKind>(["color_palette_primary", "color_palette_secondary"]);
+const COLOR_PALETTE_KINDS = new Set<BrandAssetKind>(["color_palette_primary", "color_palette_secondary"]);
 
 interface ProductLineOption {
   id: string;
@@ -49,6 +65,7 @@ export function BrandAssetsBoard() {
   const [url, setUrl] = useState("");
   const [colorsText, setColorsText] = useState("");
   const [productLineId, setProductLineId] = useState("");
+  const [useCase, setUseCase] = useState("");
   const [hasFile, setHasFile] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +96,7 @@ export function BrandAssetsBoard() {
     setUrl("");
     setColorsText("");
     setProductLineId("");
+    setUseCase("");
     setHasFile(false);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -93,9 +111,10 @@ export function BrandAssetsBoard() {
     const form = new FormData();
     form.append("kind", selectedKind);
     if (description.trim()) form.append("description", description.trim());
-    if (selectedKind === "website") form.append("url", url.trim());
-    if (selectedKind === "color_palette") form.append("colors", colorsText.trim());
+    if (selectedKind === "website" && url.trim()) form.append("url", url.trim());
+    if (COLOR_PALETTE_KINDS.has(selectedKind)) form.append("colors", colorsText.trim());
     if (selectedKind === "product_image") form.append("productLineId", productLineId);
+    if (selectedKind === "typography" && useCase.trim()) form.append("useCase", useCase.trim());
     if (file) form.append("file", file);
 
     const res = await fetch("/api/settings/brand-assets", { method: "POST", body: form });
@@ -145,17 +164,18 @@ export function BrandAssetsBoard() {
   const productLineLabel = (id: string | null) =>
     (id && productLines.find((p) => p.id === id)?.label) || id || "Unknown product";
 
-  const needsFile = !FILELESS_KINDS.has(selectedKind);
+  const showFileInput = !NO_FILE_KINDS.has(selectedKind);
+  const fileRequired = showFileInput && !FILELESS_KINDS.has(selectedKind);
   const canSubmit =
     !submitting &&
     (selectedKind === "website"
-      ? url.trim().length > 0
-      : selectedKind === "color_palette"
+      ? url.trim().length > 0 || hasFile
+      : COLOR_PALETTE_KINDS.has(selectedKind)
         ? colorsText.trim().length > 0
-        : hasFile) &&
+        : fileRequired
+          ? hasFile
+          : true) &&
     (selectedKind !== "product_image" || !!productLineId);
-
-  const assetsForKind = assets.filter((a) => a.kind === selectedKind);
 
   return (
     <section aria-labelledby="brand-assets" className="rounded-lg border border-border bg-card">
@@ -207,12 +227,12 @@ export function BrandAssetsBoard() {
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://... (optional if you're uploading an image instead)"
                 className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
               />
             )}
 
-            {selectedKind === "color_palette" && (
+            {COLOR_PALETTE_KINDS.has(selectedKind) && (
               <input
                 value={colorsText}
                 onChange={(e) => setColorsText(e.target.value)}
@@ -234,7 +254,16 @@ export function BrandAssetsBoard() {
               </select>
             )}
 
-            {needsFile && (
+            {selectedKind === "typography" && (
+              <input
+                value={useCase}
+                onChange={(e) => setUseCase(e.target.value)}
+                placeholder="Use case — e.g. &quot;Headlines&quot;, &quot;Body copy&quot;"
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              />
+            )}
+
+            {showFileInput && (
               <input
                 ref={fileRef}
                 type="file"
@@ -254,47 +283,68 @@ export function BrandAssetsBoard() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="space-y-2">
-            {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
-            {!loading && assetsForKind.length === 0 && (
-              <p className="text-sm text-muted-foreground">No {KIND_LABELS[selectedKind].toLowerCase()} added yet.</p>
-            )}
-            {assetsForKind.map((asset) => (
-              <div key={asset.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  {asset.kind === "website" ? (
-                    <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
-                  ) : asset.kind === "color_palette" ? (
-                    <Palette className="size-4 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {asset.kind === "website" ? asset.url : asset.kind === "color_palette" ? asset.colors?.join(", ") : asset.filename}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.kind === "product_image" ? productLineLabel(asset.productLineId) : null}
-                      {asset.kind === "product_image" && asset.description ? " · " : ""}
-                      {asset.description ?? ""}
-                    </p>
+          {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+
+          {!loading && (
+            <div className="space-y-6">
+              {BRAND_ASSET_KINDS.map((kind) => {
+                const kindAssets = assets.filter((a) => a.kind === kind);
+                if (kindAssets.length === 0) return null;
+                return (
+                  <div key={kind} className="space-y-2">
+                    <h3 className="text-sm font-semibold">
+                      {KIND_LABELS[kind]} <span className="font-normal text-muted-foreground">({kindAssets.length})</span>
+                    </h3>
+                    <div className="space-y-2">
+                      {kindAssets.map((asset) => (
+                        <div key={asset.id} className="flex items-center justify-between gap-2 rounded-md border border-border p-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {asset.kind === "website" && !asset.filename ? (
+                              <LinkIcon className="size-4 shrink-0 text-muted-foreground" />
+                            ) : COLOR_PALETTE_KINDS.has(asset.kind) ? (
+                              <Palette className="size-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <FileText className="size-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {COLOR_PALETTE_KINDS.has(asset.kind)
+                                  ? asset.colors?.join(", ")
+                                  : asset.filename ?? asset.url ?? "Untitled"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {asset.kind === "product_image" ? productLineLabel(asset.productLineId) : null}
+                                {asset.kind === "product_image" && asset.description ? " · " : ""}
+                                {asset.kind === "typography" && asset.useCase ? asset.useCase : null}
+                                {asset.kind === "typography" && asset.useCase && asset.description ? " · " : ""}
+                                {asset.kind === "website" && asset.filename && asset.url ? `${asset.url} · ` : ""}
+                                {asset.description ?? ""}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {asset.filename && (
+                              <Button asChild variant="ghost" size="icon-sm">
+                                <a href={`/api/settings/brand-assets/${asset.id}`} download aria-label="Download">
+                                  <Upload className="size-3.5 rotate-180" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button onClick={() => remove(asset.id)} variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete">
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  {asset.filename && (
-                    <Button asChild variant="ghost" size="icon-sm">
-                      <a href={`/api/settings/brand-assets/${asset.id}`} download aria-label="Download">
-                        <Upload className="size-3.5 rotate-180" />
-                      </a>
-                    </Button>
-                  )}
-                  <Button onClick={() => remove(asset.id)} variant="ghost" size="icon-sm" className="text-destructive" aria-label="Delete">
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+              {assets.length === 0 && (
+                <p className="text-sm text-muted-foreground">No brand assets added yet.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
