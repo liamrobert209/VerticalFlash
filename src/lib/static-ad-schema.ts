@@ -32,6 +32,10 @@ export const StaticAdAttemptZ = z.object({
   // instruction-driven edit path isn't QA'd) and for any "generate" attempt
   // made before this existed.
   qa: z.object({ passed: z.boolean(), issues: z.array(z.string()) }).optional(),
+  // Same shape, for a swapped-in person — only present when the reference
+  // ad showed a person AND actor reference photos existed for the product
+  // line, so an actor swap was actually attempted.
+  personQa: z.object({ passed: z.boolean(), issues: z.array(z.string()) }).optional(),
   model: z.string(),
   createdAt: z.string(),
 });

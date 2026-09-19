@@ -374,6 +374,7 @@ export function HistorySidebar() {
             <NavLink href="/settings/competitors" pathname={pathname} icon={Megaphone}>Competitors</NavLink>
             <NavLink href="/settings/brand-assets" pathname={pathname} icon={Palette}>Brand assets</NavLink>
             <NavLink href="/settings/product-images" pathname={pathname} icon={ImageIcon}>Product images</NavLink>
+            <NavLink href="/settings/actor-images" pathname={pathname} icon={ImageIcon}>Actor images</NavLink>
             <NavLink href="/settings/agent-kit" pathname={pathname} icon={Plug}>Agent kit</NavLink>
           </CollapsibleSection>
         </nav>

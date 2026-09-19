@@ -13,6 +13,10 @@ import type { ImageBytes } from "./fetch-image";
 // "is this photo real/correct", not "is this on-brand". Runs right after
 // generateBaseImage, before a version is ever shown to the user as a
 // finished draft — see static-ad-generate.ts's generateBaseImageWithQa.
+//
+// checkPersonPlacement (below) is the equivalent check for a swapped-in
+// person, run as a separate pass — see its own comment for why it's kept
+// independent rather than folded into one combined check.
 
 const PlacementQaZ = z.object({
   passed: z.boolean(),
@@ -105,4 +109,78 @@ export async function checkProductPlacement(
 
 export function placementFixupInstruction(issues: string[]): string {
   return `Fix these specific problems with this image, without changing anything else about the scene or layout: ${issues.join("; ")}. If an issue says the product itself is the wrong type, replace it with the correct product type described in that issue — do not just adjust its color or angle. Remove any text/words/logos entirely rather than editing them.`;
+}
+
+// Person-placement QA — a separate check from checkProductPlacement (not
+// merged into one), so a passing product and a flagged person (or vice
+// versa) are each visible on their own rather than one bundled verdict
+// hiding which element actually has the problem. Only meaningful when the
+// reference ad showed a person and an actor swap was attempted; the
+// caller skips this entirely otherwise.
+const PERSON_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  required: ["passed", "issues"],
+  properties: {
+    passed: {
+      type: Type.BOOLEAN,
+      description: "true only if the person in the image looks like a real, professionally-shot photo with no compositing problems.",
+    },
+    issues: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description:
+        "Specific problems with the person's compositing (empty if passed=true) — e.g. 'lighting on the person's face doesn't match the warm ambient light', 'hard cutout edge around the person's hair', 'pose looks unnatural for what they're supposedly doing'.",
+    },
+  },
+};
+
+function buildPersonPrompt(personDescription: string): string {
+  return `You are a photo QA reviewer. This image was made by taking an existing ad
+photo and replacing the person shown in it with a different person,
+keeping everything else (composition, background, lighting, product) the
+same. The person should appear like this: "${personDescription}".
+
+Check ONLY the compositing quality of the person — ignore the product,
+copy, or overall composition entirely:
+- Shadow/lighting: does it match the scene's light source and color
+  temperature, or does the person look pasted in?
+- Edges: any visible halo, fringing, or hard cutout edge — especially
+  around hair and clothing, which are harder to composite cleanly than a
+  product's simple silhouette?
+- Pose/scale: does their pose and interaction with the product/scene look
+  physically natural, not stiff or mismatched to what they're doing?
+
+Report passed=true only if none of these are wrong. If anything is off,
+report passed=false and list each specific issue in plain language precise
+enough that an image-editing instruction could fix it.
+
+Return ONLY valid JSON matching the provided schema.`;
+}
+
+export async function checkPersonPlacement(
+  ai: GoogleGenAI,
+  image: ImageBytes,
+  personDescription: string
+): Promise<PlacementQaResult> {
+  try {
+    const response = await ai.models.generateContent({
+      model: getGeminiModel(ai),
+      contents: createUserContent([
+        createPartFromBase64(image.base64, image.mimeType),
+        buildPersonPrompt(personDescription),
+      ]),
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: PERSON_RESPONSE_SCHEMA,
+      },
+    });
+    return PlacementQaZ.parse(JSON.parse(response.text ?? ""));
+  } catch (error) {
+    console.error("Person placement QA check failed:", error);
+    return { passed: true, issues: [] };
+  }
+}
+
+export function personPlacementFixupInstruction(issues: string[]): string {
+  return `Fix these specific problems with the person in this image, without changing anything else about the scene, product, or layout: ${issues.join("; ")}.`;
 }

@@ -36,6 +36,11 @@ export const AGENT_SETTINGS_PATH = join(DATA_ROOT, "agent-settings.json");
 // their metadata rows move to Postgres.
 export const BRAND_ASSETS_DIR = join(DATA_ROOT, "brand-assets");
 export const PRODUCT_IMAGES_DIR = join(DATA_ROOT, "product-images");
+// Reference photos of a real person, scoped per product line just like
+// PRODUCT_IMAGES_DIR — so whichever product line an ad is generated for
+// determines which actor's photos get used, rather than one fixed global
+// person. See actor-images-store.ts.
+export const ACTOR_IMAGES_DIR = join(DATA_ROOT, "actor-images");
 
 // Locally-cached copies of static-eligible competitor ad creative images —
 // synced-in CDN URLs (Facebook's especially) can go dead well before
@@ -66,6 +71,7 @@ export const DATA_DIRS = [
   LIBRARY_DIR,
   BRAND_ASSETS_DIR,
   PRODUCT_IMAGES_DIR,
+  ACTOR_IMAGES_DIR,
   STATIC_ADS_DIR,
   ADS_MEDIA_DIR,
   COMPETITOR_CONTENT_MEDIA_DIR,

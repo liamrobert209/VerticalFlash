@@ -24,7 +24,7 @@ export interface ProductLineCandidate {
 // candidate ids, only when candidates are actually supplied — keeping the
 // schema/prompt/cost identical to before for every single-line competitor.
 function buildAdAnalysisResponseSchema(candidates?: ProductLineCandidate[]) {
-  const required = ["summary", "intent", "usp", "persona", "productShown", "tags"];
+  const required = ["summary", "intent", "usp", "persona", "productShown", "hasPerson", "personDescription", "tags"];
   const properties: Record<string, unknown> = {
     summary: {
       type: Type.STRING,
@@ -44,6 +44,16 @@ function buildAdAnalysisResponseSchema(candidates?: ProductLineCandidate[]) {
     productShown: {
       type: Type.STRING,
       description: "What product or product category is visually shown in the creative.",
+    },
+    hasPerson: {
+      type: Type.BOOLEAN,
+      description: "true if the creative shows a real human person, not just the product on its own.",
+    },
+    personDescription: {
+      type: Type.STRING,
+      nullable: true,
+      description:
+        "Brief description of how the person appears (e.g. 'one person, upper body, holding the phone up to their face') when hasPerson is true; null/omitted otherwise.",
     },
     tags: {
       type: Type.ARRAY,
@@ -87,6 +97,10 @@ Look at the attached image and the text above together, then report:
 - usp: the single unique selling proposition the ad leads with, in plain language
 - persona: who this ad is targeting, in plain language
 - productShown: what product or product category is visually shown
+- hasPerson: true if the creative shows a real human person, not just the product
+- personDescription: brief description of how the person appears (e.g. "one
+  person, upper body, holding the phone up to their face") when hasPerson is
+  true; null otherwise
 - tags: a handful of short lowercase keyword tags for its angle/style/format
 - summary: one or two sentences describing the ad overall${
     candidates && candidates.length > 0

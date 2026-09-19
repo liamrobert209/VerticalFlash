@@ -44,6 +44,12 @@ const SECTIONS: SettingsSection[] = [
     icon: ImageIcon,
   },
   {
+    title: "Actor images",
+    description: "Reference photos of a person per product line, swapped in when a reference ad shows one.",
+    href: "/settings/actor-images",
+    icon: ImageIcon,
+  },
+  {
     title: "Agent kit",
     description: "Download and connect the MCP kit so an external agent can work in this workspace.",
     href: "/settings/agent-kit",

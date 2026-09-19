@@ -5,6 +5,7 @@ import { getGeminiClient, classifyGeminiError } from "@/lib/gemini";
 import { getAd, loadAdCreativeImageBytes } from "@/lib/ads-store";
 import { loadStaticAdProject } from "@/lib/static-ad-store";
 import { getProductImageSlots, productImagePath } from "@/lib/product-images-store";
+import { getActorImageSlots, actorImagePath } from "@/lib/actor-images-store";
 import type { ImageBytes } from "@/lib/fetch-image";
 import { generateBaseImageWithQa } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
@@ -20,16 +21,16 @@ export const maxDuration = 300;
 // one attempt at a time.
 const VERSIONS_PER_BATCH = 5;
 
-const PRODUCT_MIME: Record<string, string> = {
+const IMAGE_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
 };
 
-async function loadProductImageBytes(productLineId: string, filename: string): Promise<ImageBytes> {
-  const buffer = await fs.readFile(productImagePath(productLineId, filename));
-  const mimeType = PRODUCT_MIME[extname(filename).toLowerCase()] ?? "image/jpeg";
+async function loadImageBytes(path: string): Promise<ImageBytes> {
+  const buffer = await fs.readFile(path);
+  const mimeType = IMAGE_MIME[extname(path).toLowerCase()] ?? "image/jpeg";
   return { base64: buffer.toString("base64"), mimeType };
 }
 
@@ -65,9 +66,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
   }
 
   try {
-    const [referenceBytes, ...productBytes] = await Promise.all([
+    // Actor photos are scoped per product line, same as product photos —
+    // whichever product line this ad is for determines which actor's
+    // reference photos get used (see actor-images-store.ts). Absent/empty
+    // slots just mean no person swap is attempted, handled inside
+    // generateBaseImage via the personDescription/actorPhotos combination.
+    const actorSlots = await getActorImageSlots(project.productLineId);
+    const filledActorSlots = actorSlots.filter((s) => s.filename);
+
+    const [referenceBytes, productBytes, actorBytes] = await Promise.all([
       loadAdCreativeImageBytes(referenceAd),
-      ...filledSlots.map((s) => loadProductImageBytes(project.productLineId, s.filename as string)),
+      Promise.all(filledSlots.map((s) => loadImageBytes(productImagePath(project.productLineId, s.filename as string)))),
+      Promise.all(filledActorSlots.map((s) => loadImageBytes(actorImagePath(project.productLineId, s.filename as string)))),
     ]);
 
     const angle = describeAngle(project.angleCategory, project.angleLabel);
@@ -79,13 +89,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
       persona: project.persona,
       backgroundInstruction: project.backgroundInstruction,
       productDescription: productLine?.description ?? productLine?.shortName ?? "our product",
+      personDescription: referenceAd.analysis?.hasPerson ? (referenceAd.analysis.personDescription ?? null) : null,
     };
 
     const outcome = await executeStaticAdBatchGenerate({
       projectId,
       count: VERSIONS_PER_BATCH,
       prompt: project.ourUsp,
-      run: () => generateBaseImageWithQa(ai, referenceBytes, productBytes, brief),
+      run: () => generateBaseImageWithQa(ai, referenceBytes, productBytes, brief, actorBytes),
     });
 
     if ("notFound" in outcome) {

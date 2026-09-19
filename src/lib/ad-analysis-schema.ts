@@ -53,6 +53,18 @@ export const AdAnalysisZ = z.object({
   persona: z.string(),
   // What product/category is visually shown in the creative
   productShown: z.string(),
+  // Whether the creative depicts a real human person (not just the
+  // product) — drives whether the Static Ad Generator attempts an actor
+  // swap alongside the product swap. Optional (not defaulted) so existing
+  // code/fixtures constructing an AdAnalysis literal from before this
+  // field existed don't need updating — every consumer already treats a
+  // missing value as "no person"/null rather than relying on a Zod-level
+  // default to fill it in.
+  hasPerson: z.boolean().optional(),
+  // Brief description of how the person appears (e.g. "one person, upper
+  // body, holding the phone up to their face") when hasPerson is true;
+  // null/absent otherwise. Feeds the actor-swap generation prompt.
+  personDescription: z.string().nullable().optional(),
   tags: z.array(z.string()).min(1),
   // Only present when the competitor is linked to 2+ product lines and the
   // ad-analysis prompt asked Gemini to pick one (see ad-analyze.ts's

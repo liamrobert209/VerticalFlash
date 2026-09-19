@@ -18,6 +18,10 @@ export interface StaticAdAttempt {
   // scale) — absent for "refine" attempts and any "generate" attempt made
   // before this existed.
   qa?: { passed: boolean; issues: string[] };
+  // Same shape, for a swapped-in person — only present when an actor swap
+  // was actually attempted (reference ad had a person AND actor photos
+  // exist for the product line).
+  personQa?: { passed: boolean; issues: string[] };
   model: string;
   createdAt: string;
 }
@@ -178,8 +182,20 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
                   title={attempt.qa.issues.join("; ") || undefined}
                 >
                   {attempt.qa.passed
-                    ? "✓ Placement QA passed"
-                    : `⚠ Placement QA flagged: ${attempt.qa.issues.join("; ")}`}
+                    ? "✓ Product placement QA passed"
+                    : `⚠ Product placement flagged: ${attempt.qa.issues.join("; ")}`}
+                </div>
+              )}
+              {attempt.personQa && (
+                <div
+                  className={`px-2 py-1 text-[11px] ${
+                    attempt.personQa.passed ? "text-muted-foreground" : "text-amber-600 dark:text-amber-500"
+                  }`}
+                  title={attempt.personQa.issues.join("; ") || undefined}
+                >
+                  {attempt.personQa.passed
+                    ? "✓ Person placement QA passed"
+                    : `⚠ Person placement flagged: ${attempt.personQa.issues.join("; ")}`}
                 </div>
               )}
               <div className="p-2 flex items-center justify-between gap-2">
