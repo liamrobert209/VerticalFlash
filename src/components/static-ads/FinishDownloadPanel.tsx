@@ -21,19 +21,25 @@ export function FinishDownloadPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blockedIssues, setBlockedIssues] = useState<string[] | null>(null);
   const imageUrl = `/api/static-ads/${projectId}/image/${finalImage}`;
 
-  const finish = async () => {
+  const finish = async (force = false) => {
     setBusy(true);
     setError(null);
+    if (!force) setBlockedIssues(null);
     try {
       const res = await fetch(`/api/static-ads/${projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "accepted" }),
+        body: JSON.stringify({ status: "accepted", force }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not finish this ad");
+      if (data.blocked) {
+        setBlockedIssues(data.issues ?? []);
+        return;
+      }
       onStatusChange(data.status);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish this ad");
@@ -46,12 +52,29 @@ export function FinishDownloadPanel({
     return (
       <div className="space-y-2">
         <button
-          onClick={finish}
+          onClick={() => finish(false)}
           disabled={busy}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {busy ? "Finishing…" : "Finished — mark ready to download ▸"}
+          {busy ? "Checking…" : "Finished — mark ready to download ▸"}
         </button>
+        {blockedIssues && (
+          <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+            <p className="text-xs font-semibold text-amber-600 dark:text-amber-500">Brand QA flagged this ad:</p>
+            <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+              {blockedIssues.map((issue, i) => (
+                <li key={i}>{issue}</li>
+              ))}
+            </ul>
+            <button
+              onClick={() => finish(true)}
+              disabled={busy}
+              className="text-xs font-semibold text-amber-600 underline-offset-4 hover:underline disabled:opacity-50 dark:text-amber-500"
+            >
+              Accept anyway ▸
+            </button>
+          </div>
+        )}
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     );
