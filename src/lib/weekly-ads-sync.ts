@@ -11,11 +11,12 @@ import {
 import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
 import { analyzeStaticAd, type ProductLineCandidate } from "./ad-analyze";
-import { addFacebookPageId } from "./competitor-store";
+import { addFacebookPageId, recordFlaggedAdLanguage } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
 import { getPublicProductLines } from "./config";
 import type { CompetitorAccount } from "./competitor-schema";
+import { detectAdLanguage } from "./language-detect";
 import { rankAdsTargetsForProductLine, type AdsPlatform } from "./competitor-ranking";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
@@ -266,6 +267,7 @@ export interface ProcessFacebookItemsDeps {
   analyzeStaticAd: typeof analyzeStaticAd;
   listUnanalyzedStaticAds: typeof listUnanalyzedStaticAds;
   getGeminiClient: typeof getGeminiClient;
+  recordFlaggedAdLanguage: typeof recordFlaggedAdLanguage;
 }
 
 const defaultDeps: ProcessFacebookItemsDeps = {
@@ -276,6 +278,7 @@ const defaultDeps: ProcessFacebookItemsDeps = {
   analyzeStaticAd,
   listUnanalyzedStaticAds,
   getGeminiClient,
+  recordFlaggedAdLanguage,
 };
 
 // Gemini client for the ad-analysis pass below, built once per sync batch
@@ -344,6 +347,7 @@ export async function processFacebookItems(
   const confirmedInactiveByPlatform = new Map<string, number>();
   const errors: string[] = [];
   const ai = tryGetGeminiClient(deps, errors);
+  let skippedNonEnglish = 0;
 
   for (const item of items) {
     if (!item.ad_archive_id) continue;
@@ -369,6 +373,27 @@ export async function processFacebookItems(
         errors.push(`Could not record Facebook page id for ${matchedTarget.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+    // Skip non-English ad copy entirely — never stored. The Facebook Ad
+    // Library actor exposes no language field (confirmed by inspecting real
+    // synced rows: e.g. a UK/EU/US iPad-case brand's page also runs Thai-
+    // language regional campaigns under the same page id), so this is
+    // detected from the ad's own text via franc rather than actor metadata.
+    // The detected language is also tagged onto the competitor
+    // (flaggedAdLanguages) so future syncs stop wasting Apify calls on it
+    // (see rankAdsTargetsForProductLine's exclusion) without losing the
+    // fact that this account does produce non-English creative.
+    const adText = `${item.snapshot?.title ?? ""} ${facebookBodyText(item.snapshot) ?? ""}`;
+    const adLanguage = detectAdLanguage(adText);
+    if (adLanguage) {
+      skippedNonEnglish++;
+      try {
+        await deps.recordFlaggedAdLanguage(matchedTarget.accountId, adLanguage);
+      } catch (err) {
+        errors.push(`Could not tag ${matchedTarget.name} with language ${adLanguage}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      continue;
+    }
+
     const creativeUrl = facebookCreativeUrl(item.snapshot);
     const isStaticEligible = isFacebookStaticEligible(item.snapshot);
     // Cached once per item (not per platform row below) — the same
@@ -431,6 +456,11 @@ export async function processFacebookItems(
     }
   }
 
+  // Surfaced once per call, not per platform — a non-English ad is skipped
+  // before it's ever attributed to a platform row, so there's no natural
+  // per-platform count to attach it to.
+  if (skippedNonEnglish > 0) errors.push(`Skipped ${skippedNonEnglish} non-English ad(s)`);
+
   const results: SyncResult[] = [];
   for (const [platformId, seenIds] of seenByPlatform) {
     results.push({
@@ -439,6 +469,14 @@ export async function processFacebookItems(
       markedInactive: confirmedInactiveByPlatform.get(platformId) ?? 0,
       errors,
     });
+  }
+  // No platform ever got a row (e.g. every item this run was non-English,
+  // or unmatched) but there's still something worth surfacing — same
+  // synthesize-a-carrier-row pattern syncFacebookAds uses for runErrors, so
+  // the skipped-non-English note (or any other error) is never silently
+  // dropped just because nothing was actually recorded.
+  if (results.length === 0 && errors.length > 0) {
+    results.push({ platformId: "facebook", adsSeen: 0, markedInactive: 0, errors });
   }
   return results;
 }
@@ -468,6 +506,7 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
 
   const seenIds: string[] = [];
   const errors: string[] = [];
+  let skippedNonEnglish = 0;
 
   for (const item of items) {
     if (!item.adId) continue;
@@ -475,6 +514,19 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
     // Same reasoning as syncFacebookAds: drop anything that doesn't match
     // one of our target names rather than store unattributed ads.
     if (!matchedTarget) continue;
+    // Same non-English filter + language tagging as syncFacebookAds — never
+    // stored. See language-detect.ts and processFacebookItems' comment for
+    // the "why".
+    const adLanguage = detectAdLanguage(`${item.adTitle ?? ""} ${item.adCaption ?? ""}`);
+    if (adLanguage) {
+      skippedNonEnglish++;
+      try {
+        await recordFlaggedAdLanguage(matchedTarget.accountId, adLanguage);
+      } catch (err) {
+        errors.push(`Could not tag ${matchedTarget.name} with language ${adLanguage}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      continue;
+    }
     try {
       await recordAdSighting({
         platformId: "tiktok",
@@ -497,6 +549,8 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
       errors.push(`${item.adId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
+
+  if (skippedNonEnglish > 0) errors.push(`Skipped ${skippedNonEnglish} non-English ad(s)`);
 
   // No "wasn't seen this sync" deactivation here (or in syncFacebookAds
   // above) — see recordAdSighting's comment. This actor's output has no

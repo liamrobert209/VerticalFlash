@@ -24,6 +24,7 @@ const CATEGORY_LABELS: Record<CompetitorCategoryId, string> = {
   supplements: "Supplements",
   bulbs: "Bulbs",
   red_light_therapy: "Red light therapy",
+  cases: "Cases",
 };
 
 const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
@@ -36,6 +37,18 @@ const STATUS_LABELS: Record<TikTokStatus, string> = {
   present_unconfirmed: "Unconfirmed handle",
   not_found: "No TikTok found",
 };
+
+// Left-sidebar region selector, same rows-list pattern as ProductLinesBoard/
+// BrandAssetsBoard — "excluded" isn't a real region, it's a view of accounts
+// with a non-empty flaggedAdLanguages (see CompetitorQueryZ.excludedOnly).
+type RegionSidebarValue = "all" | CompetitorRegion | "excluded";
+const REGION_SIDEBAR_ITEMS: { value: RegionSidebarValue; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "us", label: "US" },
+  { value: "uk", label: "UK" },
+  { value: "eu", label: "EU" },
+  { value: "excluded", label: "Excluded" },
+];
 
 const STATUS_COLORS: Record<TikTokStatus, string> = {
   confirmed: "bg-emerald-500/15 text-emerald-600",
@@ -370,7 +383,7 @@ export function CompetitorsBoard() {
   const [accounts, setAccounts] = useState<CompetitorAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [regionFilter, setRegionFilter] = useState<CompetitorRegion | "">("");
+  const [regionSidebar, setRegionSidebar] = useState<RegionSidebarValue>("all");
   const [categoryFilter, setCategoryFilter] = useState<CompetitorCategoryId | "">("");
   const [accountTypeFilter, setAccountTypeFilter] = useState<AccountType | "">("");
   const [productLineFilter, setProductLineFilter] = useState<string>("");
@@ -384,7 +397,11 @@ export function CompetitorsBoard() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (regionFilter) params.set("region", regionFilter);
+      if (regionSidebar === "excluded") {
+        params.set("excludedOnly", "true");
+      } else if (regionSidebar !== "all") {
+        params.set("region", regionSidebar);
+      }
       if (categoryFilter) params.set("category", categoryFilter);
       if (accountTypeFilter) params.set("accountType", accountTypeFilter);
       if (productLineFilter) params.set("productLineId", productLineFilter);
@@ -403,7 +420,7 @@ export function CompetitorsBoard() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regionFilter, categoryFilter, accountTypeFilter, productLineFilter, scanReadyOnly]);
+  }, [regionSidebar, categoryFilter, accountTypeFilter, productLineFilter, scanReadyOnly]);
 
   const remove = async (id: string) => {
     if (!confirm("Remove this competitor from your saved accounts?")) return;
@@ -431,7 +448,7 @@ export function CompetitorsBoard() {
           </div>
           <h2 id="saved-accounts" className="text-lg font-semibold">Competitor / reference accounts</h2>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {accounts.length} accounts loaded{regionFilter || categoryFilter || productLineFilter || scanReadyOnly ? " (filtered)" : ""} · {scanReadyCount} scan-ready in this view.
+            {accounts.length} accounts loaded{regionSidebar !== "all" || categoryFilter || productLineFilter || scanReadyOnly ? " (filtered)" : ""} · {scanReadyCount} scan-ready in this view.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -446,17 +463,23 @@ export function CompetitorsBoard() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-5 py-3">
-        <select
-          value={regionFilter}
-          onChange={(e) => setRegionFilter(e.target.value as CompetitorRegion | "")}
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-        >
-          <option value="">All regions</option>
-          {COMPETITOR_REGIONS.map((r) => (
-            <option key={r} value={r}>{r.toUpperCase()}</option>
+      <div className="grid gap-0 sm:grid-cols-[10rem_1fr]">
+        <div className="border-b border-border sm:border-b-0 sm:border-r">
+          {REGION_SIDEBAR_ITEMS.map((item) => (
+            <button
+              key={item.value}
+              onClick={() => setRegionSidebar(item.value)}
+              className={`block w-full border-b border-border px-4 py-3 text-left text-sm last:border-0 hover:bg-muted/40 ${
+                item.value === regionSidebar ? "bg-muted/60 font-medium" : ""
+              } ${item.value === "excluded" ? "text-amber-600 dark:text-amber-400" : ""}`}
+            >
+              {item.label}
+            </button>
           ))}
-        </select>
+        </div>
+
+        <div>
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-5 py-3">
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as CompetitorCategoryId | "")}
@@ -550,6 +573,14 @@ export function CompetitorsBoard() {
                         {account.positioning}
                       </div>
                     )}
+                    {account.flaggedAdLanguages.length > 0 && (
+                      <div
+                        className="mt-0.5 text-xs text-amber-600 dark:text-amber-400"
+                        title="Ads seen in a non-English language are skipped and never stored — this account is excluded from the automated weekly ad sync until its data changes. A manually triggered sync still works."
+                      >
+                        Ads seen in: {account.flaggedAdLanguages.join(", ")} — excluded from automated sync
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-3 align-top uppercase text-muted-foreground">{account.region}</td>
                   <td className="px-5 py-3 align-top">
@@ -635,6 +666,8 @@ export function CompetitorsBoard() {
             ))}
           </tbody>
         </table>
+      </div>
+        </div>
       </div>
     </section>
   );

@@ -35,6 +35,13 @@ export function rankContentTargets(
 // populated than Instagram's, so each platform falls back to Instagram's
 // count (then 0) when its own is null. No limit/slice: the cron walks as
 // far down this list as it needs to find enough active advertisers.
+//
+// Excludes any account with a non-empty flaggedAdLanguages (see
+// weekly-ads-sync.ts's recordFlaggedAdLanguage) — a competitor whose ads
+// keep getting skipped for language would otherwise burn an Apify call
+// every run for nothing. This is ranked-selection-only: a manually
+// triggered sync (a human explicitly picking the account, who can see the
+// flagged-language badge first) still works normally.
 export function rankAdsTargetsForProductLine(
   accounts: CompetitorAccount[],
   productLineId: string,
@@ -46,6 +53,6 @@ export function rankAdsTargetsForProductLine(
       : (a.tiktokFollowers ?? a.instagramFollowers ?? 0);
 
   return accounts
-    .filter((a) => a.productLineIds.includes(productLineId))
+    .filter((a) => a.productLineIds.includes(productLineId) && a.flaggedAdLanguages.length === 0)
     .sort((a, b) => followerProxy(b) - followerProxy(a));
 }

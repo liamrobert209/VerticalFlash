@@ -93,6 +93,7 @@ function makeFakeDeps(opts: {
   const markStaleAdsInactiveCalls: unknown[] = [];
   const addFacebookPageIdCalls: unknown[] = [];
   const listUnanalyzedStaticAdsCalls: { limit: number; accountIds?: string[] }[] = [];
+  const recordFlaggedAdLanguageCalls: { accountId: string; languageCode: string }[] = [];
 
   let sightingCounter = 0;
 
@@ -131,6 +132,9 @@ function makeFakeDeps(opts: {
       return opts.listUnanalyzedStaticAdsResult ?? [];
     },
     getGeminiClient: () => ({} as GoogleGenAI),
+    recordFlaggedAdLanguage: async (accountId, languageCode) => {
+      recordFlaggedAdLanguageCalls.push({ accountId, languageCode });
+    },
   };
 
   return {
@@ -141,6 +145,7 @@ function makeFakeDeps(opts: {
     markStaleAdsInactiveCalls,
     addFacebookPageIdCalls,
     listUnanalyzedStaticAdsCalls,
+    recordFlaggedAdLanguageCalls,
   };
 }
 
@@ -276,4 +281,95 @@ test("retry pass: an unanalyzed ad from listUnanalyzedStaticAds goes through the
   // No Facebook items were seen, so there's nothing to report per-platform —
   // the retry pass runs independently of that.
   assert.deepEqual(results, []);
+});
+
+test("non-English ad copy: skipped entirely, never recorded or analyzed", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  const { deps, recordAdSightingCalls, analyzeStaticAdCalls, saveAdAnalysisCalls } = makeFakeDeps();
+
+  const thaiItem = {
+    ad_archive_id: "ad-thai",
+    page_id: "pg1",
+    page_name: "Acme",
+    snapshot: {
+      title: "ดีลสุดคุ้ม!",
+      body: "เคสไอแพดลิลลี่ แพด แถมฟรีสายชาร์จ! โค้ทลดเพิ่ม 100 บาท จำนวนจำกัด รีบสั่งเลยตอนนี้",
+    },
+  };
+
+  const results = await processFacebookItems([fbItem("ad-en", "pg1"), thaiItem], [target], deps);
+
+  // The English item still goes through normally...
+  assert.equal(recordAdSightingCalls.length, 1);
+  assert.equal(recordAdSightingCalls[0].externalAdId, "ad-en");
+  assert.equal(analyzeStaticAdCalls.length, 1);
+  assert.equal(saveAdAnalysisCalls.length, 1);
+
+  // ...and the Thai one is surfaced as a skip, not an error, not a row.
+  const errors = results.flatMap((r) => r.errors);
+  assert.ok(errors.some((e) => e.includes("Skipped 1 non-English ad")));
+});
+
+test("non-English ad copy: tags the matched competitor with the detected language", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  const { deps, recordFlaggedAdLanguageCalls } = makeFakeDeps();
+
+  const thaiItem = {
+    ad_archive_id: "ad-thai",
+    page_id: "pg1",
+    page_name: "Acme",
+    snapshot: {
+      title: "ดีลสุดคุ้ม!",
+      body: "เคสไอแพดลิลลี่ แพด แถมฟรีสายชาร์จ! โค้ทลดเพิ่ม 100 บาท จำนวนจำกัด รีบสั่งเลยตอนนี้",
+    },
+  };
+
+  await processFacebookItems([thaiItem], [target], deps);
+
+  assert.equal(recordFlaggedAdLanguageCalls.length, 1);
+  assert.equal(recordFlaggedAdLanguageCalls[0].accountId, "acct-1");
+  assert.equal(recordFlaggedAdLanguageCalls[0].languageCode, "tha");
+});
+
+test("non-English ad copy: skipped items never even synthesize a carrier row when nothing else happened", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  const { deps, recordAdSightingCalls } = makeFakeDeps();
+
+  const thaiItem = {
+    ad_archive_id: "ad-thai",
+    page_id: "pg1",
+    page_name: "Acme",
+    snapshot: {
+      title: "ดีลสุดคุ้ม!",
+      body: "เคสไอแพดลิลลี่ แพด แถมฟรีสายชาร์จ! โค้ทลดเพิ่ม 100 บาท จำนวนจำกัด รีบสั่งเลยตอนนี้",
+    },
+  };
+
+  // Every item this run is non-English — no platform ever gets a row from
+  // seenByPlatform, but the skip note must still surface (via the
+  // synthesize-a-carrier-row fallback), not be silently dropped.
+  const results = await processFacebookItems([thaiItem], [target], deps);
+
+  assert.equal(recordAdSightingCalls.length, 0);
+  assert.equal(results.length, 1);
+  assert.ok(results[0].errors.some((e) => e.includes("Skipped 1 non-English ad")));
+  assert.equal(results[0].adsSeen, 0);
 });

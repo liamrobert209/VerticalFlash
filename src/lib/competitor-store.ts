@@ -58,6 +58,7 @@ export async function listCompetitors(query: CompetitorQuery): Promise<Competito
     ${query.region ? sql`and a.region = ${query.region}` : sql``}
     ${query.accountType ? sql`and a.account_type = ${query.accountType}` : sql``}
     ${query.scanReady ? sql`and a.tiktok_status = 'confirmed'` : sql``}
+    ${query.excludedOnly ? sql`and array_length(a.flagged_ad_languages, 1) > 0` : sql``}
     ${
       query.category
         ? sql`and exists (select 1 from competitor_account_categories c where c.account_id = a.id and c.category_id = ${query.category})`
@@ -207,5 +208,19 @@ export async function addFacebookPageId(accountId: string, pageId: string): Prom
     update competitor_accounts
     set facebook_page_ids = facebook_page_ids || array[${pageId}]::text[]
     where id = ${accountId} and not (${pageId} = any(facebook_page_ids))
+  `;
+}
+
+// Called from weekly-ads-sync.ts whenever a skipped non-English ad's
+// language is detected — same dedup-via-WHERE-guard shape as
+// addFacebookPageId above (no duplicate array entries, no-op once the
+// language code is already recorded). Best-effort at the call site: never
+// let this fail a sync.
+export async function recordFlaggedAdLanguage(accountId: string, languageCode: string): Promise<void> {
+  const sql = getDb();
+  await sql`
+    update competitor_accounts
+    set flagged_ad_languages = flagged_ad_languages || array[${languageCode}]::text[]
+    where id = ${accountId} and not (${languageCode} = any(flagged_ad_languages))
   `;
 }

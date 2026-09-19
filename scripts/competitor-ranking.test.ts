@@ -21,6 +21,7 @@ function makeAccount(overrides: Partial<CompetitorAccount> = {}): CompetitorAcco
     facebookUrl: null,
     facebookFollowers: null,
     facebookPageIds: [],
+    flaggedAdLanguages: [],
     tiktokHandle: null,
     tiktokUrl: null,
     tiktokFollowers: null,
@@ -164,4 +165,13 @@ test("rankAdsTargetsForProductLine returns everything linked, no limit applied",
   const accounts = Array.from({ length: 12 }, () => makeAccount({ productLineIds: ["line-a"] }));
   const result = rankAdsTargetsForProductLine(accounts, "line-a", "facebook");
   assert.equal(result.length, 12);
+});
+
+test("rankAdsTargetsForProductLine excludes an account with flagged non-English languages, even if it would otherwise rank first", () => {
+  const flagged = makeAccount({ productLineIds: ["line-a"], facebookFollowers: 999999, flaggedAdLanguages: ["tha"] });
+  const clean = makeAccount({ productLineIds: ["line-a"], facebookFollowers: 100 });
+
+  const result = rankAdsTargetsForProductLine([flagged, clean], "line-a", "facebook");
+
+  assert.deepEqual(result.map((a) => a.id), [clean.id]);
 });
