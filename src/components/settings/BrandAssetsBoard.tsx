@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText, Trash2, Upload, Link as LinkIcon, Palette, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BRAND_ASSET_KINDS, type BrandAsset, type BrandAssetKind } from "@/lib/brand-assets-schema";
+import {
+  BRAND_ASSET_KINDS,
+  AD_STYLE_TEMPLATES,
+  AD_STYLE_TEMPLATE_LABELS,
+  type BrandAsset,
+  type BrandAssetKind,
+  type AdStyleTemplate,
+} from "@/lib/brand-assets-schema";
 
 const KIND_LABELS: Record<BrandAssetKind, string> = {
   guideline: "Branding guideline",
@@ -66,6 +73,7 @@ export function BrandAssetsBoard() {
   const [colorsText, setColorsText] = useState("");
   const [productLineId, setProductLineId] = useState("");
   const [useCase, setUseCase] = useState("");
+  const [styleTemplate, setStyleTemplate] = useState<AdStyleTemplate | "">("");
   const [hasFile, setHasFile] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -97,6 +105,7 @@ export function BrandAssetsBoard() {
     setColorsText("");
     setProductLineId("");
     setUseCase("");
+    setStyleTemplate("");
     setHasFile(false);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -115,6 +124,7 @@ export function BrandAssetsBoard() {
     if (COLOR_PALETTE_KINDS.has(selectedKind)) form.append("colors", colorsText.trim());
     if (selectedKind === "product_image") form.append("productLineId", productLineId);
     if (selectedKind === "typography" && useCase.trim()) form.append("useCase", useCase.trim());
+    if (selectedKind === "ad_example" && styleTemplate) form.append("styleTemplate", styleTemplate);
     if (file) form.append("file", file);
 
     const res = await fetch("/api/settings/brand-assets", { method: "POST", body: form });
@@ -263,6 +273,19 @@ export function BrandAssetsBoard() {
               />
             )}
 
+            {selectedKind === "ad_example" && (
+              <select
+                value={styleTemplate}
+                onChange={(e) => setStyleTemplate(e.target.value as AdStyleTemplate | "")}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="">Which ad style is this? (optional)</option>
+                {AD_STYLE_TEMPLATES.map((t) => (
+                  <option key={t} value={t}>{AD_STYLE_TEMPLATE_LABELS[t]}</option>
+                ))}
+              </select>
+            )}
+
             {showFileInput && (
               <input
                 ref={fileRef}
@@ -317,6 +340,10 @@ export function BrandAssetsBoard() {
                                 {asset.kind === "product_image" && asset.description ? " · " : ""}
                                 {asset.kind === "typography" && asset.useCase ? asset.useCase : null}
                                 {asset.kind === "typography" && asset.useCase && asset.description ? " · " : ""}
+                                {asset.kind === "ad_example" && asset.styleTemplate
+                                  ? AD_STYLE_TEMPLATE_LABELS[asset.styleTemplate]
+                                  : null}
+                                {asset.kind === "ad_example" && asset.styleTemplate && asset.description ? " · " : ""}
                                 {asset.kind === "website" && asset.filename && asset.url ? `${asset.url} · ` : ""}
                                 {asset.description ?? ""}
                               </p>

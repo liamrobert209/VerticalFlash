@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listBrandAssets, createBrandAsset } from "@/lib/brand-assets-store";
-import { BRAND_ASSET_KINDS, type BrandAssetKind } from "@/lib/brand-assets-schema";
+import { BRAND_ASSET_KINDS, AD_STYLE_TEMPLATES, type BrandAssetKind, type AdStyleTemplate } from "@/lib/brand-assets-schema";
 
 export const runtime = "nodejs";
 
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
   const colorsRaw = form.get("colors");
   const productLineId = form.get("productLineId");
   const useCase = form.get("useCase");
+  const styleTemplateRaw = form.get("styleTemplate");
 
   if (typeof kind !== "string" || !(BRAND_ASSET_KINDS as readonly string[]).includes(kind)) {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
@@ -74,6 +75,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A product line is required for a product image" }, { status: 400 });
   }
 
+  if (
+    typeof styleTemplateRaw === "string" &&
+    styleTemplateRaw.trim() &&
+    !(AD_STYLE_TEMPLATES as readonly string[]).includes(styleTemplateRaw)
+  ) {
+    return NextResponse.json({ error: "Invalid style template" }, { status: 400 });
+  }
+  const styleTemplate =
+    typeof styleTemplateRaw === "string" && styleTemplateRaw.trim()
+      ? (styleTemplateRaw as AdStyleTemplate)
+      : null;
+
   try {
     const buffer = file instanceof File ? Buffer.from(await file.arrayBuffer()) : undefined;
     const colors =
@@ -90,6 +103,7 @@ export async function POST(request: NextRequest) {
       colors,
       productLineId: typeof productLineId === "string" && productLineId.trim() ? productLineId.trim() : null,
       useCase: typeof useCase === "string" && useCase.trim() ? useCase.trim() : null,
+      styleTemplate,
     });
     return NextResponse.json({ asset }, { status: 201 });
   } catch (error) {

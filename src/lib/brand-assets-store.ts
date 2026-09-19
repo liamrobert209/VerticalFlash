@@ -3,7 +3,7 @@ import { promises as fs } from "fs";
 import { join, extname } from "path";
 import { getDb } from "./db";
 import { BRAND_ASSETS_DIR } from "./paths";
-import { BrandAssetZ, type BrandAsset, type BrandAssetKind } from "./brand-assets-schema";
+import { BrandAssetZ, type BrandAsset, type BrandAssetKind, type AdStyleTemplate } from "./brand-assets-schema";
 
 export async function listBrandAssets(): Promise<BrandAsset[]> {
   const sql = getDb();
@@ -28,6 +28,7 @@ export async function createBrandAsset(opts: {
   colors?: string[] | null;
   productLineId?: string | null;
   useCase?: string | null;
+  styleTemplate?: AdStyleTemplate | null;
 }): Promise<BrandAsset> {
   const id = randomUUID();
   if (opts.buffer && opts.filename) {
@@ -37,10 +38,11 @@ export async function createBrandAsset(opts: {
 
   const sql = getDb();
   const rows = await sql`
-    insert into brand_assets (id, kind, filename, mime_type, description, url, colors, product_line_id, use_case, uploaded_at)
+    insert into brand_assets (id, kind, filename, mime_type, description, url, colors, product_line_id, use_case, style_template, uploaded_at)
     values (
       ${id}, ${opts.kind}, ${opts.filename ?? null}, ${opts.mimeType ?? null}, ${opts.description},
-      ${opts.url ?? null}, ${opts.colors ?? null}, ${opts.productLineId ?? null}, ${opts.useCase ?? null}, now()
+      ${opts.url ?? null}, ${opts.colors ?? null}, ${opts.productLineId ?? null}, ${opts.useCase ?? null},
+      ${opts.styleTemplate ?? null}, now()
     )
     returning *
   `;
