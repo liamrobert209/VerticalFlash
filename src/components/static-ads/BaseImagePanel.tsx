@@ -33,10 +33,16 @@ export interface StaticAdBaseImage {
   attempts: StaticAdAttempt[];
 }
 
+// Accepting a different photo than whatever finalImage was last composited
+// against invalidates that final image server-side (see the accept
+// route) — finalImage/status are only ever present (and only ever
+// meaningful) on that response, so the parent knows to clear its own
+// stale copies of them too instead of silently keeping a final image that
+// no longer matches the accepted photo.
 export interface BaseImagePanelProps {
   projectId: string;
   baseImage: StaticAdBaseImage;
-  onUpdated: (baseImage: StaticAdBaseImage) => void;
+  onUpdated: (update: { baseImage: StaticAdBaseImage; finalImage?: string | null; status?: string }) => void;
 }
 
 const VERSIONS_PER_BATCH = 5;
@@ -77,7 +83,7 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       const res = await fetch(`/api/static-ads/${projectId}/generate`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
-      onUpdated(data.baseImage);
+      onUpdated({ baseImage: data.baseImage, finalImage: data.finalImage, status: data.status });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -92,7 +98,7 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       const res = await fetch(`/api/static-ads/${projectId}/attempts/${attempt}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      onUpdated(data.baseImage);
+      onUpdated({ baseImage: data.baseImage, finalImage: data.finalImage, status: data.status });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
     } finally {
@@ -112,7 +118,7 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Refine failed");
-      onUpdated(data.baseImage);
+      onUpdated({ baseImage: data.baseImage, finalImage: data.finalImage, status: data.status });
       setRefineText("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refine failed");
@@ -132,7 +138,7 @@ export function BaseImagePanel({ projectId, baseImage, onUpdated }: BaseImagePan
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Accept failed");
-      onUpdated(data.baseImage);
+      onUpdated({ baseImage: data.baseImage, finalImage: data.finalImage, status: data.status });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Accept failed");
     } finally {

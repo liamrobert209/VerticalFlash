@@ -96,6 +96,13 @@ export async function deleteStaticAdAttempt(
   project.baseImage.attempts = project.baseImage.attempts.filter((a) => a.attempt !== attempt);
   if (project.baseImage.acceptedAttempt === attempt) {
     project.baseImage.acceptedAttempt = null;
+    // Same staleness reasoning as the accept route: a composited final
+    // image rendered against the now-deleted accepted photo shouldn't
+    // stick around as if it were still valid.
+    if (project.finalImage) {
+      project.finalImage = null;
+      if (project.status === "accepted") project.status = "draft";
+    }
   }
   project.updatedAt = new Date().toISOString();
   await saveStaticAdProject(project);

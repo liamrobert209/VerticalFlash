@@ -3,7 +3,6 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Ad } from "@/lib/ads-schema";
-import { GEMINI_IMAGE_PRICE_PER_IMAGE } from "@/lib/gemini-pricing";
 import { ANGLE_SOURCE_LABELS, type AngleOption, type AngleSourceList } from "@/lib/icp-angles";
 
 const CUSTOM_CATEGORY = "custom" as const;
@@ -227,7 +226,7 @@ function CreateStaticAdForm() {
   const [ourUsp, setOurUsp] = useState("");
   const [backgroundInstruction, setBackgroundInstruction] = useState(DEFAULT_BACKGROUND_BRIEF);
   const [productPhotosKey, setProductPhotosKey] = useState(0);
-  const [stage, setStage] = useState<"idle" | "creating" | "writing_copy" | "generating">("idle");
+  const [stage, setStage] = useState<"idle" | "creating" | "writing_copy">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -266,17 +265,6 @@ function CreateStaticAdForm() {
 
   const canSubmit =
     !!productLineId && !!referenceAd && !!ourUsp.trim() && !!angleLabel.trim() && stage === "idle";
-  // "up to" — each attempt runs an automatic placement-QA check and, if
-  // flagged, one fix-up edit, so actual cost can run up to ~2x the base
-  // image count.
-  const costHint =
-    GEMINI_IMAGE_PRICE_PER_IMAGE != null
-      ? `~$${(GEMINI_IMAGE_PRICE_PER_IMAGE * VERSIONS_PER_BATCH).toFixed(2)}-$${(
-          GEMINI_IMAGE_PRICE_PER_IMAGE *
-          VERSIONS_PER_BATCH *
-          2
-        ).toFixed(2)} for ${VERSIONS_PER_BATCH}`
-      : null;
 
   const submit = async () => {
     if (!canSubmit || !referenceAd) return;
@@ -299,15 +287,13 @@ function CreateStaticAdForm() {
       const project = await createRes.json();
       if (!createRes.ok) throw new Error(project.error || "Could not create the project");
 
-      // Best-effort: a copy-generation failure shouldn't block image
-      // generation — the overlay step's text stays editable regardless.
+      // Best-effort: a copy-generation failure shouldn't block moving on —
+      // the wizard's copy step offers its own "Generate copy"/"Regenerate"
+      // action, and the overlay step's text stays editable regardless.
+      // Photo generation is a separate, explicit step from there (its own
+      // real AI cost) rather than firing automatically here.
       setStage("writing_copy");
       await fetch(`/api/static-ads/${project.id}/copy`, { method: "POST" }).catch(() => {});
-
-      setStage("generating");
-      const generateRes = await fetch(`/api/static-ads/${project.id}/generate`, { method: "POST" });
-      const generated = await generateRes.json();
-      if (!generateRes.ok) throw new Error(generated.error || "Could not generate versions");
 
       router.push(`/static-ads/${project.id}`);
     } catch (err) {
@@ -469,12 +455,7 @@ function CreateStaticAdForm() {
       >
         {stage === "creating" && "Creating project…"}
         {stage === "writing_copy" && "Writing headline/subhead/CTA copy…"}
-        {stage === "generating" && `Generating ${VERSIONS_PER_BATCH} versions… this can take a minute`}
-        {stage === "idle" && (
-          <>
-            Generate {VERSIONS_PER_BATCH} versions ▸{costHint && <span className="ml-1 text-xs opacity-80">({costHint})</span>}
-          </>
-        )}
+        {stage === "idle" && "Continue to copy review ▸"}
       </button>
     </div>
   );

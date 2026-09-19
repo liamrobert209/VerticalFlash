@@ -25,7 +25,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "That attempt isn't a ready image" }, { status: 400 });
   }
 
+  // Switching to a DIFFERENT accepted photo invalidates any already-
+  // composited final image — it was rendered against the old photo, so it
+  // no longer reflects what's actually accepted. Clear it (not textOverlay
+  // — the user's typed copy/positions stay, re-applying is one click, no
+  // AI cost) rather than silently leaving a stale download around. A
+  // project marked "accepted" with no finalImage doesn't make sense
+  // either, so that resets back to draft.
+  const switchedPhoto = project.baseImage.acceptedAttempt !== attempt;
   project.baseImage.acceptedAttempt = attempt;
+  if (switchedPhoto && project.finalImage) {
+    project.finalImage = null;
+    if (project.status === "accepted") project.status = "draft";
+  }
   project.updatedAt = new Date().toISOString();
   await saveStaticAdProject(project);
   return NextResponse.json(project);
