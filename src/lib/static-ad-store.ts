@@ -65,6 +65,7 @@ export async function createStaticAdProject(input: {
     baseImage: emptyBaseImage(),
     textOverlay: null,
     finalImage: null,
+    feedback: null,
   };
   await saveStaticAdProject(project);
   return project;

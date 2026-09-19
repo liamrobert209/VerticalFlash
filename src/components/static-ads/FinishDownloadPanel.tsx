@@ -1,23 +1,96 @@
 "use client";
 
 import { useState } from "react";
-import type { StaticAdStatus } from "@/lib/static-ad-schema";
+import type { StaticAdFeedback, StaticAdStatus } from "@/lib/static-ad-schema";
 
 // Once a text overlay has been applied at least once (finalImage exists),
 // this lets the graphics team mark the project done and grab the finished
 // PNG. The image-serving route already works as a direct download source —
 // no new route needed, just the `download` attribute.
 
+function FeedbackControls({
+  projectId,
+  feedback,
+  onFeedbackChange,
+}: {
+  projectId: string;
+  feedback: StaticAdFeedback | null;
+  onFeedbackChange: (feedback: StaticAdFeedback | null) => void;
+}) {
+  const [note, setNote] = useState(feedback?.note ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const send = async (rating: "up" | "down" | null, nextNote: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/static-ads/${projectId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating, note: nextNote.trim() || null }),
+      });
+      const data = await res.json();
+      if (res.ok) onFeedbackChange(data.feedback);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleRating = (rating: "up" | "down") => {
+    const next = feedback?.rating === rating ? null : rating;
+    send(next, note);
+  };
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-muted-foreground">How did this ad turn out?</span>
+        <button
+          onClick={() => toggleRating("up")}
+          disabled={saving}
+          aria-pressed={feedback?.rating === "up"}
+          className={`rounded-md border px-2 py-1 text-sm disabled:opacity-50 ${
+            feedback?.rating === "up" ? "border-primary bg-primary/10" : "border-border"
+          }`}
+        >
+          👍
+        </button>
+        <button
+          onClick={() => toggleRating("down")}
+          disabled={saving}
+          aria-pressed={feedback?.rating === "down"}
+          className={`rounded-md border px-2 py-1 text-sm disabled:opacity-50 ${
+            feedback?.rating === "down" ? "border-primary bg-primary/10" : "border-border"
+          }`}
+        >
+          👎
+        </button>
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => send(feedback?.rating ?? null, note)}
+        placeholder="Optional note — what worked, what didn't…"
+        rows={2}
+        className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+      />
+    </div>
+  );
+}
+
 export function FinishDownloadPanel({
   projectId,
   finalImage,
   status,
+  feedback,
   onStatusChange,
+  onFeedbackChange,
 }: {
   projectId: string;
   finalImage: string;
   status: StaticAdStatus;
+  feedback: StaticAdFeedback | null;
   onStatusChange: (status: StaticAdStatus) => void;
+  onFeedbackChange: (feedback: StaticAdFeedback | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +164,7 @@ export function FinishDownloadPanel({
       >
         Download PNG ▸
       </a>
+      <FeedbackControls projectId={projectId} feedback={feedback} onFeedbackChange={onFeedbackChange} />
     </div>
   );
 }

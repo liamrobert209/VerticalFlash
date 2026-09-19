@@ -174,7 +174,9 @@ export default function StaticAdProjectPage() {
             projectId={project.id}
             finalImage={project.finalImage}
             status={project.status}
+            feedback={project.feedback}
             onStatusChange={(status) => setProject((p) => (p ? { ...p, status } : p))}
+            onFeedbackChange={(feedback) => setProject((p) => (p ? { ...p, feedback } : p))}
           />
         </section>
       )}

@@ -5,6 +5,28 @@ import { GEMINI_IMAGE_MODEL } from "./gemini";
 import { loadStaticAdProject, saveStaticAdProject } from "./static-ad-store";
 import { staticAdAttemptName, type StaticAdProject } from "./static-ad-schema";
 import type { GeneratedImage } from "./static-ad-generate";
+import { recordQaOutcome } from "./qa-outcomes-store";
+
+// Best-effort — a QA-history write failing should never affect the
+// generation flow it's observing.
+async function recordQaOutcomes(projectId: string, attempt: number, result: GeneratedImage): Promise<void> {
+  const writes: Promise<void>[] = [];
+  if (result.qa) {
+    writes.push(
+      recordQaOutcome({ projectId, attempt, kind: "product_placement", passed: result.qa.passed, issues: result.qa.issues })
+    );
+  }
+  if (result.personQa) {
+    writes.push(
+      recordQaOutcome({ projectId, attempt, kind: "person_placement", passed: result.personQa.passed, issues: result.personQa.issues })
+    );
+  }
+  await Promise.allSettled(writes).then((settled) => {
+    for (const s of settled) {
+      if (s.status === "rejected") console.error(`Failed to record QA outcome (${projectId}, attempt ${attempt}):`, s.reason);
+    }
+  });
+}
 
 // One base-image slot per project (unlike video's per-shot keying) — a
 // static ad project has exactly one photographic base image to work on.
@@ -66,6 +88,7 @@ export async function executeStaticAdAttempt(
         join(STATIC_ADS_DIR, spec.projectId, file),
         Buffer.from(result.base64, "base64")
       );
+      await recordQaOutcomes(spec.projectId, attemptNumber, result);
     }
 
     // Reload in case something else touched the project while generating
@@ -151,6 +174,7 @@ export async function executeStaticAdBatchGenerate(
           join(STATIC_ADS_DIR, spec.projectId, file),
           Buffer.from(outcome.value.base64, "base64")
         );
+        await recordQaOutcomes(spec.projectId, attemptNumber, outcome.value);
       } else {
         error = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
       }

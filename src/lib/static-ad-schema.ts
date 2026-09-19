@@ -42,6 +42,24 @@ export const StaticAdAttemptZ = z.object({
 
 export type StaticAdAttempt = z.infer<typeof StaticAdAttemptZ>;
 
+// Human feedback on the finished ad — thumbs up/down plus an optional
+// free-text note, captured once the ad is done (see FinishDownloadPanel)
+// so real outcomes accumulate over time instead of only living in
+// whoever's memory reviewed the ad. Rating and note can each be cleared
+// independently, so this stays an object (not folded into `status`) even
+// though today it's only shown once a project is "accepted".
+export const StaticAdFeedbackZ = z.object({
+  rating: z.enum(["up", "down"]).nullable(),
+  note: z.string().nullable(),
+  ratedAt: z.string().nullable(),
+});
+
+export type StaticAdFeedback = z.infer<typeof StaticAdFeedbackZ>;
+
+export function emptyFeedback(): StaticAdFeedback {
+  return { rating: null, note: null, ratedAt: null };
+}
+
 export const StaticAdBaseImageZ = z.object({
   status: z.enum(["idle", "generating", "ready", "failed"]),
   startedAt: z.string().nullable(),
@@ -99,6 +117,10 @@ export const StaticAdProjectZ = z.object({
   // composited together — the project's actual deliverable. Null until
   // the overlay is applied at least once; re-applying overwrites it.
   finalImage: z.string().nullable(),
+  // Set only once a real thumbs up/down has been given — see
+  // StaticAdFeedbackZ. Pre-existing project.json files on disk simply
+  // lack this key, which `.nullable().default(null)` parses as null.
+  feedback: StaticAdFeedbackZ.nullable().default(null),
 });
 
 export type StaticAdProject = z.infer<typeof StaticAdProjectZ>;

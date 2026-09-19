@@ -6,6 +6,7 @@ import { staticAdAttemptImagePath } from "@/lib/static-ad-run";
 import { runBrandQa } from "@/lib/static-ad-brand-qa";
 import { getGeminiClient } from "@/lib/gemini";
 import { getBrandConfig } from "@/lib/config";
+import { recordQaOutcome } from "@/lib/qa-outcomes-store";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
         texts,
         getBrandConfig().name,
         project.textOverlay?.logoMark.include ?? false
+      );
+      recordQaOutcome({ projectId, attempt: null, kind: "brand_qa", passed: qa.passed, issues: qa.issues }).catch(
+        (err) => console.error(`Failed to record QA outcome (${projectId}, brand_qa):`, err)
       );
       if (!qa.passed) {
         return NextResponse.json({ blocked: true, issues: qa.issues });
