@@ -9,6 +9,8 @@ import type { ImageBytes } from "@/lib/fetch-image";
 import { generateBaseImageWithQa } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
 import { describeAngle } from "@/lib/icp-angles";
+import { getProductLinesConfig } from "@/lib/config";
+import { findProductLine } from "@/lib/product-lines";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -69,12 +71,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     ]);
 
     const angle = describeAngle(project.angleCategory, project.angleLabel);
+    const productLine = findProductLine(getProductLinesConfig(), project.productLineId);
 
     const brief = {
       usp: project.ourUsp,
       angle,
       persona: project.persona,
       backgroundInstruction: project.backgroundInstruction,
+      productDescription: productLine?.description ?? productLine?.shortName ?? "our product",
     };
 
     const outcome = await executeStaticAdBatchGenerate({

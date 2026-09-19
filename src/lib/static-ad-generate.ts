@@ -45,6 +45,15 @@ export interface StaticAdBrief {
   angle: string;
   persona: string;
   backgroundInstruction: string | null;
+  // What our product actually is, in plain language (e.g. "an Ocushield
+  // anti-blue-light tempered-glass screen protector for smartphones") —
+  // the product line's own config description. Critical when the
+  // competitor's product is a visually different TYPE of accessory (e.g.
+  // their ad shows a case, ours is a thin screen protector): without an
+  // explicit textual anchor, weak/generic product reference photos (e.g. a
+  // plain phone shot showing no visible film) give the model nothing to
+  // stop it from drifting toward the competitor's product form instead.
+  productDescription: string;
 }
 
 // Tier (a), step one: blend the reference ad's composition/style with our
@@ -60,6 +69,22 @@ export async function generateBaseImage(
 ): Promise<GeneratedImage> {
   const prompt = `You are creating a new advertising photo for a product, using an
 existing ad as a style/composition reference.
+
+CRITICAL RULES (both are commonly violated — follow them exactly):
+1. NO TEXT. The reference image is full of text (headlines, badges, logos,
+   callouts) — your output must contain ZERO text, words, letters, numbers,
+   or logos anywhere in the image, even if the reference has them baked in.
+   All text is added separately afterward as a real, editable layer. An
+   image with any text in it is a failed result.
+2. OUR PRODUCT'S ACTUAL FORM, not the competitor's. Our product is:
+   "${brief.productDescription}". If the competitor's product in the
+   reference is a visually different TYPE of item than ours (e.g. their ad
+   shows a case/mount/stand and ours is a thin film, or vice versa), you
+   must render OUR product's real physical form as described above — do
+   NOT keep the competitor's product's shape, thickness, or silhouette and
+   just relabel it. Our product images are one of the input photos below;
+   trust the text description above over the shape of a generic reference
+   photo if they seem to conflict.
 
 The FIRST image is a competitor's ad creative — use its composition, framing,
 lighting, and overall visual style as a reference ONLY. The competitor's
@@ -77,8 +102,8 @@ The ad's message is: "${brief.usp}".
 Marketing angle: ${brief.angle}.
 Target persona: ${brief.persona || "same as the reference ad's apparent audience"}.
 ${brief.backgroundInstruction ? `Background/setting: ${brief.backgroundInstruction}.` : "Match the reference ad's setting, lighting, and composition."}
-Do not add any text, logos, or captions to the image — that gets added
-separately. Photorealistic, no watermarks.`;
+Reminder: no text/logos/captions anywhere in the image. Photorealistic, no
+watermarks.`;
 
   const response = await ai.models.generateContent({
     model: GEMINI_IMAGE_MODEL,
@@ -108,12 +133,12 @@ export async function generateBaseImageWithQa(
   brief: StaticAdBrief
 ): Promise<GeneratedImage> {
   let image = await generateBaseImage(ai, reference, products, brief);
-  let qa = await checkProductPlacement(ai, image);
+  let qa = await checkProductPlacement(ai, image, brief.productDescription);
 
   if (!qa.passed) {
     try {
       const fixed = await refineImage(ai, image, placementFixupInstruction(qa.issues));
-      const recheck = await checkProductPlacement(ai, fixed);
+      const recheck = await checkProductPlacement(ai, fixed, brief.productDescription);
       image = fixed;
       qa = recheck;
     } catch (error) {
