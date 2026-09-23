@@ -92,10 +92,15 @@ export async function generateBaseImage(
   const personRule = swapPerson
     ? `\n3. OUR PERSON, not the competitor's. The reference ad shows a person
    (${brief.personDescription}). Replace that person with the person shown
-   in the actor reference photos (provided after the product photos below)
-   — keep their general pose and interaction with the product, but it must
-   be OUR person's actual likeness, not the competitor's model and not a
-   generic stand-in.`
+   in the actor reference photos (provided after the product photos below).
+   What they are DOING with the product (e.g. holding it up to their face,
+   wearing it, looking at the screen) must stay the same as the reference —
+   this is what keeps the ad's structure recognizable, and it must not be
+   dropped or reduced to a disembodied hand/prop shot. The exact body pose,
+   camera angle, and framing can vary naturally to fit our actor's own
+   reference photos — only the action itself is fixed. It must be OUR
+   person's actual likeness, not the competitor's model and not a generic
+   stand-in.`
     : `\n3. If the reference ad shows a person, do not depict any person at all
    in the output unless product reference photos require one for scale —
    no actor reference photos were provided for this generation.`;

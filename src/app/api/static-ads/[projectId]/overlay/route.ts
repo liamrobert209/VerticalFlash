@@ -3,12 +3,16 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import { STATIC_ADS_DIR } from "@/lib/paths";
 import { loadStaticAdProject, saveStaticAdProject } from "@/lib/static-ad-store";
-import { staticAdAttemptImagePath } from "@/lib/static-ad-run";
 import { StaticAdTextOverlayZ } from "@/lib/static-ad-overlays-schema";
-import { compositeStaticAd, type OverlayPalette } from "@/lib/static-ad-overlays";
-import { getLatestColorPalette, getLatestLogo } from "@/lib/brand-assets-store";
+import { generateAiTextOverlay } from "@/lib/static-ad-ai-overlay";
 
 export const runtime = "nodejs";
+
+const MIME_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+};
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
@@ -33,20 +37,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    const stored = await getLatestColorPalette();
-    const palette: OverlayPalette | undefined = stored
-      ? { primaryColor: stored.primaryColor ?? undefined, accentColor: stored.accentColor ?? undefined }
-      : undefined;
-    const logo = overlay.logoMark.include ? await getLatestLogo() : null;
-    const composited = await compositeStaticAd(
-      staticAdAttemptImagePath(projectId, accepted.file),
-      overlay,
-      palette,
-      logo?.path
-    );
-    const filename = "final.png";
+    const result = await generateAiTextOverlay(projectId, accepted.file, overlay);
+    const filename = `final${MIME_EXT[result.mimeType] ?? ".png"}`;
     await fs.mkdir(join(STATIC_ADS_DIR, projectId), { recursive: true });
-    await fs.writeFile(join(STATIC_ADS_DIR, projectId, filename), composited);
+    await fs.writeFile(join(STATIC_ADS_DIR, projectId, filename), result.imageBytes);
 
     project.textOverlay = overlay;
     project.finalImage = filename;

@@ -134,3 +134,24 @@ export async function getLatestLogo(): Promise<{ path: string; mimeType: string 
     mimeType: (row.mime_type as string | null) ?? "image/png",
   };
 }
+
+// Same "latest logo" lookup as getLatestLogo, but keeps id/filename apart
+// instead of resolving straight to an on-disk path — needed by callers
+// (e.g. the AI text-overlay path) that hand the file to an external API via
+// a signed URL (see signed-url.ts) rather than reading it off disk directly.
+export async function getLatestLogoAsset(): Promise<{ id: string; filename: string; mimeType: string } | null> {
+  const sql = getDb();
+  const rows = await sql`
+    select id, filename, mime_type from brand_assets
+    where kind = 'logo' and filename is not null
+    order by uploaded_at desc
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    filename: row.filename as string,
+    mimeType: (row.mime_type as string | null) ?? "image/png",
+  };
+}
