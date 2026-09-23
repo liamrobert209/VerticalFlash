@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AdWithAccount } from "@/lib/ads-schema";
 import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
 import { MediaThumb, adCreativeSrc } from "./shared";
@@ -22,7 +21,20 @@ export interface CompetitorAdGroup {
   ads: AdWithAccount[];
 }
 
-const PAGE_SIZE = 5;
+// Ads within this window always show, no click required — everything
+// older is real DB-stored data too (see the API route's PER_COMPETITOR_LIMIT
+// comment), just tucked behind "Load More" so a long-running competitor
+// doesn't turn every row into an endless scroll by default.
+const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const LOAD_MORE_BATCH = 10;
+
+// Same ordering signal the backend sorts by (coalesce(launch_date,
+// first_seen_at)) — keeps "is this ad within the recent window" consistent
+// with "which ad is newest" instead of using a different date per question.
+function adTimestamp(ad: AdWithAccount): number {
+  const raw = ad.launchDate ?? ad.firstSeenAt;
+  return raw ? new Date(raw).getTime() : 0;
+}
 
 function StaticAdCard({ ad }: { ad: AdWithAccount }) {
   return (
@@ -64,51 +76,42 @@ function StaticAdCard({ ad }: { ad: AdWithAccount }) {
   );
 }
 
-// One horizontal row per competitor, paged in fixed PAGE_SIZE increments
-// (not smooth-scroll) so the "showing X-Y of Z" label always matches
-// exactly what's in view. Every ad for this competitor is already fetched
-// (bounded by the API's per-competitor limit), so paging is purely
-// client-side — no extra network calls.
+// One horizontal, scrollable row per competitor. Ads within the last 30
+// days always show; anything older is real DB-stored history too, just
+// revealed in LOAD_MORE_BATCH-sized chunks via an explicit "Load More"
+// click rather than shown by default. Every ad for this competitor is
+// already fetched (bounded by the API's per-competitor limit), so paging
+// is purely client-side — no extra network calls.
 export function CompetitorAdRow({ group }: { group: CompetitorAdGroup }) {
-  const [page, setPage] = useState(0);
-  const start = page * PAGE_SIZE;
-  const end = Math.min(start + PAGE_SIZE, group.ads.length);
-  const canPrev = page > 0;
-  const canNext = end < group.ads.length;
+  const cutoff = Date.now() - RECENT_WINDOW_MS;
+  const recentCount = group.ads.filter((ad) => adTimestamp(ad) >= cutoff).length;
+  const [visibleCount, setVisibleCount] = useState(Math.max(recentCount, 1));
+
+  const visible = group.ads.slice(0, visibleCount);
+  const remaining = group.ads.length - visibleCount;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-foreground">{group.accountName ?? "Unknown brand"}</p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {start + 1}–{end} of {group.total}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => p - 1)}
-            disabled={!canPrev}
-            aria-label="Previous"
-            className="flex size-6 items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30"
-          >
-            <ChevronLeft className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={!canNext}
-            aria-label="Next"
-            className="flex size-6 items-center justify-center rounded-full border border-border hover:bg-muted disabled:opacity-30"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {visible.length} of {group.total}
+        </span>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {group.ads.slice(start, end).map((ad) => (
+        {visible.map((ad) => (
           <StaticAdCard key={ad.id} ad={ad} />
         ))}
       </div>
+      {remaining > 0 && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((c) => c + LOAD_MORE_BATCH)}
+          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+        >
+          Load more ({remaining} older)
+        </button>
+      )}
     </div>
   );
 }
