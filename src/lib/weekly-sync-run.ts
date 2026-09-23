@@ -44,6 +44,7 @@ import type { CompetitorAccount } from "./competitor-schema";
 import { syncTrendingVideos } from "./tiktok-trends-sync";
 import { TIKTOK_TREND_INDUSTRIES } from "./tiktok-trends-schema";
 import { syncHashtagVideos } from "./tiktok-hashtag-sync";
+import { recordSystemNotice } from "./system-notices-store";
 
 export interface WeeklySyncOptions {
   dryRun?: boolean;
@@ -336,15 +337,33 @@ async function syncHashtags(dryRun: boolean, bucketOverride: number | undefined)
   }
 }
 
+// Each phase is independent (ads/content/trending/hashtags hit entirely
+// different tables and Apify actors) — one phase throwing (a DB blip, an
+// actor quota, anything unexpected the phase's own internal handling
+// didn't already catch) used to abort every phase after it too. Isolating
+// them here means a bad day for one data source still lets the rest of
+// the run finish.
+async function runPhase(name: string, phase: () => Promise<void>): Promise<void> {
+  try {
+    await phase();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[weekly-sync] phase "${name}" failed:`, err);
+    await recordSystemNotice("weekly-sync", `"${name}" phase failed: ${message}`).catch((noticeErr) =>
+      console.error("[weekly-sync] failed to record system notice:", noticeErr)
+    );
+  }
+}
+
 export async function runWeeklySync(opts: WeeklySyncOptions = {}): Promise<void> {
   const dryRun = opts.dryRun ?? false;
   const startedAt = Date.now();
   console.log(`[weekly-sync] starting${dryRun ? " (dry run)" : ""} at ${new Date().toISOString()}`);
 
-  await syncAds(dryRun);
-  await syncContent(dryRun);
-  await syncTrending(dryRun);
-  await syncHashtags(dryRun, opts.bucketOverride);
+  await runPhase("ads", () => syncAds(dryRun));
+  await runPhase("content", () => syncContent(dryRun));
+  await runPhase("trending", () => syncTrending(dryRun));
+  await runPhase("hashtags", () => syncHashtags(dryRun, opts.bucketOverride));
 
   console.log(`[weekly-sync] finished in ${Math.round((Date.now() - startedAt) / 1000)}s`);
 }

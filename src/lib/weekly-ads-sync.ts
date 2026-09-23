@@ -18,6 +18,7 @@ import { getPublicProductLines } from "./config";
 import type { CompetitorAccount } from "./competitor-schema";
 import { detectAdLanguage } from "./language-detect";
 import { rankAdsTargetsForProductLine, type AdsPlatform } from "./competitor-ranking";
+import { recordSystemNotice } from "./system-notices-store";
 
 // Both actor ids and their I/O shapes were confirmed against real Apify
 // runs before writing this (not guessed from documentation alone).
@@ -693,6 +694,36 @@ function maxAdsAccountsTotal(): number {
 // walk stops once `targetsWithAdsGoal` targets have yielded at least one ad
 // (adsSeen > 0), or the ranked list is exhausted — no cap on how far down
 // it walks otherwise.
+// One account/platform's Apify call throwing (a hard quota limit, a dead
+// actor, etc.) used to abort the entire ranked walk — every remaining
+// target for every remaining product line, plus everything after syncAds
+// in runWeeklySync (content/trending/hashtags) never even ran. Caught here
+// instead: the failure is real and worth surfacing (recordSystemNotice —
+// best-effort, must never itself throw over the original error), but it
+// shouldn't stop the walk from moving on to the next target.
+// A platform-wide outage (e.g. an exhausted monthly Apify quota) fails
+// identically for every remaining target — notifiedPlatforms caps this at
+// one notice per platform per run instead of one per target, so a run with
+// 40 remaining targets doesn't flood the dismissible-toast list with 40
+// near-duplicate copies of the same underlying failure.
+async function errorResult(
+  platform: AdsPlatform,
+  target: SyncTarget,
+  err: unknown,
+  notifiedPlatforms: Set<AdsPlatform>
+): Promise<SyncResult> {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[weekly-sync] ${platform} sync failed for ${target.name}:`, err);
+  if (!notifiedPlatforms.has(platform)) {
+    notifiedPlatforms.add(platform);
+    await recordSystemNotice(
+      "weekly-sync",
+      `${platform} sync failed for ${target.name}: ${message}`
+    ).catch((noticeErr) => console.error("[weekly-sync] failed to record system notice:", noticeErr));
+  }
+  return { platformId: platform, adsSeen: 0, markedInactive: 0, errors: [message] };
+}
+
 export async function walkRankedTargets(
   rankedTargets: SyncTarget[],
   platform: AdsPlatform,
@@ -701,7 +732,8 @@ export async function walkRankedTargets(
   cache: Map<string, RankedAdsCacheEntry>,
   totalRealSynced: Set<string>,
   maxTotalAccounts: number,
-  deps: RankedAdsSyncDeps = defaultRankedAdsSyncDeps
+  deps: RankedAdsSyncDeps = defaultRankedAdsSyncDeps,
+  notifiedPlatforms: Set<AdsPlatform> = new Set()
 ): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
   let targetsWithAds = 0;
@@ -729,7 +761,11 @@ export async function walkRankedTargets(
       // difference between "still working" and "looks hung."
       console.log(`[weekly-sync] ads: syncing ${target.name} (${platform})...`);
       if (platform === "facebook") {
-        rows = await deps.syncFacebookAds([target], maxItemsPerTarget);
+        try {
+          rows = await deps.syncFacebookAds([target], maxItemsPerTarget);
+        } catch (err) {
+          rows = [await errorResult("facebook", target, err, notifiedPlatforms)];
+        }
         entry.facebook = rows;
       } else {
         // scrapesage/tiktok-ad-library-scraper documents no result-count
@@ -740,7 +776,12 @@ export async function walkRankedTargets(
         // ? ... : undefined` branch into a real scoped search, so cost is
         // bounded by the "stop at N accounts with ads" rule and the total-
         // accounts cap above, just not a per-call item cap.
-        const result = await deps.syncTikTokAds([target]);
+        let result: SyncResult;
+        try {
+          result = await deps.syncTikTokAds([target]);
+        } catch (err) {
+          result = await errorResult("tiktok", target, err, notifiedPlatforms);
+        }
         rows = [result];
         entry.tiktok = result;
       }
@@ -778,6 +819,9 @@ export async function syncRankedAdsForProductLines(
   // see walkRankedTargets/RankedAdsCacheEntry above.
   const cache = new Map<string, RankedAdsCacheEntry>();
   const totalRealSynced = new Set<string>();
+  // Shared too, so a platform-wide outage only produces one notice across
+  // the whole run, not one per product line — see errorResult.
+  const notifiedPlatforms = new Set<AdsPlatform>();
 
   const facebookResults: SyncResult[] = [];
   const tiktokResults: SyncResult[] = [];
@@ -794,7 +838,8 @@ export async function syncRankedAdsForProductLines(
         cache,
         totalRealSynced,
         maxTotalAccounts,
-        deps
+        deps,
+        notifiedPlatforms
       ))
     );
 
@@ -809,7 +854,8 @@ export async function syncRankedAdsForProductLines(
         cache,
         totalRealSynced,
         maxTotalAccounts,
-        deps
+        deps,
+        notifiedPlatforms
       ))
     );
   }
