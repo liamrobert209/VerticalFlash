@@ -6,6 +6,7 @@ import { BrandProvider } from "@/app/context/brand";
 import { ActiveProductProvider } from "@/app/context/active-product";
 import { HistorySidebar } from "@/components/nav/HistorySidebar";
 import { MediaPlaybackGuard } from "@/components/ui/MediaPlaybackGuard";
+import { SystemNoticesToaster } from "@/components/ui/SystemNoticesToaster";
 import { getPublicBrand, getPublicProductLines } from "@/lib/config";
 import { getActiveProductLineIdFromCookieStore } from "@/lib/active-product";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default async function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full">
         <MediaPlaybackGuard />
+        <SystemNoticesToaster />
         <BrandProvider value={brand}>
           <ActiveProductProvider active={activeProductLineId} options={productLineOptions}>
             <ScanHistoryProvider>

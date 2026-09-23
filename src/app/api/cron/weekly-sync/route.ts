@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runWeeklySync } from "@/lib/weekly-sync-run";
+import { recordSystemNotice } from "@/lib/system-notices-store";
 
 export const runtime = "nodejs";
 
@@ -31,7 +32,13 @@ export async function POST() {
 
   running = true;
   runWeeklySync()
-    .catch((err) => console.error("[weekly-sync] fatal error:", err))
+    .catch(async (err) => {
+      console.error("[weekly-sync] fatal error:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      await recordSystemNotice("weekly-sync", `Weekly sync failed: ${message}`).catch((noticeErr) =>
+        console.error("[weekly-sync] failed to record system notice:", noticeErr)
+      );
+    })
     .finally(() => {
       running = false;
     });
