@@ -7,8 +7,11 @@ import { loadStaticAdProject } from "@/lib/static-ad-store";
 import { getProductImageSlots, productImagePath } from "@/lib/product-images-store";
 import { getActorImageSlots, actorImagePath } from "@/lib/actor-images-store";
 import type { ImageBytes } from "@/lib/fetch-image";
+import type { Ad } from "@/lib/ads-schema";
 import { generateBaseImageWithQa } from "@/lib/static-ad-generate";
 import { executeStaticAdBatchGenerate } from "@/lib/static-ad-run";
+import { refreshAdCreative } from "@/lib/weekly-ads-sync";
+import { recordSystemNotice } from "@/lib/system-notices-store";
 import { describeAngle } from "@/lib/icp-angles";
 import { getProductLinesConfig } from "@/lib/config";
 import { findProductLine } from "@/lib/product-lines";
@@ -32,6 +35,36 @@ async function loadImageBytes(path: string): Promise<ImageBytes> {
   const buffer = await fs.readFile(path);
   const mimeType = IMAGE_MIME[extname(path).toLowerCase()] ?? "image/jpeg";
   return { base64: buffer.toString("base64"), mimeType };
+}
+
+// A reference ad's cached creative can go stale (local file missing, its
+// remote CDN URL long expired) well before the next scheduled sync would
+// naturally refresh it — see refreshAdCreative's header comment for why
+// this happens. Rather than fail the whole generation the moment that's
+// hit, try one on-demand resync of just this ad's account first; only
+// give up (with a clear, specific error — not loadAdCreativeImageBytes'
+// raw fetch failure) if that doesn't recover it either.
+async function loadReferenceImageBytesWithRefresh(ad: Ad): Promise<ImageBytes> {
+  try {
+    return await loadAdCreativeImageBytes(ad);
+  } catch {
+    try {
+      await refreshAdCreative(ad);
+    } catch (refreshError) {
+      console.error(`Failed to refresh stale creative for ad ${ad.id}:`, refreshError);
+    }
+    const refreshed = await getAd(ad.id);
+    try {
+      return await loadAdCreativeImageBytes(refreshed ?? ad);
+    } catch (finalError) {
+      const message =
+        "This reference ad's creative image is no longer available (its cache expired and a fresh sync couldn't retrieve it either) — pick a different reference ad.";
+      await recordSystemNotice("static-ad-generate", `${message} (ad ${ad.id})`).catch((noticeErr) =>
+        console.error("Failed to record system notice:", noticeErr)
+      );
+      throw new Error(message, { cause: finalError });
+    }
+  }
 }
 
 export async function POST(_request: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -75,7 +108,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ pr
     const filledActorSlots = actorSlots.filter((s) => s.filename);
 
     const [referenceBytes, productBytes, actorBytes] = await Promise.all([
-      loadAdCreativeImageBytes(referenceAd),
+      loadReferenceImageBytesWithRefresh(referenceAd),
       Promise.all(filledSlots.map((s) => loadImageBytes(productImagePath(project.productLineId, s.filename as string)))),
       Promise.all(filledActorSlots.map((s) => loadImageBytes(actorImagePath(project.productLineId, s.filename as string)))),
     ]);

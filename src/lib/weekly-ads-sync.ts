@@ -11,7 +11,7 @@ import {
 import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
 import { analyzeStaticAd, type ProductLineCandidate } from "./ad-analyze";
-import { addFacebookPageId, recordFlaggedAdLanguage } from "./competitor-store";
+import { addFacebookPageId, recordFlaggedAdLanguage, getCompetitor } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
 import { getPublicProductLines } from "./config";
@@ -861,4 +861,35 @@ export async function syncRankedAdsForProductLines(
   }
 
   return { facebook: facebookResults, tiktok: tiktokResults };
+}
+
+// On-demand refresh for exactly one ad whose cached creative has gone
+// stale (missing local file AND its remote CDN URL has since expired) —
+// used when a user tries to generate a static ad from it right now,
+// rather than waiting for that account to come up again in a scheduled
+// walk. A real, historical cause of this: an earlier attempt to mount
+// verticalflash-volume onto a second service temporarily detached it from
+// the main app (see .railway/railway.ts's comment) — some already-cached
+// files from around that window never made it back. This can't recover
+// those specific bytes, but re-running this exact ad's account through the
+// normal sync path will pick up a live URL again if the platform still
+// serves it, same as any other resync would.
+export async function refreshAdCreative(ad: Ad): Promise<void> {
+  if (!ad.accountId) throw new Error("This ad has no linked competitor account to refresh from");
+  const account = await getCompetitor(ad.accountId);
+  if (!account) throw new Error("This ad's competitor account no longer exists");
+
+  const target: SyncTarget = {
+    accountId: account.id,
+    name: account.name,
+    productLineId: account.productLineIds[0] ?? null,
+    candidateProductLineIds: account.productLineIds,
+    facebookPageIds: account.facebookPageIds,
+  };
+
+  if (ad.platformId === "tiktok") {
+    await syncTikTokAds([target]);
+  } else {
+    await syncFacebookAds([target]);
+  }
 }
