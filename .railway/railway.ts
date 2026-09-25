@@ -50,7 +50,20 @@ export default defineRailway(() => {
     env: { BASIC_AUTH_USER: preserve(), BASIC_AUTH_PASSWORD: preserve() },
   });
 
+  // This app had zero staleness monitoring -- weekly-sync crashing (as it
+  // did, see the comment above) was only ever visible by opening the app.
+  // Same curl-trigger architecture as weekly-sync itself, checked daily
+  // (not just weekdays) since a weekend gap is exactly what the route's own
+  // 78h default threshold is sized to tolerate.
+  const deadmanCheck = service("deadman-check", {
+    replicas: { "ams": 1 },
+    start:
+      'curl -sf -X POST -u "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" https://verticalflash-production.up.railway.app/api/cron/deadman-check',
+    deploy: { cronSchedule: "30 2 * * *", restartPolicyType: "NEVER" },
+    env: { BASIC_AUTH_USER: preserve(), BASIC_AUTH_PASSWORD: preserve() },
+  });
+
   return project("VerticalFlash", {
-    resources: [VerticalFlash, weeklySync, verticalflashVolume],
+    resources: [VerticalFlash, weeklySync, deadmanCheck, verticalflashVolume],
   });
 });
