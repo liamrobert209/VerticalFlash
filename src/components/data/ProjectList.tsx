@@ -7,8 +7,10 @@ import type { DownloadEntry } from "@/lib/download-types";
 import { MATCH_MIN_VIEWS } from "@/lib/match-published";
 import { projectHref, projectStage } from "@/lib/project-navigation";
 import Link from "next/link";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 export function ProjectList({ stage }: { stage?: "storyboarding" | "editing" }) {
+  const confirm = useConfirm();
   const [downloads, setDownloads] = useState<DownloadEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function ProjectList({ stage }: { stage?: "storyboarding" | "editing" }) 
   }, [loadDownloads, loadHits]);
 
   const handleDelete = async (filename: string) => {
-    if (!confirm(`Delete ${filename}?`)) return;
+    if (!(await confirm(`Delete ${filename}?`, { destructive: true }))) return;
 
     try {
       const response = await fetch("/api/downloads", {

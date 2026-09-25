@@ -16,6 +16,7 @@ import {
   type TikTokStatus,
 } from "@/lib/competitor-schema";
 import { useActiveProduct } from "@/app/context/active-product";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 const CATEGORY_LABELS: Record<CompetitorCategoryId, string> = {
   glasses: "Glasses",
@@ -379,6 +380,7 @@ function AccountForm({
 }
 
 export function CompetitorsBoard() {
+  const confirm = useConfirm();
   const { options: productLineOptions } = useActiveProduct();
   const [accounts, setAccounts] = useState<CompetitorAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -423,7 +425,7 @@ export function CompetitorsBoard() {
   }, [regionSidebar, categoryFilter, accountTypeFilter, productLineFilter, scanReadyOnly]);
 
   const remove = async (id: string) => {
-    if (!confirm("Remove this competitor from your saved accounts?")) return;
+    if (!(await confirm("Remove this competitor from your saved accounts?", { destructive: true }))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/competitors/${id}`, { method: "DELETE" });

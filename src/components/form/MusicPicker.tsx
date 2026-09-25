@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MusicLibrary, MusicTrack } from "@/lib/music-schema";
 import { beginMediaPlayback, playMedia } from "@/lib/media-playback";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 interface MusicPickerProps {
   // Selected track filename (null = none)
@@ -34,6 +35,7 @@ export function MusicPicker({
   compact = false,
   onLibrary,
 }: MusicPickerProps) {
+  const confirm = useConfirm();
   const [library, setLibrary] = useState<MusicLibrary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState("");
@@ -90,7 +92,7 @@ export function MusicPicker({
   };
 
   const remove = async (track: MusicTrack) => {
-    if (!confirm(`Remove "${track.title}" from the music library?`)) return;
+    if (!(await confirm(`Remove "${track.title}" from the music library?`, { destructive: true }))) return;
     const res = await fetch("/api/music", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

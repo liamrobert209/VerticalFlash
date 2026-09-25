@@ -34,6 +34,7 @@ export function AccountInsightsBoard({
   backHref,
   emptyStateHint,
   channelHints,
+  bare = false,
 }: {
   title: string;
   description: string;
@@ -44,29 +45,39 @@ export function AccountInsightsBoard({
   // read from the social-metrics DB) the generic "no content synced yet"
   // blurb is simply wrong. Channels not listed here keep emptyStateHint.
   channelHints?: Partial<Record<string, string>>;
+  // When embedded as a tab on the merged /insights page, the page shell
+  // (max-width, padding, title/description) is already provided by the
+  // parent — bare skips re-rendering that wrapper so tabs don't stack two
+  // headers.
+  bare?: boolean;
 }) {
+  const grid = (
+    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+      {["tiktok", "facebook", "instagram", "reddit", "twitter", "youtube"].map((id) => {
+        const channel = findAnalyticsChannel(id);
+        return (
+          <Link
+            key={id}
+            href={`${backHref}/${id}`}
+            className="rounded-lg border border-border p-4 transition-colors hover:border-primary/60 hover:bg-muted/40"
+          >
+            <p className="font-semibold text-foreground">{channel?.label ?? id}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{channelHints?.[id] ?? emptyStateHint}</p>
+          </Link>
+        );
+      })}
+    </div>
+  );
+
+  if (bare) return grid;
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-5 py-8 sm:p-10">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="max-w-2xl text-muted-foreground">{description}</p>
       </header>
-
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-        {["tiktok", "facebook", "instagram", "reddit", "twitter", "youtube"].map((id) => {
-          const channel = findAnalyticsChannel(id);
-          return (
-            <Link
-              key={id}
-              href={`${backHref}/${id}`}
-              className="rounded-lg border border-border p-4 transition-colors hover:border-primary/60 hover:bg-muted/40"
-            >
-              <p className="font-semibold text-foreground">{channel?.label ?? id}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{channelHints?.[id] ?? emptyStateHint}</p>
-            </Link>
-          );
-        })}
-      </div>
+      {grid}
     </div>
   );
 }

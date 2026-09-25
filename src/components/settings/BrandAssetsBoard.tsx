@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText, Trash2, Upload, Link as LinkIcon, Palette, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import {
   BRAND_ASSET_KINDS,
   AD_STYLE_TEMPLATES,
@@ -60,6 +61,7 @@ interface ProductLineOption {
 }
 
 export function BrandAssetsBoard() {
+  const confirm = useConfirm();
   const [assets, setAssets] = useState<BrandAsset[]>([]);
   const [productLines, setProductLines] = useState<ProductLineOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +168,7 @@ export function BrandAssetsBoard() {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete this asset?")) return;
+    if (!(await confirm("Delete this asset?", { destructive: true }))) return;
     await fetch(`/api/settings/brand-assets/${id}`, { method: "DELETE" });
     await load();
   };

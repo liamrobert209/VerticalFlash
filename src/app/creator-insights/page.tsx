@@ -1,12 +1,7 @@
-import { AccountInsightsBoard } from "@/components/insights/AccountInsightsBoard";
+import { redirect } from "next/navigation";
 
+// Merged into /insights (Creators tab) — kept as a redirect so old links
+// and bookmarks still land somewhere sensible.
 export default function CreatorInsightsSummaryPage() {
-  return (
-    <AccountInsightsBoard
-      title="Creator insights"
-      description="Per-account performance for your saved creator/affiliate accounts' organic content. Click a channel for the full breakdown."
-      backHref="/creator-insights"
-      emptyStateHint="No content synced yet"
-    />
-  );
+  redirect("/insights?tab=creators");
 }

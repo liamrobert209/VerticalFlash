@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { AdWithAccount } from "@/lib/ads-schema";
 import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel, adCreativeSrc } from "@/components/weekly-digest/shared";
+import { CompetitorAdRow, type CompetitorAdGroup } from "@/components/weekly-digest/CompetitorAdRow";
+
+// Weekly Ads and Weekly Static Ads used to be two separate sidebar entries
+// over the same underlying ad dataset (static ads is just the subset with
+// a genuine static image) — merged here into one page with a tab.
+const TABS = [
+  { id: "all", label: "All ads" },
+  { id: "static", label: "Static ads" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
 
 type Ad = AdWithAccount;
 
@@ -255,7 +266,7 @@ function SyncPanel({ onSynced }: { onSynced: () => void }) {
   );
 }
 
-export default function WeeklyAdsPage() {
+function AllAdsTab() {
   const [sections, setSections] = useState<ProductLineSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAd, setSelectedAd] = useState<{ ad: Ad; productLineId: string } | null>(null);
@@ -275,13 +286,6 @@ export default function WeeklyAdsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-8 sm:p-10">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Weekly ads</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Competitor ad creative from your saved accounts, pulled via the Facebook Ad Library and TikTok Ad Library. One section per product, newest and longest-running.
-        </p>
-      </header>
-
       <SyncPanel onSynced={load} />
 
       {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
@@ -343,5 +347,130 @@ export default function WeeklyAdsPage() {
         </DockedDetailPanel>
       )}
     </div>
+  );
+}
+
+interface StaticAdsSection {
+  productLineId: string;
+  label: string;
+  competitors: CompetitorAdGroup[];
+}
+
+interface StaticAdsResponse {
+  productLines: StaticAdsSection[];
+  ourAds: { accepted: unknown[]; discarded: unknown[]; drafts: unknown[] };
+}
+
+function StaticAdsTab() {
+  const [sections, setSections] = useState<StaticAdsSection[]>([]);
+  const [ourAds, setOurAds] = useState<StaticAdsResponse["ourAds"] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/weekly-static-ads", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data: StaticAdsResponse) => {
+        setSections(data.productLines ?? []);
+        setOurAds(data.ourAds ?? null);
+      })
+      .catch(() => {
+        setSections([]);
+        setOurAds(null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-8 sm:p-10">
+      <p className="max-w-2xl text-muted-foreground">
+        Competitor static-image ad creative, one row per competitor, plus the static ads you&apos;ve generated in
+        response. Only genuine static-image ads show here — video ads (even with a poster-frame thumbnail) live on
+        the All ads tab instead.
+      </p>
+
+      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+
+      {!loading && sections.every((s) => s.competitors.length === 0) && (
+        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No static competitor ads yet — sync some from the All ads tab. Only ads with a genuine static image (not a
+          video) will show up here.
+        </p>
+      )}
+
+      {!loading &&
+        sections
+          .filter((s) => s.competitors.length > 0)
+          .map((section) => (
+            <section key={section.productLineId} className="space-y-4 rounded-lg border border-border p-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {section.label}
+              </h2>
+              {section.competitors.map((group) => (
+                <CompetitorAdRow key={group.accountId ?? "unknown"} group={group} />
+              ))}
+            </section>
+          ))}
+
+      <section className="space-y-3 rounded-lg border border-border p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Our static ads this week
+        </h2>
+        {ourAds && ourAds.accepted.length + ourAds.discarded.length + ourAds.drafts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Coming soon — generate a static ad from a competitor reference above and it&apos;ll show up here.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Coming soon.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function WeeklyAdsPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const tab: TabId = TABS.some((t) => t.id === rawTab) ? (rawTab as TabId) : "all";
+
+  const setTab = (id: TabId) => {
+    router.replace(id === "all" ? "/weekly-ads" : `/weekly-ads?tab=${id}`, { scroll: false });
+  };
+
+  return (
+    <div>
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-5 pt-8 sm:px-10 sm:pt-10">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Weekly ads</h1>
+          <p className="max-w-2xl text-muted-foreground">
+            Competitor ad creative from your saved accounts, pulled via the Facebook Ad Library and TikTok Ad
+            Library, plus the ads you&apos;ve generated in response.
+          </p>
+        </header>
+        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "all" ? <AllAdsTab /> : <StaticAdsTab />}
+    </div>
+  );
+}
+
+export default function WeeklyAdsPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-sm text-muted-foreground">Loading...</div>}>
+      <WeeklyAdsPageInner />
+    </Suspense>
   );
 }

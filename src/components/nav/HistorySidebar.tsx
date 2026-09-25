@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
-import { ANALYTICS_CHANNELS } from "@/lib/analytics-channels";
 
 const navClass = "flex min-h-7 items-center gap-2 text-sm font-semibold hover:text-primary";
 
@@ -83,12 +83,13 @@ function CollapsibleSection({
 }
 
 export function HistorySidebar() {
+  const confirm = useConfirm();
   const { scans, currentScanId, deleteScan } = useScanHistory();
   const pathname = usePathname();
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
-    scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false,
-    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, generationHistorySection: true, settingsSection: true,
+    scans: true, storyboarding: true, editing: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, settingsSection: true,
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -128,7 +129,7 @@ export function HistorySidebar() {
   }, []);
 
   const removeProject = async (file: DownloadEntry) => {
-    if (!confirm(`Delete "${file.displayName}" and its local project files?`)) return;
+    if (!(await confirm(`Delete "${file.displayName}" and its local project files?`, { destructive: true }))) return;
     setDeleting(file.name);
     try {
       const response = await fetch("/api/downloads", {
@@ -210,7 +211,7 @@ export function HistorySidebar() {
                     <div className="mt-0.5 text-xs text-muted-foreground">{new Date(scan.timestamp).toLocaleTimeString()}</div>
                   </Link>
                   {selected && <button className="flex items-center gap-1 px-3 py-1 text-xs text-destructive"
-                    onClick={() => { if (confirm("Delete this scan from history?")) deleteScan(scan.id); }}>
+                    onClick={async () => { if (await confirm("Delete this scan from history?", { destructive: true })) deleteScan(scan.id); }}>
                     <Trash2 className="size-3" />Delete Scan
                   </button>}
                 </div>;
@@ -264,9 +265,7 @@ export function HistorySidebar() {
           <CollapsibleSection id="weekly-digest" label="Weekly Digest" open={open.weeklyDigestSection}
             onToggle={() => setOpen((value) => ({ ...value, weeklyDigestSection: !value.weeklyDigestSection }))}>
             <NavLink href="/weekly-ads" pathname={pathname} icon={CalendarClock}>Weekly ads</NavLink>
-            <NavLink href="/weekly-static-ads" pathname={pathname} icon={ImageIcon}>Weekly static ads</NavLink>
             <NavLink href="/weekly-content" pathname={pathname} icon={Newspaper}>Weekly content</NavLink>
-            <NavLink href="/weekly-creators" pathname={pathname} icon={Users}>Weekly creators</NavLink>
             <NavLink href="/weekly-trending-content" pathname={pathname} icon={TrendingUp}>Weekly trending content</NavLink>
             <NavLink href="/weekly-hashtag-search" pathname={pathname} icon={Hash}>Search by hashtag</NavLink>
           </CollapsibleSection>
@@ -274,91 +273,7 @@ export function HistorySidebar() {
           <CollapsibleSection id="insights" label="Insights" open={open.insightsSection}
             onToggle={() => setOpen((value) => ({ ...value, insightsSection: !value.insightsSection }))}>
             <NavLink href="/content-history" pathname={pathname} icon={FileClock}>Content history</NavLink>
-            <div className="flex min-h-7 items-center gap-2">
-              <button onClick={() => setOpen((value) => ({ ...value, analytics: !value.analytics }))}
-                aria-expanded={open.analytics} aria-controls="sidebar-analytics" aria-label="Toggle Analytics" title="Toggle Analytics"
-                className="flex size-5 shrink-0 items-center justify-center">
-                <ChevronRight className={`size-3.5 ${open.analytics ? "rotate-90" : ""}`} />
-              </button>
-              <Link href="/analytics" aria-current={pathname === "/analytics" ? "page" : undefined}
-                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/analytics" ? "text-primary" : ""}`}>
-                <BarChart3 className="size-4 shrink-0" />Analytics
-              </Link>
-            </div>
-            {open.analytics && (
-              <div id="sidebar-analytics" className="ml-5 space-y-1">
-                {ANALYTICS_CHANNELS.map((channel) => (
-                  <Link key={channel.id} href={`/analytics/${channel.id}`}
-                    className={`${navClass} text-xs`}>
-                    {channel.label}
-                    {!channel.connected && <span className="ml-auto text-muted-foreground/60">·</span>}
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="flex min-h-7 items-center gap-2">
-              <button onClick={() => setOpen((value) => ({ ...value, adInsights: !value.adInsights }))}
-                aria-expanded={open.adInsights} aria-controls="sidebar-ad-insights" aria-label="Toggle Ad Insights" title="Toggle Ad Insights"
-                className="flex size-5 shrink-0 items-center justify-center">
-                <ChevronRight className={`size-3.5 ${open.adInsights ? "rotate-90" : ""}`} />
-              </button>
-              <Link href="/ad-insights" aria-current={pathname === "/ad-insights" ? "page" : undefined}
-                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/ad-insights" ? "text-primary" : ""}`}>
-                <Megaphone className="size-4 shrink-0" />Ad Insights
-              </Link>
-            </div>
-            {open.adInsights && (
-              <div id="sidebar-ad-insights" className="ml-5 space-y-1">
-                {ANALYTICS_CHANNELS.map((channel) => (
-                  <Link key={channel.id} href={`/ad-insights/${channel.id}`}
-                    className={`${navClass} text-xs`}>
-                    {channel.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="flex min-h-7 items-center gap-2">
-              <button onClick={() => setOpen((value) => ({ ...value, contentInsights: !value.contentInsights }))}
-                aria-expanded={open.contentInsights} aria-controls="sidebar-content-insights" aria-label="Toggle Content Insights" title="Toggle Content Insights"
-                className="flex size-5 shrink-0 items-center justify-center">
-                <ChevronRight className={`size-3.5 ${open.contentInsights ? "rotate-90" : ""}`} />
-              </button>
-              <Link href="/content-insights" aria-current={pathname === "/content-insights" ? "page" : undefined}
-                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/content-insights" ? "text-primary" : ""}`}>
-                <Newspaper className="size-4 shrink-0" />Content Insights
-              </Link>
-            </div>
-            {open.contentInsights && (
-              <div id="sidebar-content-insights" className="ml-5 space-y-1">
-                {ANALYTICS_CHANNELS.map((channel) => (
-                  <Link key={channel.id} href={`/content-insights/${channel.id}`}
-                    className={`${navClass} text-xs`}>
-                    {channel.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="flex min-h-7 items-center gap-2">
-              <button onClick={() => setOpen((value) => ({ ...value, creatorInsights: !value.creatorInsights }))}
-                aria-expanded={open.creatorInsights} aria-controls="sidebar-creator-insights" aria-label="Toggle Creator Insights" title="Toggle Creator Insights"
-                className="flex size-5 shrink-0 items-center justify-center">
-                <ChevronRight className={`size-3.5 ${open.creatorInsights ? "rotate-90" : ""}`} />
-              </button>
-              <Link href="/creator-insights" aria-current={pathname === "/creator-insights" ? "page" : undefined}
-                className={`flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold ${pathname === "/creator-insights" ? "text-primary" : ""}`}>
-                <Users className="size-4 shrink-0" />Creator Insights
-              </Link>
-            </div>
-            {open.creatorInsights && (
-              <div id="sidebar-creator-insights" className="ml-5 space-y-1">
-                {ANALYTICS_CHANNELS.map((channel) => (
-                  <Link key={channel.id} href={`/creator-insights/${channel.id}`}
-                    className={`${navClass} text-xs`}>
-                    {channel.label}
-                  </Link>
-                ))}
-              </div>
-            )}
+            <NavLink href="/insights" pathname={pathname} icon={BarChart3}>Insights</NavLink>
             <NavLink href="/benchmarks" pathname={pathname} icon={ClipboardCheck}>Benchmarks</NavLink>
           </CollapsibleSection>
 
@@ -372,10 +287,6 @@ export function HistorySidebar() {
           <CollapsibleSection id="library" label="Library" open={open.librarySection}
             onToggle={() => setOpen((value) => ({ ...value, librarySection: !value.librarySection }))}>
             <NavLink href="/library" pathname={pathname} icon={Film}>Clip library</NavLink>
-          </CollapsibleSection>
-
-          <CollapsibleSection id="generation-history" label="Generation History" open={open.generationHistorySection}
-            onToggle={() => setOpen((value) => ({ ...value, generationHistorySection: !value.generationHistorySection }))}>
             <NavLink href="/generation-history" pathname={pathname} icon={History}>Generated images</NavLink>
           </CollapsibleSection>
 
