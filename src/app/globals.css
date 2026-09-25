@@ -175,3 +175,25 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
+
+/* Dark chrome for the main nav sidebar — deliberately not tied to the
+   light/dark theme toggle (it stays dark in both), same "dark chrome,
+   light content" pattern as the app's own logo guideline (white logo on
+   Ocushield Blue/dark backgrounds). Reuses the .downloads-layout trick:
+   redefine the plain color tokens inside this scope so existing
+   bg-background/text-foreground/etc. classes pick up the dark palette
+   without needing sidebar-specific utility classes everywhere. */
+.app-sidebar {
+  --background: #0a1626;
+  --card: #0a1626;
+  --foreground: #e8eef6;
+  --muted: #16283f;
+  --muted-foreground: #90a6c0;
+  --border: #1e344d;
+  --accent: #16283f;
+  --accent-foreground: #e8eef6;
+  --primary: #3b9bff;
+  --primary-foreground: #071b33;
+  --destructive: #ff6b47;
+  --ring: #3b9bff;
+}

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Trash2, TrendingUp, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
 
-const navClass = "flex min-h-7 items-center gap-2 text-sm font-semibold hover:text-primary";
+const navClass =
+  "flex min-h-8 items-center gap-2 rounded-md px-2 -mx-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -35,7 +36,11 @@ function NavLink({
 }) {
   const active = pathname === href;
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={`${navClass} ${active ? "text-primary" : ""}`}>
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`${navClass} ${active ? "bg-primary/15 text-primary hover:bg-primary/15 hover:text-primary" : ""}`}
+    >
       <Icon className="size-4 shrink-0" />
       {children}
     </Link>
@@ -162,12 +167,12 @@ export function HistorySidebar() {
   return (
     <>
       <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" title="Open navigation"
-        className="fixed left-3 top-3 z-40 flex size-10 items-center justify-center rounded-md border border-border bg-card md:hidden">
+        className="app-sidebar fixed left-3 top-3 z-40 flex size-10 items-center justify-center rounded-md border border-border bg-background text-foreground md:hidden">
         <Menu className="size-5" />
       </button>
       {mobileOpen && <button aria-label="Close navigation" onClick={closeMobile} className="fixed inset-0 z-40 bg-black/30 md:hidden" />}
       <aside aria-label="Main navigation"
-        className={`${mobileOpen ? "fixed inset-y-0 left-0 z-50 block" : "hidden"} w-56 shrink-0 border-r border-border bg-card md:sticky md:top-0 md:block md:h-screen`}>
+        className={`app-sidebar bg-background text-foreground ${mobileOpen ? "fixed inset-y-0 left-0 z-50 block" : "hidden"} w-56 shrink-0 border-r border-border md:sticky md:top-0 md:block md:h-screen`}>
         <nav className="h-full space-y-4 overflow-y-auto p-4" onClick={(event) => {
           if ((event.target as HTMLElement).closest("a")) closeMobile();
         }}>
@@ -181,11 +186,8 @@ export function HistorySidebar() {
 
           <CollapsibleSection id="create" label="Create" open={open.createSection}
             onToggle={() => setOpen((value) => ({ ...value, createSection: !value.createSection }))}>
-            <NavLink href="/scan" pathname={pathname} icon={Search}>New scan</NavLink>
-            <NavLink href="/iterate" pathname={pathname} icon={RotateCcw}>Iterate on a top video</NavLink>
-            <NavLink href="/create-ad-hoc?origin=creator" pathname={pathname} icon={Sparkles}>Iterate creator content</NavLink>
-            <NavLink href="/create-ad-hoc?origin=ad" pathname={pathname} icon={Megaphone}>Iterate ad content</NavLink>
-            <NavLink href="/create-static-ad" pathname={pathname} icon={ImageIcon}>Create static ad</NavLink>
+            <NavLink href="/create-hub" pathname={pathname} icon={Search}>Create</NavLink>
+            <NavLink href="/iterate-hub" pathname={pathname} icon={RotateCcw}>Iterate</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="projects" label="Projects" open={open.projectsSection}
