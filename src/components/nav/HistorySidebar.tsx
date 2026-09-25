@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, Home, Image as ImageIcon, Megaphone, Menu, Newspaper, Palette, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
@@ -88,7 +88,7 @@ export function HistorySidebar() {
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
     scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false,
-    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, settingsSection: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, settingsSection: true,
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -360,6 +360,13 @@ export function HistorySidebar() {
               </div>
             )}
             <NavLink href="/benchmarks" pathname={pathname} icon={ClipboardCheck}>Benchmarks</NavLink>
+          </CollapsibleSection>
+
+          <CollapsibleSection id="icp-coverage" label="ICP Coverage" open={open.icpCoverageSection}
+            onToggle={() => setOpen((value) => ({ ...value, icpCoverageSection: !value.icpCoverageSection }))}>
+            <NavLink href="/icp-coverage/portfolio" pathname={pathname} icon={PieChart}>Our ad portfolio</NavLink>
+            <NavLink href="/icp-coverage/competitors" pathname={pathname} icon={Building2}>Competitor analysis</NavLink>
+            <NavLink href="/icp-coverage/summary" pathname={pathname} icon={Lightbulb}>Summary</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="library" label="Library" open={open.librarySection}
