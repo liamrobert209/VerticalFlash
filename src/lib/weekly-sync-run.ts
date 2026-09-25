@@ -1,8 +1,10 @@
 /**
- * The actual weekly-sync logic — refreshes every weekly-digest data source
- * with a working sync path: Weekly Ads / Weekly Static Ads / Ad Insights
- * category pages (via the shared `ads` table), Weekly Content / Weekly
- * Creators, Weekly Trending Content, and Search by Hashtag.
+ * The actual sync logic behind the Railway "daily-sync" cron (weekdays,
+ * 0 2 * * 1-5 — not actually weekly, despite the route/function names
+ * below) — refreshes every weekly-digest data source with a working sync
+ * path: Weekly Ads / Weekly Static Ads / Ad Insights category pages (via
+ * the shared `ads` table), Weekly Content / Weekly Creators, Weekly
+ * Trending Content, and Search by Hashtag.
  *
  * Runs inside the MAIN app process (via /api/cron/weekly-sync — see that
  * route's header comment for why), not as a separate Railway service.
@@ -349,7 +351,7 @@ async function runPhase(name: string, phase: () => Promise<void>): Promise<void>
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[weekly-sync] phase "${name}" failed:`, err);
-    await recordSystemNotice("weekly-sync", `"${name}" phase failed: ${message}`).catch((noticeErr) =>
+    await recordSystemNotice("daily-sync", `"${name}" phase failed: ${message}`).catch((noticeErr) =>
       console.error("[weekly-sync] failed to record system notice:", noticeErr)
     );
   }

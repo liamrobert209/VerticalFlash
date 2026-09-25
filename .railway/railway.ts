@@ -17,12 +17,17 @@ export default defineRailway(() => {
     env: { ADNOVA_DATABASE_URL: preserve(), APIFY_API_TOKEN: preserve(), APP_PUBLIC_URL: preserve(), BASIC_AUTH_PASSWORD: preserve(), BASIC_AUTH_USER: preserve(), DATABASE_URL: preserve(), DATA_DIR: preserve(), GEMINI_API_KEY: preserve(), HF_CREDENTIALS: preserve(), PUBLIC_ASSET_SECRET: preserve(), RAILPACK_DEPLOY_APT_PACKAGES: preserve(), SOCIAL_METRICS_DATABASE_URL: preserve(), TIKHUB_API_KEY: preserve() },
   });
 
-  // Triggers the weekly refresh of Weekly Ads/Static Ads (+ Ad Insights
-  // category pages, same `ads` table), Weekly Trending Content, and Search
-  // by Hashtag — the actual sync logic lives in src/lib/weekly-sync-run.ts
-  // and runs inside the MAIN app process (see /api/cron/weekly-sync), not
-  // here. This service is now just the cron trigger: one authenticated
-  // curl to that route.
+  // Triggers the weekday refresh (Mon-Fri, not actually weekly despite the
+  // route path below) of Weekly Ads/Static Ads (+ Ad Insights category
+  // pages, same `ads` table), Weekly Content/Creators, Weekly Trending
+  // Content, and Search by Hashtag — the actual sync logic lives in
+  // src/lib/weekly-sync-run.ts and runs inside the MAIN app process (see
+  // /api/cron/weekly-sync), not here. This service is now just the cron
+  // trigger: one authenticated curl to that route. Renamed from
+  // "weekly-sync" to "daily-sync" to stop misdescribing the cadence — the
+  // route path/internal function names still say "weekly" (a route rename
+  // needs coordinating with this curl target in the same deploy, and
+  // wasn't worth the extra risk for a display-name-only ask).
   //
   // Previously ran the sync itself as its own standalone script, with its
   // own copy of every credential the logic needs (DB, Apify) and no access
@@ -42,7 +47,7 @@ export default defineRailway(() => {
   // header comment) — restartPolicyType stays NEVER since this container's
   // job is done the moment curl exits, regardless of how long the actual
   // sync takes in the main service.
-  const weeklySync = service("weekly-sync", {
+  const dailySync = service("daily-sync", {
     replicas: { "ams": 1 },
     start:
       'curl -sf -X POST -u "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" https://verticalflash-production.up.railway.app/api/cron/weekly-sync',
@@ -50,9 +55,9 @@ export default defineRailway(() => {
     env: { BASIC_AUTH_USER: preserve(), BASIC_AUTH_PASSWORD: preserve() },
   });
 
-  // This app had zero staleness monitoring -- weekly-sync crashing (as it
+  // This app had zero staleness monitoring -- daily-sync crashing (as it
   // did, see the comment above) was only ever visible by opening the app.
-  // Same curl-trigger architecture as weekly-sync itself, checked daily
+  // Same curl-trigger architecture as daily-sync itself, checked daily
   // (not just weekdays) since a weekend gap is exactly what the route's own
   // 78h default threshold is sized to tolerate.
   const deadmanCheck = service("deadman-check", {
@@ -64,6 +69,6 @@ export default defineRailway(() => {
   });
 
   return project("VerticalFlash", {
-    resources: [VerticalFlash, weeklySync, deadmanCheck, verticalflashVolume],
+    resources: [VerticalFlash, dailySync, deadmanCheck, verticalflashVolume],
   });
 });
