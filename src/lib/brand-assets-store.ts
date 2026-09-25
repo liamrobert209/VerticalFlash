@@ -147,7 +147,25 @@ export async function getAdExamplesByStyleTemplate(
   const sql = getDb();
   const rows = await sql`
     select * from brand_assets
-    where kind = 'ad_example' and style_template = ${styleTemplate} and filename is not null
+    where kind = 'ad_example' and style_template = ${styleTemplate} and filename is not null and is_own_brand
+    order by uploaded_at desc
+    limit ${limit}
+  `;
+  return rows.map((r) => BrandAssetZ.parse(r));
+}
+
+// The brand-guideline crops showing how Ocushield actually composites its
+// shield mark onto a photo (window-crop, stack/color-block, border,
+// billboard) — real, approved treatments, but not "ad types" in the
+// AD_STYLE_TEMPLATES sense, so they were never tagged with one. That gap
+// (style_template is null) is exactly what identifies them here rather
+// than needing a dedicated field: every other ad_example row has a style
+// template; these are the ones that don't.
+export async function getShieldUsageExamples(limit: number): Promise<BrandAsset[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from brand_assets
+    where kind = 'ad_example' and style_template is null and filename is not null and is_own_brand
     order by uploaded_at desc
     limit ${limit}
   `;

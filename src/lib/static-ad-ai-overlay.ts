@@ -1,6 +1,10 @@
 import { signAssetUrl } from "./signed-url";
 import { generateMarketingStudioImage, type MarketingStudioImageResult } from "./higgsfield";
-import { getLatestLogoAsset, getAdExamplesByStyleTemplate } from "./brand-assets-store";
+import {
+  getLatestLogoAsset,
+  getAdExamplesByStyleTemplate,
+  getShieldUsageExamples,
+} from "./brand-assets-store";
 import type { StaticAdTextOverlay } from "./static-ad-overlays-schema";
 import type { AdStyleTemplate } from "./brand-assets-schema";
 import type { AdAnalysis } from "./ad-analysis-schema";
@@ -14,7 +18,10 @@ const SIGNED_URL_TTL_SECONDS = 15 * 60;
 // the model a sense of "this is a family of looks", not just one exact
 // template to copy; more than that dilutes attention across too many
 // images for what's still a single generation call.
-const EXAMPLES_PER_GENERATION = 2;
+const STYLE_EXAMPLES_PER_GENERATION = 2;
+// Shield-compositing guidance is a narrower, single question ("how does
+// the mark actually sit on a photo") — one real example answers it.
+const SHIELD_EXAMPLES_PER_GENERATION = 1;
 
 // Which of our own approved ad-style exemplars (see brand-assets-schema.ts's
 // AD_STYLE_TEMPLATES) best matches this generation, derived from signals
@@ -50,10 +57,15 @@ interface PromptImage {
 }
 
 function ordinal(n: number): string {
-  return ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH"][n] ?? `IMAGE ${n + 1}`;
+  return ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH"][n] ?? `IMAGE ${n + 1}`;
 }
 
-function buildPrompt(overlay: StaticAdTextOverlay, images: PromptImage[], exampleCount: number): string {
+function buildPrompt(
+  overlay: StaticAdTextOverlay,
+  images: PromptImage[],
+  hasStyleExamples: boolean,
+  hasShieldExample: boolean
+): string {
   const imageList = images.map((img, i) => `The ${ordinal(i)} image is ${img.description}.`).join(" ");
 
   return `${imageList}
@@ -68,11 +80,21 @@ photo — its lighting, mood, colors, and whatever is already the visual
 focal point — and design the text/graphics to feel like they were made
 specifically for THIS photo, not dropped onto it from a generic template.
 ${
-  exampleCount > 0
+  hasStyleExamples
     ? `Match the visual energy of the on-brand example ad image(s) referenced
 above: their color use, typography weight and personality, layout
 confidence, and overall polish. These examples are references for STYLE
 and FEEL only — do not copy their specific product, photo, or wording.`
+    : ""
+}
+${
+  hasShieldExample
+    ? `One of the reference images shows how our brand mark (the "shield")
+gets composited onto a real photo. ONLY use that treatment if the base
+photo actually shows a phone, laptop, tablet, or other screen — match how
+it's sized and positioned relative to the device in the reference. If the
+base photo has no device in it, ignore this reference entirely; do not
+force the mark into a photo that has nothing for it to relate to.`
     : ""
 }
 
@@ -120,16 +142,26 @@ export async function generateAiTextOverlay(
   }
 
   const styleTemplate = styleTemplateFor(referenceAnalysis);
-  const examples = await getAdExamplesByStyleTemplate(styleTemplate, EXAMPLES_PER_GENERATION);
-  for (const example of examples) {
+  const [styleExamples, shieldExamples] = await Promise.all([
+    getAdExamplesByStyleTemplate(styleTemplate, STYLE_EXAMPLES_PER_GENERATION),
+    getShieldUsageExamples(SHIELD_EXAMPLES_PER_GENERATION),
+  ]);
+
+  for (const example of styleExamples) {
     images.push({
       url: signAssetUrl(`brand-assets/${example.id}/${example.filename}`, SIGNED_URL_TTL_SECONDS).url,
       description: "a real, approved example of our brand's ad style — a visual reference for feel, not content to copy",
     });
   }
+  for (const example of shieldExamples) {
+    images.push({
+      url: signAssetUrl(`brand-assets/${example.id}/${example.filename}`, SIGNED_URL_TTL_SECONDS).url,
+      description: "a real, approved example of how we composite our shield brand mark onto a photo",
+    });
+  }
 
   return generateMarketingStudioImage(
-    buildPrompt(overlay, images, examples.length),
+    buildPrompt(overlay, images, styleExamples.length > 0, shieldExamples.length > 0),
     images.map((img) => img.url)
   );
 }

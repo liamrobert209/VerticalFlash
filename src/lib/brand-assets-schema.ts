@@ -78,6 +78,10 @@ export const BrandAssetZ = z.object({
   // exemplar represents, read by the comparison-QA gate to pick the right
   // reference pool for a finished ad instead of one shared bucket.
   styleTemplate: z.enum(AD_STYLE_TEMPLATES).nullable(),
+  // "ad_example" kind only — whether this is genuinely one of OUR ads vs.
+  // a competitor's ad saved purely as a style reference (that pool mixes
+  // both). Defaults true since every other kind is inherently ours.
+  isOwnBrand: z.boolean(),
   uploadedAt: z.union([z.string(), z.date()]),
 });
 
