@@ -6,7 +6,15 @@ export default defineRailway(() => {
     replicas: { "ams": 1 },
     networking: { privateNetworkEndpoint: "verticalflash" },
     volumeMounts: { "/data": verticalflashVolume },
-    env: { ADNOVA_DATABASE_URL: preserve(), APIFY_API_TOKEN: preserve(), BASIC_AUTH_PASSWORD: preserve(), BASIC_AUTH_USER: preserve(), DATABASE_URL: preserve(), DATA_DIR: preserve(), GEMINI_API_KEY: preserve(), RAILPACK_DEPLOY_APT_PACKAGES: preserve(), SOCIAL_METRICS_DATABASE_URL: preserve(), TIKHUB_API_KEY: preserve() },
+    // APP_PUBLIC_URL, HF_CREDENTIALS, and PUBLIC_ASSET_SECRET were live on
+    // this service but missing here -- discovered because `railway config
+    // plan` was about to delete all three as "unmanaged." All three are real
+    // and load-bearing (src/lib/signed-url.ts, src/lib/higgsfield.ts): the
+    // signed-URL HMAC secret + this app's own public base URL (used to hand
+    // Higgsfield a fetchable image URL despite everything else sitting
+    // behind Basic Auth), and the Higgsfield API key itself for the Static
+    // Ad Generator's AI text-overlay path.
+    env: { ADNOVA_DATABASE_URL: preserve(), APIFY_API_TOKEN: preserve(), APP_PUBLIC_URL: preserve(), BASIC_AUTH_PASSWORD: preserve(), BASIC_AUTH_USER: preserve(), DATABASE_URL: preserve(), DATA_DIR: preserve(), GEMINI_API_KEY: preserve(), HF_CREDENTIALS: preserve(), PUBLIC_ASSET_SECRET: preserve(), RAILPACK_DEPLOY_APT_PACKAGES: preserve(), SOCIAL_METRICS_DATABASE_URL: preserve(), TIKHUB_API_KEY: preserve() },
   });
 
   // Triggers the weekly refresh of Weekly Ads/Static Ads (+ Ad Insights
