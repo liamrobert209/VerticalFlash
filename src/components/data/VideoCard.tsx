@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Play, X } from "lucide-react";
 import type { Video } from "@/lib/tikhub";
 import { formatCount } from "@/lib/utils";
@@ -126,10 +127,12 @@ export function VideoCard({ video }: { video: Video }) {
           className="absolute right-2 top-2 z-20 flex size-8 items-center justify-center rounded bg-black/70 text-white"
         ><X className="size-4" /></button>)}
         {video.thumbnail ? (
-          <img
+          <Image
             src={video.thumbnail}
             alt={video.caption || "Video thumbnail"}
-            className="size-full object-cover transition-transform group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 50vw, 240px"
+            className="object-cover transition-transform group-hover:scale-105"
           />
         ) : (
           <div className="flex size-full items-center justify-center">

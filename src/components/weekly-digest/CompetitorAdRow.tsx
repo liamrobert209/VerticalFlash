@@ -21,12 +21,19 @@ export interface CompetitorAdGroup {
   ads: AdWithAccount[];
 }
 
-// Ads within this window always show, no click required — everything
+// Ads within this window are prioritized for the initial view — everything
 // older is real DB-stored data too (see the API route's PER_COMPETITOR_LIMIT
 // comment), just tucked behind "Load More" so a long-running competitor
 // doesn't turn every row into an endless scroll by default.
 const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const LOAD_MORE_BATCH = 10;
+// Hard ceiling on the initial render regardless of how many ads fall
+// within the recent window — a prolific competitor can have 60+ ads in the
+// last 30 days alone, and rendering all of them at once (real cards, real
+// images) is exactly what was making Weekly Static Ads heavy to scroll.
+// "Recent" now just decides PRIORITY within this cap, not an unbounded
+// always-shown tier.
+const INITIAL_VISIBLE = LOAD_MORE_BATCH;
 
 // Same ordering signal the backend sorts by (coalesce(launch_date,
 // first_seen_at)) — keeps "is this ad within the recent window" consistent
@@ -76,16 +83,17 @@ function StaticAdCard({ ad }: { ad: AdWithAccount }) {
   );
 }
 
-// One horizontal, scrollable row per competitor. Ads within the last 30
-// days always show; anything older is real DB-stored history too, just
-// revealed in LOAD_MORE_BATCH-sized chunks via an explicit "Load More"
-// click rather than shown by default. Every ad for this competitor is
-// already fetched (bounded by the API's per-competitor limit), so paging
-// is purely client-side — no extra network calls.
+// One horizontal, scrollable row per competitor. Shows up to INITIAL_VISIBLE
+// ads initially (favoring ones within the last 30 days when there are more
+// than that many), then reveals the rest — recent or older, all real
+// DB-stored history — in LOAD_MORE_BATCH-sized chunks via "Load More".
+// Every ad for this competitor is already fetched (bounded by the API's
+// per-competitor limit), so paging is purely client-side — no extra
+// network calls, just fewer cards mounted in the DOM at once.
 export function CompetitorAdRow({ group }: { group: CompetitorAdGroup }) {
   const cutoff = Date.now() - RECENT_WINDOW_MS;
   const recentCount = group.ads.filter((ad) => adTimestamp(ad) >= cutoff).length;
-  const [visibleCount, setVisibleCount] = useState(Math.max(recentCount, 1));
+  const [visibleCount, setVisibleCount] = useState(Math.min(Math.max(recentCount, 1), INITIAL_VISIBLE));
 
   const visible = group.ads.slice(0, visibleCount);
   const remaining = group.ads.length - visibleCount;
@@ -109,7 +117,7 @@ export function CompetitorAdRow({ group }: { group: CompetitorAdGroup }) {
           onClick={() => setVisibleCount((c) => c + LOAD_MORE_BATCH)}
           className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
         >
-          Load more ({remaining} older)
+          Load more ({remaining} more)
         </button>
       )}
     </div>
