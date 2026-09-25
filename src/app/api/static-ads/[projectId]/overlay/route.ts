@@ -5,6 +5,7 @@ import { STATIC_ADS_DIR } from "@/lib/paths";
 import { loadStaticAdProject, saveStaticAdProject } from "@/lib/static-ad-store";
 import { StaticAdTextOverlayZ } from "@/lib/static-ad-overlays-schema";
 import { generateAiTextOverlay } from "@/lib/static-ad-ai-overlay";
+import { getAd } from "@/lib/ads-store";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    const result = await generateAiTextOverlay(projectId, accepted.file, overlay);
+    const referenceAd = await getAd(project.referenceAdId);
+    const result = await generateAiTextOverlay(
+      projectId,
+      accepted.file,
+      overlay,
+      referenceAd?.analysis ?? null
+    );
     const filename = `final${MIME_EXT[result.mimeType] ?? ".png"}`;
     await fs.mkdir(join(STATIC_ADS_DIR, projectId), { recursive: true });
     await fs.writeFile(join(STATIC_ADS_DIR, projectId, filename), result.imageBytes);

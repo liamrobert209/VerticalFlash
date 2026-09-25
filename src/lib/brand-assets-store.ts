@@ -135,6 +135,25 @@ export async function getLatestLogo(): Promise<{ path: string; mimeType: string 
   };
 }
 
+// Real, on-brand exemplars of one ad style (product_hero, actor,
+// announcement_sale, etc.) — read by the AI text-overlay path to give
+// Higgsfield an actual visual anchor for "what does a good one of these
+// look like" instead of describing the desired feel in words alone. Most
+// recent first, same "latest wins" bias as the rest of this file.
+export async function getAdExamplesByStyleTemplate(
+  styleTemplate: AdStyleTemplate,
+  limit: number
+): Promise<BrandAsset[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select * from brand_assets
+    where kind = 'ad_example' and style_template = ${styleTemplate} and filename is not null
+    order by uploaded_at desc
+    limit ${limit}
+  `;
+  return rows.map((r) => BrandAssetZ.parse(r));
+}
+
 // Same "latest logo" lookup as getLatestLogo, but keeps id/filename apart
 // instead of resolving straight to an on-disk path — needed by callers
 // (e.g. the AI text-overlay path) that hand the file to an external API via
