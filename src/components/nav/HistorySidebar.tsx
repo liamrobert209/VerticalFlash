@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Trash2, TrendingUp, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Lightbulb, Menu, Newspaper, PieChart, RotateCcw, Search, Settings2, TrendingUp, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { DownloadEntry } from "@/lib/download-types";
@@ -94,7 +94,7 @@ export function HistorySidebar() {
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
     scans: true, storyboarding: true, editing: true,
-    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, settingsSection: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true,
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -200,23 +200,26 @@ export function HistorySidebar() {
             {open.scans && chain.length > 0 && <p className="mt-1 break-words text-xs text-muted-foreground">
               {chain.map((id) => `Scan ${scans.findIndex((scan) => scan.id === id) + 1}`).join(" > ")}
             </p>}
-            {open.scans && <div id="sidebar-scans" className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-              {scans.length === 0 && <p className="px-2 text-xs text-muted-foreground">No scans yet</p>}
+            {open.scans && <div id="sidebar-scans" className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+              {scans.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">No scans yet</p>}
               {scans.map((scan, index) => {
                 const selected = scan.id === currentScanId;
                 const seeds = [...scan.seeds.hashtags.slice(0, 1), ...scan.seeds.keywords.slice(0, 1), ...scan.seeds.competitors.slice(0, 1)].join(", ");
-                return <div key={scan.id}>
-                  <Link href={`/results?scan=${scan.id}`} aria-current={selected ? "page" : undefined}
-                    className={`block rounded-md px-3 py-2 text-sm ${selected ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
-                    <div className="font-medium">Scan {index + 1}</div>
-                    <div className="truncate text-xs" title={seeds}>{seeds || "No seeds"}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">{new Date(scan.timestamp).toLocaleTimeString()}</div>
-                  </Link>
-                  {selected && <button className="flex items-center gap-1 px-3 py-1 text-xs text-destructive"
-                    onClick={async () => { if (await confirm("Delete this scan from history?", { destructive: true })) deleteScan(scan.id); }}>
-                    <Trash2 className="size-3" />Delete Scan
-                  </button>}
-                </div>;
+                return (
+                  <div key={scan.id} className={`group flex min-h-8 items-center gap-1 rounded px-2 py-1.5 ${selected ? "bg-muted" : "hover:bg-muted/50"}`}>
+                    <Link href={`/results?scan=${scan.id}`} aria-current={selected ? "page" : undefined}
+                      className="min-w-0 flex-1 truncate text-xs" title={seeds || undefined}>
+                      Scan {index + 1}{seeds ? ` · ${seeds}` : ""}
+                    </Link>
+                    <button
+                      onClick={async () => { if (await confirm("Delete this scan from history?", { destructive: true })) deleteScan(scan.id); }}
+                      aria-label={`Delete Scan ${index + 1}`} title="Delete scan"
+                      className="flex size-6 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                );
               })}
             </div>}
           </section>
@@ -292,16 +295,13 @@ export function HistorySidebar() {
             <NavLink href="/generation-history" pathname={pathname} icon={History}>Generated images</NavLink>
           </CollapsibleSection>
 
-          <CollapsibleSection id="settings" label="Settings" open={open.settingsSection}
-            onToggle={() => setOpen((value) => ({ ...value, settingsSection: !value.settingsSection }))}>
-            <NavLink href="/settings" pathname={pathname} icon={Settings2}>Overview</NavLink>
-            <NavLink href="/settings/agents" pathname={pathname} icon={SlidersHorizontal}>Agents</NavLink>
-            <NavLink href="/settings/competitors" pathname={pathname} icon={Megaphone}>Competitors</NavLink>
-            <NavLink href="/settings/brand-assets" pathname={pathname} icon={Palette}>Brand assets</NavLink>
-            <NavLink href="/settings/product-images" pathname={pathname} icon={ImageIcon}>Product images</NavLink>
-            <NavLink href="/settings/actor-images" pathname={pathname} icon={ImageIcon}>Actor images</NavLink>
-            <NavLink href="/settings/agent-kit" pathname={pathname} icon={Plug}>Agent kit</NavLink>
-          </CollapsibleSection>
+          {/* Every settings sub-page is already one click away as a card on
+              /settings itself, so the sidebar doesn't need to enumerate them
+              too — one link in, then the settings page's own grid does the
+              choosing. */}
+          <div className="space-y-1 border-t border-border pt-4">
+            <NavLink href="/settings" pathname={pathname} icon={Settings2}>Settings</NavLink>
+          </div>
         </nav>
       </aside>
     </>

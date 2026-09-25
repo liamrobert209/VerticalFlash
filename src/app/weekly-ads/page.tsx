@@ -3,11 +3,14 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CalendarClock, Image as ImageIcon } from "lucide-react";
 import type { AdWithAccount } from "@/lib/ads-schema";
 import { AD_INTENT_LABELS } from "@/lib/ad-analysis-schema";
 import type { CompetitorAccount } from "@/lib/competitor-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel, adCreativeSrc } from "@/components/weekly-digest/shared";
 import { CompetitorAdRow, type CompetitorAdGroup } from "@/components/weekly-digest/CompetitorAdRow";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // Weekly Ads and Weekly Static Ads used to be two separate sidebar entries
 // over the same underlying ad dataset (static ads is just the subset with
@@ -288,12 +291,10 @@ function AllAdsTab() {
     <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-8 sm:p-10">
       <SyncPanel onSynced={load} />
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && sections.every((s) => s.newest.length === 0 && s.longestRunning.length === 0) && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No ads synced yet — expand &quot;Sync ads from saved accounts&quot; above to pull some in.
-        </p>
+        <EmptyState icon={CalendarClock} title="No ads synced yet" description={'Expand "Sync ads from saved accounts" above to pull some in.'} />
       )}
 
       {!loading &&
@@ -388,13 +389,14 @@ function StaticAdsTab() {
         the All ads tab instead.
       </p>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && sections.every((s) => s.competitors.length === 0) && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No static competitor ads yet — sync some from the All ads tab. Only ads with a genuine static image (not a
-          video) will show up here.
-        </p>
+        <EmptyState
+          icon={ImageIcon}
+          title="No static competitor ads yet"
+          description="Sync some from the All ads tab. Only ads with a genuine static image (not a video) will show up here."
+        />
       )}
 
       {!loading &&

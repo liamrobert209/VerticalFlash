@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Image as ImageIcon } from "lucide-react";
 import { useActiveProduct } from "@/app/context/active-product";
 import type { ProductLineGenerationHistory, BaseImageEntry, FinalImageEntry } from "@/lib/generation-history";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // Redesigned away from "dropdown + horizontal scroll row + Load more":
 // product lines are now pills (all visible at once, no dropdown chevron),
@@ -215,13 +218,11 @@ export default function GenerationHistoryPage() {
         })}
       </div>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid count={12} className="sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" />}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!loading && !error && (!selected || (selected.baseImages.length === 0 && selected.finalImages.length === 0)) && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-          No generated images for this product line yet.
-        </p>
+        <EmptyState icon={ImageIcon} title="No generated images for this product line yet" />
       )}
 
       {!loading && !error && selected && (selected.baseImages.length > 0 || selected.finalImages.length > 0) && (
@@ -268,18 +269,14 @@ export default function GenerationHistoryPage() {
                 renderItem={(e) => <BaseImageCard entry={e} />}
               />
             ) : (
-              <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                No accepted base images yet.
-              </p>
+              <EmptyState icon={ImageIcon} title="No accepted base images yet" />
             ))}
 
           {view === "finished" &&
             (finalImages.length > 0 ? (
               <ImageGrid items={finalImages} keyFor={(e) => e.projectId} renderItem={(e) => <FinalImageCard entry={e} />} />
             ) : (
-              <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                No finished ads for this product line yet.
-              </p>
+              <EmptyState icon={ImageIcon} title="No finished ads for this product line yet" />
             ))}
         </div>
       )}

@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Hash } from "lucide-react";
 import type { TikTokHashtagVideo } from "@/lib/tiktok-hashtag-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface HashtagSection {
   hashtag: string;
@@ -231,12 +234,10 @@ export default function WeeklyHashtagSearchPage() {
 
       <SearchPanel onSynced={load} />
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && sections.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          Nothing searched yet — enter a hashtag above to pull some in.
-        </p>
+        <EmptyState icon={Hash} title="Nothing searched yet" description="Enter a hashtag above to pull some in." />
       )}
 
       {!loading &&

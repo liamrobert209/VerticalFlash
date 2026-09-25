@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Newspaper } from "lucide-react";
 import type { ScrapedContentWithAccount } from "@/lib/scraped-content-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type ContentItem = ScrapedContentWithAccount;
 
@@ -177,12 +180,10 @@ export function WeeklyContentBoard({
         <p className="max-w-2xl text-muted-foreground">{description}</p>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && nonEmptySections.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {emptyStateHint}
-        </p>
+        <EmptyState icon={Newspaper} title="Nothing synced yet" description={emptyStateHint} />
       )}
 
       {!loading &&

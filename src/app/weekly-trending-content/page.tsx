@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { TrendingUp } from "lucide-react";
 import type { TikTokTrendingVideo } from "@/lib/tiktok-trends-schema";
 import { TIKTOK_TREND_VIDEO_COUNTRIES, TIKTOK_TREND_INDUSTRIES } from "@/lib/tiktok-trends-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface TrendingSection {
   industry: string;
@@ -278,12 +281,10 @@ export default function WeeklyTrendingContentPage() {
 
       <SyncPanel onSynced={load} />
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && sections.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          Nothing synced yet — expand &quot;Sync trending videos&quot; above to pull some in.
-        </p>
+        <EmptyState icon={TrendingUp} title="Nothing synced yet" description={'Expand "Sync trending videos" above to pull some in.'} />
       )}
 
       {!loading &&
