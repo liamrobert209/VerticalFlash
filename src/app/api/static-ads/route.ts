@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
       ? (statusParam as (typeof STATIC_AD_STATUSES)[number])
       : undefined;
   const since = request.nextUrl.searchParams.get("since") ?? undefined;
-  const projects = await listStaticAdProjects({ status, since });
+  const limitParam = Number(request.nextUrl.searchParams.get("limit"));
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
+  const projects = await listStaticAdProjects({ status, since, limit });
   return NextResponse.json({ projects });
 }

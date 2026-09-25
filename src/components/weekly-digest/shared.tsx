@@ -1,6 +1,7 @@
 "use client";
 
 import { Children, useEffect, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Shared building blocks for the "weekly digest" pages (Weekly Ads, Weekly
@@ -53,8 +54,18 @@ export function MediaThumb({
     );
   }
 
-  // eslint-disable-next-line @next/next/no-img-element -- creative comes from Meta/TikTok CDNs, not a local/optimizable asset
-  return <img src={url} alt="" onError={() => setFailedAsImage(true)} className={`object-cover ${className ?? ""}`} />;
+  return (
+    <div className={`relative overflow-hidden ${className ?? ""}`}>
+      <Image
+        src={url}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 50vw, 300px"
+        onError={() => setFailedAsImage(true)}
+        className="object-cover"
+      />
+    </div>
+  );
 }
 
 // Matches the app's existing horizontal-scroll convention (library/page.tsx,

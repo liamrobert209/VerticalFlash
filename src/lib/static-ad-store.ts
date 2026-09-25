@@ -110,13 +110,23 @@ export async function deleteStaticAdAttempt(
   return project;
 }
 
-// Lists every project by reading each project.json under STATIC_ADS_DIR —
-// fine at this data volume (one small JSON file per project, same
-// directory-scan approach the video-project history sidebar already uses
-// for /api/downloads); revisit with an index file if volume grows.
+// Reading every project.json under STATIC_ADS_DIR is fine at today's
+// volume, but scales linearly forever with no cap — this bounds how many
+// directory entries a single call will ever read, so the route degrades
+// gracefully (fewer, still-correct, most-recent results) instead of
+// getting slower on every call as more projects accumulate. Revisit with a
+// real index file if this ceiling ever needs raising.
+const MAX_PROJECTS_SCANNED = 500;
+
+// Lists project.json files under STATIC_ADS_DIR, most-recently-updated
+// first, same directory-scan approach the video-project history sidebar
+// already uses for /api/downloads. `limit` trims the final result (default:
+// no trim beyond MAX_PROJECTS_SCANNED); the scan ceiling above is separate
+// and always applies.
 export async function listStaticAdProjects(filter?: {
   status?: StaticAdStatus;
   since?: string;
+  limit?: number;
 }): Promise<StaticAdProject[]> {
   let entries: string[];
   try {
@@ -125,7 +135,7 @@ export async function listStaticAdProjects(filter?: {
     return [];
   }
   const projects: StaticAdProject[] = [];
-  for (const id of entries) {
+  for (const id of entries.slice(0, MAX_PROJECTS_SCANNED)) {
     const project = await loadStaticAdProject(id);
     if (!project) continue;
     if (filter?.status && project.status !== filter.status) continue;
@@ -133,5 +143,5 @@ export async function listStaticAdProjects(filter?: {
     projects.push(project);
   }
   projects.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  return projects;
+  return filter?.limit ? projects.slice(0, filter.limit) : projects;
 }
