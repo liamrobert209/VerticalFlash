@@ -6,6 +6,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useActiveProduct } from "@/app/context/active-product";
 import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 import type { CompetitorCoverage } from "@/lib/icp-coverage";
+import { Skeleton, SkeletonChart } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Building2 } from "lucide-react";
 
 const ROW_HEIGHT_PX = 32;
 const CHART_MARGIN_PX = 40;
@@ -99,13 +102,20 @@ export default function IcpCompetitorsPage() {
         </select>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && (
+        <div className="grid grid-cols-[220px_1fr] gap-6">
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+          <SkeletonChart rows={5} />
+        </div>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!loading && !error && competitors.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-          No competitors linked to this product line yet.
-        </p>
+        <EmptyState icon={Building2} title="No competitors linked to this product line yet" />
       )}
 
       {!loading && !error && competitors.length > 0 && (

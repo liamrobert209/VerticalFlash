@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { use } from "react";
 import Link from "next/link";
+import { Megaphone } from "lucide-react";
 import { CompetitorAdRow, type CompetitorAdGroup } from "@/components/weekly-digest/CompetitorAdRow";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface CategoryResponse {
   productLine: { id: string; label: string };
@@ -47,13 +50,11 @@ export default function AdInsightsCategoryPage({ params }: { params: Promise<{ p
         </p>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!loading && !error && data && data.competitors.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No competitor ads synced for this product line yet.
-        </p>
+        <EmptyState icon={Megaphone} title="No competitor ads synced for this product line yet" />
       )}
 
       {!loading &&

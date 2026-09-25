@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, Upload } from "lucide-react";
 import { useActiveProduct } from "@/app/context/active-product";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface ActorImageSlot {
   id: number;
@@ -166,7 +167,7 @@ export function ActorImagesBoard() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {loading ? (
-          <p className="col-span-full text-sm text-muted-foreground">Loading...</p>
+          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="aspect-square w-full" />)
         ) : (
           slots.map((slot) => (
             <SlotCard key={slot.id} productLineId={productLineId} slot={slot} onChanged={setSlots} />

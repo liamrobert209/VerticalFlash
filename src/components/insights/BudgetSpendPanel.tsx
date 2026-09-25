@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface CategorySpend {
   productCategory: string;
@@ -41,7 +42,18 @@ export function BudgetSpendPanel() {
   }, []);
 
   if (error) return null;
-  if (!categorySpend || !suggestions) return <p className="text-sm text-muted-foreground">Loading budget data...</p>;
+  if (!categorySpend || !suggestions) {
+    return (
+      <div className="rounded-lg border border-border p-4">
+        <Skeleton className="mb-3 h-4 w-48" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

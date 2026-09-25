@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Plus, RotateCcw, Save, Target, Trash2 } from "lucid
 import { Button } from "@/components/ui/button";
 import { useActiveProduct } from "@/app/context/active-product";
 import type { IcpProfile, RankedItem } from "@/lib/product-lines";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 // Settings → Product Lines: moves ICP editing off hand-edited JSON
 // (product-lines.config.json's old `icps` array) into a proper board, the
@@ -224,7 +225,14 @@ export function ProductLinesBoard() {
           )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {loading && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          )}
 
           {!loading && icp && (
             <>

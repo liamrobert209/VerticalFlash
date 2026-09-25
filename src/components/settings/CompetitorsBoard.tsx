@@ -17,6 +17,7 @@ import {
 } from "@/lib/competitor-schema";
 import { useActiveProduct } from "@/app/context/active-product";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 
 const CATEGORY_LABELS: Record<CompetitorCategoryId, string> = {
   glasses: "Glasses",
@@ -551,9 +552,7 @@ export function CompetitorsBoard() {
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td colSpan={6} className="px-5 py-6 text-center text-muted-foreground">Loading...</td></tr>
-            )}
+            {loading && <SkeletonTableRows columns={6} />}
             {!loading && accounts.length === 0 && (
               <tr><td colSpan={6} className="px-5 py-6 text-center text-muted-foreground">No accounts match these filters.</td></tr>
             )}

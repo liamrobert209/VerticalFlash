@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Plug } from "lucide-react";
 import { findAnalyticsChannel } from "@/lib/analytics-channels";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // TikTok has its own literal route (analytics/tiktok/page.tsx, the
 // original per-channel analytics page) — Next.js resolves that static
@@ -23,12 +25,11 @@ export default async function AnalyticsChannelPage({
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight">{channel.label} analytics</h1>
       </header>
-      <div className="rounded-lg border border-dashed border-border p-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          {channel.label} isn&apos;t connected yet — there&apos;s no live posting/analytics
-          integration for this channel, so there&apos;s nothing to show here.
-        </p>
-      </div>
+      <EmptyState
+        icon={Plug}
+        title={`${channel.label} isn't connected yet`}
+        description="There's no live posting/analytics integration for this channel, so there's nothing to show here."
+      />
     </div>
   );
 }

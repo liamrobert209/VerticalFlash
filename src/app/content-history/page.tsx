@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ContentRecord } from "@/lib/content-record-schema";
 import { useActiveProduct } from "@/app/context/active-product";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   remake: "Remake",
@@ -135,9 +136,7 @@ export default function ContentHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Loading...</td></tr>
-            )}
+            {loading && <SkeletonTableRows columns={7} />}
             {!loading && records.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Nothing matches these filters yet.</td></tr>
             )}

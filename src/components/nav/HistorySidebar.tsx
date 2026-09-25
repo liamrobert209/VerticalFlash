@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Lightbulb, Menu, Newspaper, PieChart, RotateCcw, Search, Settings2, TrendingUp, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
 
@@ -241,7 +242,7 @@ export function HistorySidebar() {
                 </Link>
               </div>
               {open[stage] && <div id={`sidebar-${stage}`} className="max-h-48 space-y-1 overflow-y-auto">
-                {loading ? <p className="px-2 text-xs text-muted-foreground">Loading...</p>
+                {loading ? <div className="space-y-1 px-2"><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /></div>
                   : entries.length === 0 ? <p className="px-2 py-1 text-xs text-muted-foreground">No {stage === "storyboarding" ? "storyboards" : "editing projects"} yet</p>
                   : entries.map((file) => {
                     const selected = pathname.endsWith(`/${encodeURIComponent(file.name)}`);

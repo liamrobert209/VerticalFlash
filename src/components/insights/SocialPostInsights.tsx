@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { FacebookPost, InstagramPost, FacebookDailyMetric, InstagramDailyMetric } from "@/lib/social-metrics-schema";
+import { SkeletonChart, SkeletonRows } from "@/components/ui/Skeleton";
 
 // Ocushield's own Facebook/Instagram account performance — read from a
 // separate social-metrics database (social-metrics-store.ts), not the
@@ -239,7 +240,12 @@ export function SocialPostInsights({ platform }: { platform: Platform }) {
     <div className="space-y-4">
       <p className="border-b border-border pb-2 text-sm font-semibold text-foreground">{TAB_LABELS[platform]}</p>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && (
+        <div className="space-y-4">
+          <SkeletonChart rows={3} />
+          <SkeletonRows count={3} />
+        </div>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!loading && !error && platform === "facebook" && facebookDaily && facebookPosts && (

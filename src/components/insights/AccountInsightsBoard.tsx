@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { findAnalyticsChannel } from "@/lib/analytics-channels";
+import { SkeletonRows } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface ScrapedContentLike {
   id: string;
@@ -117,12 +120,10 @@ export function AccountInsightsChannelPage({
         </h1>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonRows count={3} />}
 
       {!loading && accounts && accounts.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          No accounts have synced content for this channel yet.
-        </p>
+        <EmptyState icon={Users} title="No accounts have synced content for this channel yet" />
       )}
 
       {!loading && accounts && accounts.length > 0 && (

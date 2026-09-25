@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useActiveProduct } from "@/app/context/active-product";
 import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 import type { PortfolioCoverage } from "@/lib/icp-coverage";
+import { SkeletonChart } from "@/components/ui/Skeleton";
 
 // Bar height is proportional to label count, not fixed — a category with
 // 8 ICP items needs visibly more vertical room than one with 3, or labels
@@ -97,7 +98,12 @@ export default function IcpPortfolioPage() {
         </select>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && (
+        <div className="space-y-4">
+          <SkeletonChart rows={5} />
+          <SkeletonChart rows={3} />
+        </div>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {coverage && !loading && !error && (

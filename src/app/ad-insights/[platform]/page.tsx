@@ -2,9 +2,12 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { Megaphone } from "lucide-react";
 import { findAnalyticsChannel } from "@/lib/analytics-channels";
 import type { TagPerformance } from "@/lib/adnova-schema";
 import type { Ad } from "@/lib/ads-schema";
+import { SkeletonCardGrid } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const ATTR_LABELS: Record<string, string> = {
   ad_angle: "Ad angle",
@@ -89,7 +92,7 @@ export default function AdInsightsChannelPage({
         <h1 className="text-3xl font-semibold tracking-tight">{channel.label} ad insights</h1>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading && <SkeletonCardGrid />}
 
       {!loading && data && (
         <>
@@ -132,9 +135,7 @@ export default function AdInsightsChannelPage({
               </div>
             </div>
           ) : (
-            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              {data.adnovaError ?? "No tagged ad performance data for this channel."}
-            </p>
+            <EmptyState icon={Megaphone} title={data.adnovaError ?? "No tagged ad performance data for this channel."} />
           )}
 
           <div className="space-y-2">
@@ -142,9 +143,7 @@ export default function AdInsightsChannelPage({
               Recent competitor activity
             </h2>
             {data.competitorAds.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No competitor ads synced for this channel yet.
-              </p>
+              <EmptyState icon={Megaphone} title="No competitor ads synced for this channel yet" />
             ) : (
               <div className="space-y-2">
                 {data.competitorAds.map((ad) => (

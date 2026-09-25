@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 import type { ProductLineSummary } from "@/lib/icp-coverage";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Lightbulb } from "lucide-react";
 
 function formatFollowers(n: number | null): string {
   if (n === null) return "—";
@@ -131,13 +134,23 @@ export default function IcpSummaryPage() {
         </p>
       </header>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {loading &&
+        Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="space-y-4 rounded-lg border border-border p-5">
+            <div className="flex items-baseline justify-between">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          </div>
+        ))}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!loading && !error && summaries.length === 0 && (
-        <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-          No product lines with an ICP profile configured yet.
-        </p>
+        <EmptyState icon={Lightbulb} title="No product lines with an ICP profile configured yet" />
       )}
 
       {!loading && !error && summaries.map((s) => <ProductLineCard key={s.productLineId} summary={s} />)}

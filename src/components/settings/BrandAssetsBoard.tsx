@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Trash2, Upload, Link as LinkIcon, Palette, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 import {
   BRAND_ASSET_KINDS,
   AD_STYLE_TEMPLATES,
@@ -308,7 +309,7 @@ export function BrandAssetsBoard() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {loading && <SkeletonRows count={3} />}
 
           {!loading && (
             <div className="space-y-6">
