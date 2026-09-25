@@ -234,6 +234,15 @@ function CreateAdHocInner() {
             onCustomChange={setOriginalAngleCustom}
           />
 
+          <AngleSelect
+            label="New hook/angle for this version"
+            options={angleOptions}
+            value={newAngle}
+            customValue={newAngleCustom}
+            onChange={setNewAngle}
+            onCustomChange={setNewAngleCustom}
+          />
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Product to swap in</label>
             <select
@@ -246,15 +255,6 @@ function CreateAdHocInner() {
               ))}
             </select>
           </div>
-
-          <AngleSelect
-            label="New hook/angle for this version"
-            options={angleOptions}
-            value={newAngle}
-            customValue={newAngleCustom}
-            onChange={setNewAngle}
-            onCustomChange={setNewAngleCustom}
-          />
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Platform</label>

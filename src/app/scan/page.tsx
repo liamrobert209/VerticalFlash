@@ -16,7 +16,6 @@ export default function ScanPage() {
 
   const [savedAccounts, setSavedAccounts] = useState<CompetitorAccount[]>([]);
   const [savedSearch, setSavedSearch] = useState("");
-  const [selectedSavedHandles, setSelectedSavedHandles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/competitors?scanReady=true")
@@ -25,13 +24,21 @@ export default function ScanPage() {
       .catch(() => {});
   }, []);
 
+  // One field, one source of truth: typing a handle and checking a saved
+  // account both just add/remove an "@handle" from the same comma-separated
+  // string, instead of maintaining two separate pieces of state that get
+  // merged together on submit.
+  const selectedHandles = new Set(
+    competitors.split(",").map((c) => c.trim().replace(/^@/, "").toLowerCase()).filter(Boolean)
+  );
+
   const toggleSaved = (handle: string) => {
-    setSelectedSavedHandles((prev) => {
-      const next = new Set(prev);
-      if (next.has(handle)) next.delete(handle);
-      else next.add(handle);
-      return next;
-    });
+    const parts = competitors.split(",").map((c) => c.trim()).filter(Boolean);
+    const isSelected = selectedHandles.has(handle.toLowerCase());
+    const next = isSelected
+      ? parts.filter((p) => p.replace(/^@/, "").toLowerCase() !== handle.toLowerCase())
+      : [...parts, `@${handle}`];
+    setCompetitors(next.join(", "));
   };
 
   const filteredSavedAccounts = savedAccounts.filter(
@@ -44,14 +51,7 @@ export default function ScanPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const mergedCompetitors = Array.from(
-      new Set([
-        ...competitors.split(",").map((c) => c.trim()).filter(Boolean),
-        ...Array.from(selectedSavedHandles),
-      ])
-    ).join(", ");
-
-    if (!hashtags.trim() && !keywords.trim() && !mergedCompetitors.trim()) {
+    if (!hashtags.trim() && !keywords.trim() && !competitors.trim()) {
       return;
     }
 
@@ -61,14 +61,13 @@ export default function ScanPage() {
     if (tiktokUrl.trim()) params.set("tiktokUrl", tiktokUrl.trim());
     if (hashtags.trim()) params.set("hashtags", hashtags.trim());
     if (keywords.trim()) params.set("keywords", keywords.trim());
-    if (mergedCompetitors.trim()) params.set("competitors", mergedCompetitors.trim());
+    if (competitors.trim()) params.set("competitors", competitors.trim());
     if (millionViewsOnly) params.set("minViews", "1000000");
 
     router.push(`/results?${params.toString()}`);
   };
 
-  const hasInput =
-    hashtags.trim() || keywords.trim() || competitors.trim() || selectedSavedHandles.size > 0;
+  const hasInput = hashtags.trim() || keywords.trim() || competitors.trim();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -132,9 +131,14 @@ export default function ScanPage() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="competitors" className="text-sm font-medium">
-              Company accounts
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="competitors" className="text-sm font-medium">
+                Company accounts
+              </label>
+              {selectedHandles.size > 0 && (
+                <span className="text-xs text-muted-foreground">{selectedHandles.size} selected</span>
+              )}
+            </div>
             <input
               id="competitors"
               type="text"
@@ -144,53 +148,43 @@ export default function ScanPage() {
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
-              Enter @handles to scan their content for inspiration, separated by commas
+              Type @handles separated by commas, or check any of your saved accounts below — both add to the same list.
             </p>
-          </div>
 
-          {savedAccounts.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">
-                  Or pick from your saved company accounts
-                </label>
-                {selectedSavedHandles.size > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {selectedSavedHandles.size} selected
-                  </span>
-                )}
+            {savedAccounts.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <input
+                  type="text"
+                  placeholder="Search saved accounts..."
+                  value={savedSearch}
+                  onChange={(e) => setSavedSearch(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="max-h-40 space-y-1 overflow-y-auto">
+                  {filteredSavedAccounts.map((account) => (
+                    <label
+                      key={account.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHandles.has(account.tiktokHandle!.toLowerCase())}
+                        onChange={() => toggleSaved(account.tiktokHandle!)}
+                        className="size-3.5 rounded border-input accent-primary"
+                      />
+                      <span className="font-medium">{account.name}</span>
+                      <span className="text-muted-foreground">
+                        @{account.tiktokHandle} · {account.region.toUpperCase()}
+                      </span>
+                    </label>
+                  ))}
+                  {filteredSavedAccounts.length === 0 && (
+                    <p className="px-1.5 py-1 text-xs text-muted-foreground">No matches</p>
+                  )}
+                </div>
               </div>
-              <input
-                type="text"
-                placeholder="Search saved accounts..."
-                value={savedSearch}
-                onChange={(e) => setSavedSearch(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div className="max-h-40 space-y-1 overflow-y-auto">
-                {filteredSavedAccounts.map((account) => (
-                  <label
-                    key={account.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-muted/50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedSavedHandles.has(account.tiktokHandle!)}
-                      onChange={() => toggleSaved(account.tiktokHandle!)}
-                      className="size-3.5 rounded border-input accent-primary"
-                    />
-                    <span className="font-medium">{account.name}</span>
-                    <span className="text-muted-foreground">
-                      @{account.tiktokHandle} · {account.region.toUpperCase()}
-                    </span>
-                  </label>
-                ))}
-                {filteredSavedAccounts.length === 0 && (
-                  <p className="px-1.5 py-1 text-xs text-muted-foreground">No matches</p>
-                )}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <label
             htmlFor="million-views-only"

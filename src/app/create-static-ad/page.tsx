@@ -161,15 +161,22 @@ interface ProductImageSlot {
   filename: string | null;
 }
 
-// No picker here anymore — every uploaded product photo for the product
-// line is used automatically as generation context. This just confirms at
-// least one exists and surfaces a warning + link if not, since generation
-// would otherwise fail with nothing to show as "our product".
-function ProductPhotoAvailability({ productLineId }: { productLineId: string }) {
+// Every uploaded product photo for the product line is used automatically
+// as generation context — no picker needed. This is inline validation, not
+// a wizard step: it renders right under the product-line select (as soon
+// as it's actually knowable) and blocks submit via hasProductPhotos, rather
+// than sitting as its own numbered step at the end of the form with no
+// real input of its own.
+function useProductPhotos(productLineId: string) {
   const [slots, setSlots] = useState<ProductImageSlot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!productLineId) {
+      setSlots([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetch(`/api/settings/product-images?productLineId=${encodeURIComponent(productLineId)}`)
       .then((res) => res.json())
@@ -178,37 +185,25 @@ function ProductPhotoAvailability({ productLineId }: { productLineId: string }) 
       .finally(() => setLoading(false));
   }, [productLineId]);
 
-  if (loading) return <p className="text-sm text-muted-foreground">Checking product photos…</p>;
-  const filled = slots.filter((s) => s.filename);
+  return { loading, filled: slots.filter((s) => s.filename) };
+}
 
-  if (filled.length === 0) {
+function ProductPhotoWarning({ productLineId, filled }: { productLineId: string; filled: ProductImageSlot[] }) {
+  if (filled.length > 0) {
     return (
-      <p className="text-sm text-destructive">
-        No product photos uploaded for this product line yet — add some in{" "}
-        <a href="/settings/product-images" className="underline-offset-4 hover:underline">
-          Settings → Product images
-        </a>{" "}
-        before generating.
+      <p className="text-xs text-muted-foreground">
+        {filled.length} product photo{filled.length === 1 ? "" : "s"} on file — used automatically as context.
       </p>
     );
   }
-
   return (
-    <div className="flex flex-wrap gap-2">
-      {filled.map((slot) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={slot.id}
-          src={`/api/settings/product-images/${encodeURIComponent(productLineId)}/${slot.id}`}
-          alt={slot.label}
-          title={slot.label}
-          className="size-14 rounded-md border border-border object-cover bg-muted"
-        />
-      ))}
-      <p className="w-full text-xs text-muted-foreground">
-        All {filled.length} photo{filled.length === 1 ? "" : "s"} above will be used as context — no need to pick one.
-      </p>
-    </div>
+    <p className="text-sm text-destructive">
+      No product photos uploaded for this product line yet — add some in{" "}
+      <a href={`/settings/product-images?productLineId=${encodeURIComponent(productLineId)}`} className="underline-offset-4 hover:underline">
+        Settings → Product images
+      </a>{" "}
+      before generating.
+    </p>
   );
 }
 
@@ -225,9 +220,9 @@ function CreateStaticAdForm() {
   const [persona, setPersona] = useState("");
   const [ourUsp, setOurUsp] = useState("");
   const [backgroundInstruction, setBackgroundInstruction] = useState(DEFAULT_BACKGROUND_BRIEF);
-  const [productPhotosKey, setProductPhotosKey] = useState(0);
   const [stage, setStage] = useState<"idle" | "creating" | "writing_copy">("idle");
   const [error, setError] = useState<string | null>(null);
+  const { loading: productPhotosLoading, filled: productPhotos } = useProductPhotos(productLineId);
 
   useEffect(() => {
     fetch("/api/product-line")
@@ -264,7 +259,13 @@ function CreateStaticAdForm() {
   }, []);
 
   const canSubmit =
-    !!productLineId && !!referenceAd && !!ourUsp.trim() && !!angleLabel.trim() && stage === "idle";
+    !!productLineId &&
+    !!referenceAd &&
+    !!ourUsp.trim() &&
+    !!angleLabel.trim() &&
+    !productPhotosLoading &&
+    productPhotos.length > 0 &&
+    stage === "idle";
 
   const submit = async () => {
     if (!canSubmit || !referenceAd) return;
@@ -319,7 +320,6 @@ function CreateStaticAdForm() {
           onChange={(e) => {
             setProductLineId(e.target.value);
             setReferenceAd(null);
-            setProductPhotosKey((k) => k + 1);
             setAngleCategory(null);
             setAngleLabel("");
           }}
@@ -334,6 +334,9 @@ function CreateStaticAdForm() {
             </option>
           ))}
         </select>
+        {productLineId && !productPhotosLoading && (
+          <ProductPhotoWarning productLineId={productLineId} filled={productPhotos} />
+        )}
       </div>
 
       {productLineId && (
@@ -400,7 +403,7 @@ function CreateStaticAdForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">5. Copy / USP</label>
+            <label className="text-sm font-semibold text-foreground">5. USP</label>
             <textarea
               value={ourUsp}
               onChange={(e) => setOurUsp(e.target.value)}
@@ -414,8 +417,8 @@ function CreateStaticAdForm() {
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Headline/subhead/CTA copy will be written automatically from your angle and USP above once you
-              generate — you can review and edit it on the next screen.
+              This is the strategic input, not the final copy — the actual headline/subhead/CTA gets written from
+              your angle and USP once you generate, and you&apos;ll review and edit that on the next screen.
             </p>
           </div>
 
@@ -437,11 +440,6 @@ function CreateStaticAdForm() {
               placeholder="Describe the setting/backdrop, or clear it to let generation decide"
               className="w-full rounded-lg border border-border bg-background p-2 text-sm"
             />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">7. Product photos</label>
-            <ProductPhotoAvailability key={productPhotosKey} productLineId={productLineId} />
           </div>
         </>
       )}
