@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Image as ImageIcon, Lightbulb, Megaphone, Menu, Newspaper, Palette, PieChart, Plug, RotateCcw, Search, Settings2, SlidersHorizontal, Sparkles, Trash2, TrendingUp, Users, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import type { DownloadEntry } from "@/lib/download-types";
 import { projectHref, projectStage } from "@/lib/project-navigation";
@@ -88,7 +88,7 @@ export function HistorySidebar() {
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
     scans: true, storyboarding: true, editing: true, analytics: false, adInsights: false, contentInsights: false, creatorInsights: false,
-    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, settingsSection: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true, generationHistorySection: true, settingsSection: true,
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -372,6 +372,11 @@ export function HistorySidebar() {
           <CollapsibleSection id="library" label="Library" open={open.librarySection}
             onToggle={() => setOpen((value) => ({ ...value, librarySection: !value.librarySection }))}>
             <NavLink href="/library" pathname={pathname} icon={Film}>Clip library</NavLink>
+          </CollapsibleSection>
+
+          <CollapsibleSection id="generation-history" label="Generation History" open={open.generationHistorySection}
+            onToggle={() => setOpen((value) => ({ ...value, generationHistorySection: !value.generationHistorySection }))}>
+            <NavLink href="/generation-history" pathname={pathname} icon={History}>Generated images</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="settings" label="Settings" open={open.settingsSection}
