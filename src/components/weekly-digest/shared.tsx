@@ -60,6 +60,7 @@ export function MediaThumb({
         src={url}
         alt=""
         fill
+        unoptimized
         sizes="(max-width: 768px) 50vw, 300px"
         onError={() => setFailedAsImage(true)}
         className="object-cover"

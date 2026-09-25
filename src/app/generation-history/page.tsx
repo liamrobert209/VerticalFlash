@@ -25,6 +25,7 @@ function BaseImageCard({ entry }: { entry: BaseImageEntry }) {
           src={`/api/static-ads/${entry.projectId}/image/${entry.file}`}
           alt=""
           fill
+          unoptimized
           sizes="192px"
           className="object-cover"
         />
@@ -53,6 +54,7 @@ function FinalImageCard({ entry }: { entry: FinalImageEntry }) {
           src={`/api/static-ads/${entry.projectId}/image/${entry.file}`}
           alt=""
           fill
+          unoptimized
           sizes="192px"
           className="object-cover"
         />
