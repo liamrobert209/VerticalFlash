@@ -127,6 +127,8 @@ function makeFakeDeps(opts: {
       analyzeStaticAdCalls.push({ imageUrl, context, candidates });
       return opts.analysis ?? makeAnalysis();
     },
+    classifyIcpAngle: async () => null,
+    resolveIcp: async () => null,
     listUnanalyzedStaticAds: async (limit, accountIds) => {
       listUnanalyzedStaticAdsCalls.push({ limit, accountIds });
       return opts.listUnanalyzedStaticAdsResult ?? [];

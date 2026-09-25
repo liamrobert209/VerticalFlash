@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ANGLE_SOURCE_LISTS } from "./icp-angles";
 
 // Client-safe: no @google/genai import here. The Gemini structured-output
 // schema (adAnalysisResponseSchema) lives in ad-analyze.ts instead, since
@@ -72,6 +73,22 @@ export const AdAnalysisZ = z.object({
   // ads.product_line_id directly; weekly-ads-sync.ts's resolveProductLineId
   // validates it against the candidate list before trusting it.
   productLineId: z.string().nullable().optional(),
+  // Which of OUR OWN ICP pain-point/solution items (see icp-angles.ts) this
+  // ad's message is closest to — a separate classification pass, run once
+  // `productLineId` is resolved (see classifyIcpAngle in ad-analyze.ts and
+  // its call site in weekly-ads-sync.ts's analyzeIfNeeded), since which
+  // ICP list applies depends on which product line this ad ended up
+  // assigned to. Null when nothing in the list is a genuine match, or when
+  // the classification hasn't run yet (e.g. ads analyzed before this field
+  // existed, until the backfill reaches them) — optional/nullable so older
+  // stored analysis objects keep parsing.
+  icpAngle: z
+    .object({
+      category: z.enum(ANGLE_SOURCE_LISTS),
+      label: z.string(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type AdAnalysis = z.infer<typeof AdAnalysisZ>;

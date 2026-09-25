@@ -7,6 +7,8 @@ import {
 import { getGeminiModel } from "./gemini";
 import { AdAnalysisZ, AD_INTENTS, type AdAnalysis } from "./ad-analysis-schema";
 import { fetchImageAsBase64 } from "./fetch-image";
+import { ANGLE_SOURCE_LISTS, ANGLE_SOURCE_LABELS, type AngleSourceList } from "./icp-angles";
+import type { IcpProfile } from "./product-lines";
 
 // A product line this competitor is linked to — passed in only when there
 // are 2+ (see weekly-ads-sync.ts's analyzeIfNeeded), so Gemini is asked to
@@ -164,4 +166,86 @@ export async function analyzeStaticAd(
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
+}
+
+export interface IcpAngleMatch {
+  category: AngleSourceList;
+  label: string;
+}
+
+interface IcpAngleOption {
+  key: string;
+  category: AngleSourceList;
+  label: string;
+}
+
+function buildIcpAngleOptions(icp: IcpProfile): IcpAngleOption[] {
+  const options: IcpAngleOption[] = [];
+  for (const category of ANGLE_SOURCE_LISTS) {
+    for (const item of icp[category]) {
+      options.push({ key: `${category}::${item.label}`, category, label: item.label });
+    }
+  }
+  return options;
+}
+
+// Classifies an already-analyzed competitor ad against OUR OWN ICP pain-
+// point/solution list (icp-angles.ts) — a pure text classification
+// (summary/usp/persona/productShown are already captured by
+// analyzeStaticAd), run separately once the ad's product line is resolved,
+// since which ICP list applies depends on that — see analyzeIfNeeded
+// (weekly-ads-sync.ts) for the call site. Returns null when nothing on the
+// list is a genuine match (never forces a weak fit) or when the call
+// itself fails — a missing classification just means "not classified yet",
+// retryable by a future backfill pass, not worth a hard failure over.
+export async function classifyIcpAngle(
+  ai: GoogleGenAI,
+  analysis: Pick<AdAnalysis, "summary" | "usp" | "persona" | "productShown">,
+  icp: IcpProfile
+): Promise<IcpAngleMatch | null> {
+  const options = buildIcpAngleOptions(icp);
+  if (options.length === 0) return null;
+
+  const prompt = `You are matching a competitor's ad to the closest item on OUR OWN customer
+research list, for a marketing team building a content-coverage report.
+
+The ad:
+Summary: ${analysis.summary}
+USP: ${analysis.usp}
+Persona targeted: ${analysis.persona}
+Product shown: ${analysis.productShown}
+
+Our customer research list (grouped by category):
+${ANGLE_SOURCE_LISTS.map(
+    (category) =>
+      `${ANGLE_SOURCE_LABELS[category]}:\n${icp[category].map((item) => `- ${category}::${item.label}`).join("\n")}`
+  ).join("\n\n")}
+
+Pick the SINGLE item this ad's message is closest to, or "none" if nothing
+on the list is a genuine match — do not force a weak fit.
+
+Return ONLY valid JSON matching the provided schema.`;
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    required: ["match"],
+    properties: {
+      match: { type: Type.STRING, enum: [...options.map((o) => o.key), "none"] },
+    },
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: getGeminiModel(ai),
+      contents: createUserContent([prompt]),
+      config: { responseMimeType: "application/json", responseSchema },
+    });
+    const parsed = JSON.parse(response.text ?? "{}") as { match?: unknown };
+    if (typeof parsed.match !== "string" || parsed.match === "none") return null;
+    const matched = options.find((o) => o.key === parsed.match);
+    return matched ? { category: matched.category, label: matched.label } : null;
+  } catch (error) {
+    console.error("ICP-angle classification failed:", error);
+    return null;
+  }
 }

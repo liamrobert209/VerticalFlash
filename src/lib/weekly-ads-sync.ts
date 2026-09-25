@@ -10,11 +10,12 @@ import {
 } from "./ads-store";
 import type { AdSighting, Ad } from "./ads-schema";
 import { getGeminiClient } from "./gemini";
-import { analyzeStaticAd, type ProductLineCandidate } from "./ad-analyze";
+import { analyzeStaticAd, classifyIcpAngle, type ProductLineCandidate } from "./ad-analyze";
 import { addFacebookPageId, recordFlaggedAdLanguage, getCompetitor } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
-import { getPublicProductLines } from "./config";
+import { getPublicProductLines, getProductLinesConfig } from "./config";
+import { resolveIcp as resolveIcpImpl } from "./product-lines";
 import type { CompetitorAccount } from "./competitor-schema";
 import { detectAdLanguage } from "./language-detect";
 import { rankAdsTargetsForProductLine, type AdsPlatform } from "./competitor-ranking";
@@ -266,6 +267,8 @@ export interface ProcessFacebookItemsDeps {
   markStaleAdsInactive: typeof markStaleAdsInactive;
   addFacebookPageId: typeof addFacebookPageId;
   analyzeStaticAd: typeof analyzeStaticAd;
+  classifyIcpAngle: typeof classifyIcpAngle;
+  resolveIcp: typeof resolveIcpImpl;
   listUnanalyzedStaticAds: typeof listUnanalyzedStaticAds;
   getGeminiClient: typeof getGeminiClient;
   recordFlaggedAdLanguage: typeof recordFlaggedAdLanguage;
@@ -277,6 +280,8 @@ const defaultDeps: ProcessFacebookItemsDeps = {
   markStaleAdsInactive,
   addFacebookPageId,
   analyzeStaticAd,
+  classifyIcpAngle,
+  resolveIcp: resolveIcpImpl,
   listUnanalyzedStaticAds,
   getGeminiClient,
   recordFlaggedAdLanguage,
@@ -321,6 +326,17 @@ async function analyzeIfNeeded(
     );
     const defaultId = target?.productLineId ?? ad.productLineId ?? null;
     const resolvedProductLineId = resolveProductLineId(defaultId, candidateIds, analysis.productLineId);
+
+    // Which of OUR pain-point/solution items this ad's message is closest
+    // to — only resolvable now that we know the product line (its ICP list
+    // is what we're matching against). Best-effort: classifyIcpAngle
+    // already swallows its own failures and returns null rather than
+    // throwing, so this never blocks saving the rest of the analysis.
+    if (resolvedProductLineId) {
+      const icp = await deps.resolveIcp(getProductLinesConfig(), resolvedProductLineId);
+      if (icp) analysis.icpAngle = await deps.classifyIcpAngle(ai, analysis, icp);
+    }
+
     await deps.saveAdAnalysis(ad.id, analysis, resolvedProductLineId);
   } catch (err) {
     errors.push(`Ad analysis failed for ${ad.externalAdId}: ${err instanceof Error ? err.message : String(err)}`);
