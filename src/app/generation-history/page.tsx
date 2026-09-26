@@ -8,6 +8,7 @@ import { useActiveProduct } from "@/app/context/active-product";
 import type { ProductLineGenerationHistory, BaseImageEntry, FinalImageEntry } from "@/lib/generation-history";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ProductLinePicker } from "@/components/ui/ProductLinePicker";
 
 // Redesigned away from "dropdown + horizontal scroll row + Load more":
 // product lines are now pills (all visible at once, no dropdown chevron),
@@ -196,27 +197,14 @@ export default function GenerationHistoryPage() {
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((p) => {
+      <ProductLinePicker
+        options={options.map((p) => {
           const entry = history.find((h) => h.productLineId === p.id);
-          const count = (entry?.baseImages.length ?? 0) + (entry?.finalImages.length ?? 0);
-          const active = p.id === productLineId;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setProductLineId(p.id)}
-              className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-foreground hover:bg-muted"
-              }`}
-            >
-              {p.label} <span className={active ? "opacity-80" : "text-muted-foreground"}>({count})</span>
-            </button>
-          );
+          return { id: p.id, label: p.label, count: (entry?.baseImages.length ?? 0) + (entry?.finalImages.length ?? 0) };
         })}
-      </div>
+        value={productLineId}
+        onChange={setProductLineId}
+      />
 
       {loading && <SkeletonCardGrid count={12} className="sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" />}
       {error && <p className="text-sm text-destructive">{error}</p>}

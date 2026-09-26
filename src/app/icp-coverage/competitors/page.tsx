@@ -8,6 +8,7 @@ import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 import type { CompetitorCoverage } from "@/lib/icp-coverage";
 import { Skeleton, SkeletonChart } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ProductLinePicker } from "@/components/ui/ProductLinePicker";
 import { Building2 } from "lucide-react";
 
 const ROW_HEIGHT_PX = 32;
@@ -91,15 +92,7 @@ export default function IcpCompetitorsPage() {
           How many of each competitor&apos;s ads map to our own ICP pain points and solutions —
           pick a competitor on the left to see their coverage.
         </p>
-        <select
-          value={productLineId}
-          onChange={(e) => setProductLineId(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-        >
-          {options.map((p) => (
-            <option key={p.id} value={p.id}>{p.label}</option>
-          ))}
-        </select>
+        <ProductLinePicker options={options} value={productLineId} onChange={setProductLineId} />
       </header>
 
       {loading && (

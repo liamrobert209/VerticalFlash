@@ -7,6 +7,7 @@ import { useActiveProduct } from "@/app/context/active-product";
 import { ANGLE_SOURCE_LABELS } from "@/lib/icp-angles";
 import type { PortfolioCoverage } from "@/lib/icp-coverage";
 import { SkeletonChart } from "@/components/ui/Skeleton";
+import { ProductLinePicker } from "@/components/ui/ProductLinePicker";
 
 // Bar height is proportional to label count, not fixed — a category with
 // 8 ICP items needs visibly more vertical room than one with 3, or labels
@@ -87,15 +88,7 @@ export default function IcpPortfolioPage() {
           How many of our own generated static ads exist for each real ICP pain point and solution —
           a coverage/gap view, so you can see what&apos;s over- or under-represented at a glance.
         </p>
-        <select
-          value={productLineId}
-          onChange={(e) => setProductLineId(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-        >
-          {options.map((p) => (
-            <option key={p.id} value={p.id}>{p.label}</option>
-          ))}
-        </select>
+        <ProductLinePicker options={options} value={productLineId} onChange={setProductLineId} />
       </header>
 
       {loading && (
