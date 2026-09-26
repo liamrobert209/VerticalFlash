@@ -8,6 +8,7 @@ import {
 import type { WeeklyPerformance, TopAd } from "./adnova-schema";
 import { PRODUCT_LINE_TO_ADNOVA_CATEGORY } from "./product-line-category-map";
 import type { ProductLine } from "./product-lines";
+import { getFunnelStageDistribution, type FunnelStageSpend } from "./ad-funnel";
 
 // How many of the highest-spend weeks to surface — enough to compare a
 // handful of candidate "best weeks" without pulling the whole history's
@@ -78,6 +79,7 @@ export interface AdPerformanceReport {
   yoyAvailable: boolean;
   sortBy: SortMetric;
   weeks: BestWeek[];
+  funnelStages: FunnelStageSpend[];
 }
 
 function tagValuesFor(tags: Record<string, unknown> | null, attr: string): string[] {
@@ -179,6 +181,7 @@ export async function getAdPerformanceReport(
       yoyAvailable: false,
       sortBy,
       weeks: [],
+      funnelStages: [],
     };
   }
 
@@ -191,6 +194,7 @@ export async function getAdPerformanceReport(
       yoyAvailable: false,
       sortBy,
       weeks: [],
+      funnelStages: [],
     };
   }
 
@@ -227,5 +231,7 @@ export async function getAdPerformanceReport(
     });
   }
 
-  return { available: true, dateRange, yoyAvailable, sortBy, weeks };
+  const funnelStages = await getFunnelStageDistribution(options.from, options.to);
+
+  return { available: true, dateRange, yoyAvailable, sortBy, weeks, funnelStages };
 }

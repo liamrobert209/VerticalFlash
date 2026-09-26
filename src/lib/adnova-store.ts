@@ -187,3 +187,37 @@ export async function listTopAdsForWeek(weekStart: string, limit: number): Promi
     });
   });
 }
+
+export interface CampaignSpend {
+  campaignName: string;
+  spend: number;
+  revenue: number;
+  purchaseCount: number;
+}
+
+// Per-campaign totals, optionally scoped to a date range (inclusive). There's
+// no dedicated funnel-stage column on this table — campaign_name is where
+// that actually lives (TOF/MOF/BOF baked into the account's own naming
+// convention; see ad-funnel.ts), so this stays a generic campaign rollup
+// rather than a funnel-specific query.
+export async function listCampaignSpend(from?: string, to?: string): Promise<CampaignSpend[]> {
+  const sql = getAdnovaDb();
+  const rows = await sql`
+    select
+      campaign_name,
+      sum(spend) as spend,
+      sum(purchase_value) as revenue,
+      sum(purchase_count) as purchase_count
+    from adnova_ad_insights_daily
+    where true
+    ${from ? sql`and date >= ${from}::date` : sql``}
+    ${to ? sql`and date <= ${to}::date` : sql``}
+    group by campaign_name
+  `;
+  return rows.map((r) => ({
+    campaignName: r.campaignName as string,
+    spend: Number(r.spend),
+    revenue: Number(r.revenue),
+    purchaseCount: Number(r.purchaseCount),
+  }));
+}

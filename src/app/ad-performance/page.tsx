@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { TrendingUp } from "lucide-react";
 import type { AdPerformanceReport, BestWeek, ProductLineCreativeMakeup, SortMetric } from "@/lib/ad-performance";
+import { FUNNEL_STAGE_LABELS } from "@/lib/funnel-stage";
+import type { FunnelStageSpend } from "@/lib/ad-funnel";
 import { SkeletonChart } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -85,6 +87,58 @@ function WeeklyMetricChart({
                 fillOpacity={d.weekStart === selected ? 1 : 0.5}
                 onClick={() => onSelect(d.weekStart)}
               />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+const FUNNEL_STAGE_COLORS: Record<string, string> = {
+  TOF: "var(--chart-1)",
+  MOF: "var(--chart-2)",
+  BOF: "var(--chart-3)",
+  unknown: "var(--muted-foreground)",
+};
+
+const FUNNEL_ROW_HEIGHT_PX = 32;
+
+function FunnelStageChart({ stages }: { stages: FunnelStageSpend[] }) {
+  if (stages.length === 0) return null;
+  const data = stages.map((s) => ({
+    stage: s.stage,
+    label: FUNNEL_STAGE_LABELS[s.stage],
+    spend: s.spend,
+    spendShare: s.spendShare,
+    roas: s.roas,
+    merPct: s.merPct,
+    campaignCount: s.campaignCount,
+  }));
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-4">
+      <h2 className="text-sm font-semibold text-foreground">Funnel stage distribution</h2>
+      <p className="text-xs text-muted-foreground">
+        Spend split by funnel stage, read from your campaign naming (TOF/MOF/BOF) — over the date
+        range selected above.
+      </p>
+      <ResponsiveContainer width="100%" height={data.length * FUNNEL_ROW_HEIGHT_PX + WEEK_CHART_MARGIN_PX}>
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 48, top: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
+          <XAxis type="number" tickFormatter={formatMoney} tick={{ fontSize: 11 }} />
+          <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 11 }} />
+          <Tooltip
+            formatter={(value, _name, props) => [
+              `${formatMoney(props.payload.spend)} (${Math.round(props.payload.spendShare * 100)}%) · ${
+                props.payload.roas != null ? `${props.payload.roas.toFixed(2)}x ROAS` : "no ROAS"
+              } · ${props.payload.campaignCount} campaign${props.payload.campaignCount === 1 ? "" : "s"}`,
+              "Spend",
+            ]}
+          />
+          <Bar dataKey="spend" radius={[0, 4, 4, 0]}>
+            {data.map((d) => (
+              <Cell key={d.stage} fill={FUNNEL_STAGE_COLORS[d.stage] ?? "var(--primary)"} fillOpacity={0.85} />
             ))}
           </Bar>
         </BarChart>
@@ -338,6 +392,8 @@ export default function AdPerformancePage() {
               has accumulated.
             </div>
           )}
+
+          <FunnelStageChart stages={report.funnelStages} />
 
           {report.weeks.length === 0 ? (
             <EmptyState icon={TrendingUp} title="No weeks with spend in this range" />
