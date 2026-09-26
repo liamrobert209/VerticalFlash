@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Hash } from "lucide-react";
 import type { TikTokHashtagVideo } from "@/lib/tiktok-hashtag-schema";
+import { HASHTAG_CATEGORIES } from "@/lib/tiktok-hashtag-categories";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+
+const CATEGORY_NAMES = Object.keys(HASHTAG_CATEGORIES);
 
 interface HashtagSection {
   hashtag: string;
@@ -138,69 +141,108 @@ function VideoDetail({ video }: { video: TikTokHashtagVideo }) {
 }
 
 function SearchPanel({ onSynced }: { onSynced: () => void }) {
-  const [hashtag, setHashtag] = useState("");
+  const [category, setCategory] = useState(CATEGORY_NAMES[0]);
+  const [customHashtag, setCustomHashtag] = useState("");
   const [maxItems, setMaxItems] = useState(20);
-  const [syncing, setSyncing] = useState(false);
+  const [pendingTag, setPendingTag] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const runSearch = async () => {
-    if (!hashtag.trim()) return;
-    setSyncing(true);
+  const runSearch = async (tag: string) => {
+    if (!tag.trim() || pendingTag) return;
+    setPendingTag(tag);
     setError(null);
     setResult(null);
     try {
       const res = await fetch("/api/weekly-hashtag-search/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hashtag, maxItems }),
+        body: JSON.stringify({ hashtag: tag, maxItems }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Search failed");
-      setResult(`${data.videosSeen} videos found${data.errors?.length ? ` · ${data.errors.length} errors` : ""}`);
+      setResult(`#${tag}: ${data.videosSeen} videos found${data.errors?.length ? ` · ${data.errors.length} errors` : ""}`);
       onSynced();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
-      setSyncing(false);
+      setPendingTag(null);
     }
   };
 
   return (
-    <div className="rounded-lg border border-border p-4">
-      <p className="mb-3 text-sm font-semibold text-foreground">Search by hashtag</p>
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="space-y-3 rounded-lg border border-border p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Search by hashtag</p>
+          <p className="text-xs text-muted-foreground">Pick a tracked hashtag below, or search a custom one.</p>
+        </div>
+        <div className="flex items-end gap-3">
+          <label className="text-xs">
+            <span className="mb-1 block font-medium text-muted-foreground">Category</span>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {CATEGORY_NAMES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs">
+            <span className="mb-1 block font-medium text-muted-foreground">Max items</span>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={maxItems}
+              onChange={(e) => setMaxItems(Number(e.target.value))}
+              className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {HASHTAG_CATEGORIES[category].map((tag) => (
+          <button
+            key={tag}
+            onClick={() => runSearch(tag)}
+            disabled={!!pendingTag}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+              pendingTag === tag
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-foreground hover:border-primary/60 hover:bg-muted/40"
+            }`}
+          >
+            {pendingTag === tag ? "Searching…" : `#${tag}`}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
         <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Hashtag</span>
+          <span className="mb-1 block font-medium text-muted-foreground">Or search a custom hashtag</span>
           <input
-            value={hashtag}
-            onChange={(e) => setHashtag(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            value={customHashtag}
+            onChange={(e) => setCustomHashtag(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch(customHashtag)}
             placeholder="e.g. bluelight"
             className="h-9 w-56 rounded-md border border-input bg-background px-2 text-sm"
           />
         </label>
-        <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Max items</span>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={maxItems}
-            onChange={(e) => setMaxItems(Number(e.target.value))}
-            className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm"
-          />
-        </label>
         <button
-          onClick={runSearch}
-          disabled={syncing || !hashtag.trim()}
+          onClick={() => runSearch(customHashtag)}
+          disabled={!!pendingTag || !customHashtag.trim()}
           className="h-9 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {syncing ? "Searching…" : "Search"}
+          Search
         </button>
       </div>
-      {result && <p className="mt-2 text-xs text-muted-foreground">{result}</p>}
-      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+      {result && <p className="text-xs text-muted-foreground">{result}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
