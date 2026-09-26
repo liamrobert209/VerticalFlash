@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import { join } from "path";
-import type { GoogleGenAI } from "@google/genai";
-import { getGeminiClient } from "@/lib/gemini";
 import { AnalysisZ, type Analysis } from "@/lib/analysis-schema";
 import { loadLibrary } from "@/lib/library-analyze";
 import { loadGenerations } from "@/lib/generation-store";
 import { shotDurationSeconds } from "@/lib/generation-prompts";
-import {
-  pickReferenceClips,
-  prepareReferenceMedia,
-  prepareProductImageReferences,
-  MAX_REFERENCE_CLIPS,
-  runGeneration,
-} from "@/lib/generate-clip";
+import { pickReferenceClips, runGeneration } from "@/lib/generate-clip";
 import {
   executeGenerationAttempt,
   generationErrorResponse,
@@ -24,8 +16,8 @@ import { resolveEffectiveProduct } from "@/lib/product-lines";
 import { resolveProductLineForVideo } from "@/lib/active-product";
 import { writeProjectProductLineIfAbsent } from "@/lib/project-product-line";
 
-
-// Video generation takes minutes (upload refs, generate, download 1080p)
+// Seedance generation itself is usually well under a minute, but keep
+// plenty of headroom for a slow queue.
 export const maxDuration = 600;
 
 async function loadAnalysis(videoId: string): Promise<Analysis | null> {
@@ -81,41 +73,17 @@ export async function POST(
     );
   }
 
-  const dryRun = process.env.GENAI_VIDEO_DRY_RUN === "1";
-  let ai: GoogleGenAI | null = null;
-  if (!dryRun) {
-    try {
-      ai = getGeminiClient();
-    } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Gemini not configured" },
-        { status: 500 }
-      );
-    }
-  }
-
   const productLineId = await resolveProductLineForVideo(videoId, request);
   await writeProjectProductLineIfAbsent(videoId, productLineId);
   const product = resolveEffectiveProduct(getBrandConfig(), getProductLinesConfig(), productLineId);
 
-  // Character references: real library clips that show the product, topped
-  // up with product reference photos (Settings -> Product images) when
-  // there's room left in the Omni model's 3-reference cap.
+  // Seedance takes no reference media — this is now purely informational
+  // metadata recorded on the attempt (which library clips would have
+  // grounded this shot under the old Omni pipeline), not fed to the model.
   let referenceFiles: string[] = [];
-  let referencePaths: string[] = [];
   if (useReferences) {
     const library = await loadLibrary();
     referenceFiles = pickReferenceClips(library, shot);
-    if (!dryRun && referenceFiles.length) {
-      referencePaths = await prepareReferenceMedia(referenceFiles);
-    }
-    if (!dryRun && referencePaths.length < MAX_REFERENCE_CLIPS) {
-      const imageRefs = await prepareProductImageReferences(
-        productLineId,
-        MAX_REFERENCE_CLIPS - referencePaths.length
-      );
-      referencePaths = [...referencePaths, ...imageRefs];
-    }
   }
 
   try {
@@ -129,14 +97,12 @@ export async function POST(
       targetSeconds: shotDurationSeconds(shot),
       run: (attempt) =>
         runGeneration({
-          ai: ai!,
           videoId,
           shotIndex,
           attempt,
           kind: "generate",
           product,
           prompt,
-          referencePaths,
           targetSeconds: shotDurationSeconds(shot),
         }),
     });

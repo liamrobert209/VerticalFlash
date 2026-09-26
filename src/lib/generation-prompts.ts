@@ -139,7 +139,9 @@ captions, or logos.`;
 }
 
 // Appended server-side when reference clips ride along; users never see or
-// manage the <VIDEO_REF_N> tags.
+// manage the <VIDEO_REF_N> tags. Only meaningful for a model that actually
+// accepts attached reference media (Gemini Omni) — see seedancePreamble for
+// the text-only equivalent.
 export function referencePreamble(count: number, product: EffectiveProduct): string {
   if (count <= 0) return "";
   const tags = Array.from({ length: count }, (_, i) => `<VIDEO_REF_${i}>`).join(
@@ -148,4 +150,16 @@ export function referencePreamble(count: number, product: EffectiveProduct): str
   return `\n\nThe attached reference clips (${tags}) show the real ${product.brandName} product —
 ${product.character}. Match its exact appearance, colors, and proportions in the
 generated video.`;
+}
+
+// Seedance (bytedance/seedance-2.5/text-to-video, via generateSeedanceVideo)
+// takes no reference media at all — no attached clips, no source-video
+// extend — so the product grounding referencePreamble used to carry via
+// real attached video has to be spelled out in plain text instead. Always
+// appended (unlike referencePreamble, which is conditional on count > 0),
+// since there's no reference-vs-no-reference branch for this model.
+export function seedancePreamble(product: EffectiveProduct): string {
+  return `\n\nThe product is the real ${product.brandName} product — ${product.character}.
+Render its exact appearance (colors, materials, proportions) precisely as described —
+do not invent a different design.`;
 }

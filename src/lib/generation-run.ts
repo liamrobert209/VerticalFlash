@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ffmpegErrorResponse } from "./ffmpeg";
-import { GEMINI_VIDEO_MODEL } from "./gemini";
+import { SEEDANCE_TEXT_TO_VIDEO_MODEL } from "./higgsfield";
 import { classifyGeminiError } from "./library-analyze";
 import {
   loadGenerations,
@@ -103,7 +103,7 @@ export async function executeGenerationAttempt(
             : String(failure),
       ...(result?.usage ? { usage: result.usage } : {}),
       video_seconds: result?.videoSeconds ?? null,
-      model: GEMINI_VIDEO_MODEL,
+      model: result?.model ?? SEEDANCE_TEXT_TO_VIDEO_MODEL,
       createdAt: new Date().toISOString(),
     });
     shot.status = result ? "ready" : "failed";

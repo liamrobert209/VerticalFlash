@@ -1,39 +1,19 @@
 import { promises as fs } from "fs";
 import { execFileAsync } from "./ffmpeg";
 import { CLIP_CATEGORY_IDS } from "./brand";
-import { join, extname } from "path";
-import type { GoogleGenAI } from "@google/genai";
-import { GEMINI_VIDEO_MODEL } from "./gemini";
-import { referencePreamble } from "./generation-prompts";
+import { join } from "path";
+import { generateSeedanceVideo, SEEDANCE_TEXT_TO_VIDEO_MODEL } from "./higgsfield";
+import { seedancePreamble } from "./generation-prompts";
 import type { EffectiveProduct } from "./product-lines";
-import {
-  GENERATED_DIR,
-  generatedClipDir,
-  generatedClipName,
-} from "./generation-schema";
+import { generatedClipDir, generatedClipName } from "./generation-schema";
 import type { ClipLibrary } from "./library-schema";
 import type { Analysis } from "./analysis-schema";
-import { LIBRARY_DIR } from "./paths";
-import { getProductImageSlots, productImagePath } from "./product-images-store";
 
-const REFS_DIR = join(GENERATED_DIR, ".refs");
-const IMAGE_REFS_DIR = join(GENERATED_DIR, ".image-refs");
-
-// Omni limits: reference clips max 3 × 3s; extend input ≤10s
+// Retained from the Omni era purely as a cap on pickReferenceClips' output
+// below — that list is now only recorded as informational metadata on the
+// generation attempt (reference_files), not fed to the model, since
+// Seedance takes no reference media at all.
 export const MAX_REFERENCE_CLIPS = 3;
-export const REFERENCE_SECONDS = 3;
-export const EXTEND_INPUT_SECONDS = 10;
-
-const MIME_TYPES: Record<string, string> = {
-  ".mp4": "video/mp4",
-  ".mov": "video/quicktime",
-  ".avi": "video/x-msvideo",
-  ".mkv": "video/x-matroska",
-};
-
-function mimeFor(filename: string): string {
-  return MIME_TYPES[extname(filename).toLowerCase()] || "video/mp4";
-}
 
 export async function probeDurationSeconds(path: string): Promise<number | null> {
   try {
@@ -51,31 +31,6 @@ export async function probeDurationSeconds(path: string): Promise<number | null>
   } catch {
     return null;
   }
-}
-
-// Shared Files-API upload + wait-until-ACTIVE (same loop as library-analyze
-// and trim-windows, extracted for the generation calls)
-export async function uploadFileActive(
-  ai: GoogleGenAI,
-  path: string,
-  mimeType: string,
-  activeDeadlineMs = 120_000
-): Promise<{ name: string; uri: string; mimeType: string }> {
-  const uploaded = await ai.files.upload({ file: path, config: { mimeType } });
-  const name = uploaded.name!;
-  let file = uploaded;
-  const deadline = Date.now() + activeDeadlineMs;
-  while (file.state !== "ACTIVE") {
-    if (file.state === "FAILED") {
-      throw new Error("Gemini file processing failed");
-    }
-    if (Date.now() > deadline) {
-      throw new Error("Timed out waiting for Gemini file to become ACTIVE");
-    }
-    await new Promise((r) => setTimeout(r, 2000));
-    file = await ai.files.get({ name });
-  }
-  return { name, uri: file.uri!, mimeType: file.mimeType || mimeType };
 }
 
 type AnalysisShot = Analysis["shots"][number];
@@ -116,122 +71,17 @@ export function pickReferenceClips(
     .map((v) => v.filename);
 }
 
-// Cut the middle 3 seconds of each reference clip (Omni caps refs at 3s),
-// cached so repeat generations don't re-encode
-export async function prepareReferenceMedia(
-  filenames: string[]
-): Promise<string[]> {
-  await fs.mkdir(REFS_DIR, { recursive: true });
-  const out: string[] = [];
-  for (const filename of filenames) {
-    const src = join(LIBRARY_DIR, filename);
-    const dst = join(REFS_DIR, `${filename}.3s.mp4`);
-    try {
-      await fs.access(dst);
-      out.push(dst);
-      continue;
-    } catch {
-      // not cached yet
-    }
-    try {
-      const duration = (await probeDurationSeconds(src)) ?? REFERENCE_SECONDS;
-      const start = Math.max(0, (duration - REFERENCE_SECONDS) / 2);
-      await execFileAsync("ffmpeg", [
-        "-y",
-        "-ss",
-        start.toFixed(2),
-        "-i",
-        src,
-        "-t",
-        String(REFERENCE_SECONDS),
-        "-an",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "23",
-        "-pix_fmt",
-        "yuv420p",
-        dst,
-      ]);
-      out.push(dst);
-    } catch (error) {
-      console.error(`reference trim failed for ${filename}:`, error);
-    }
-  }
-  return out;
-}
-
-// Product reference photos (Settings -> Product images) ground generated
-// shots the same way library reference clips do — the Omni model only takes
-// video references, so each still photo becomes a short static-frame "video"
-// through the exact same reference-block mechanism already in use, rather
-// than guessing at an unverified image-input API shape.
-export async function prepareProductImageReferences(
-  productLineId: string,
-  maxCount: number
-): Promise<string[]> {
-  const slots = await getProductImageSlots(productLineId);
-  const images = slots
-    .filter((s): s is typeof s & { filename: string } => s.filename != null)
-    .slice(0, maxCount)
-    .map((s) => s.filename);
-  if (images.length === 0) return [];
-  await fs.mkdir(IMAGE_REFS_DIR, { recursive: true });
-  const out: string[] = [];
-  for (const filename of images) {
-    const src = productImagePath(productLineId, filename);
-    const dst = join(IMAGE_REFS_DIR, `${productLineId}__${filename}.3s.mp4`);
-    try {
-      await fs.access(dst);
-      out.push(dst);
-      continue;
-    } catch {
-      // not cached yet
-    }
-    try {
-      await execFileAsync("ffmpeg", [
-        "-y",
-        "-loop",
-        "1",
-        "-i",
-        src,
-        "-t",
-        String(REFERENCE_SECONDS),
-        "-vf",
-        "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p",
-        "-an",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "23",
-        dst,
-      ]);
-      out.push(dst);
-    } catch (error) {
-      console.error(`product image reference failed for ${filename}:`, error);
-    }
-  }
-  return out;
-}
-
 export interface RunGenerationOptions {
-  ai: GoogleGenAI;
   videoId: string;
   shotIndex: number;
   attempt: number;
   kind: "generate" | "extend";
   product: EffectiveProduct;
-  // The creative prompt (reference preamble is appended here)
+  // The creative prompt (seedancePreamble is appended here)
   prompt: string;
-  // Local paths of prepared ≤3s reference excerpts
-  referencePaths?: string[];
-  // extend: local path of the ≤10s source window
-  sourceClipPath?: string;
-  // Used by dry-run to size the placeholder
+  // Used by dry-run to size the placeholder, and as Seedance's requested
+  // clip duration for a real "generate" call. Unused for "extend" (see the
+  // comment on the extend branch below — Seedance can't fulfill it).
   targetSeconds: number;
 }
 
@@ -241,10 +91,8 @@ export interface RunGenerationResult {
   interactionId: string | null;
   usage?: Record<string, unknown>;
   videoSeconds: number | null;
+  model: string;
 }
-
-// Total wall-clock budget for one generation, including queue time
-const INTERACTION_DEADLINE_MS = 9 * 60 * 1000;
 
 export async function runGeneration(
   opts: RunGenerationOptions
@@ -280,130 +128,36 @@ export async function runGeneration(
       duration: await probeDurationSeconds(outPath),
       interactionId: `dry-run-${opts.shotIndex}-${opts.attempt}`,
       videoSeconds: null,
+      model: SEEDANCE_TEXT_TO_VIDEO_MODEL,
     };
   }
 
-  const { ai } = opts;
-  const uploadedNames: string[] = [];
-  try {
-    // Extend source first (it must precede refs so <VIDEO_REF_N> indexes in
-    // the preamble line up with the reference blocks we describe). The SDK
-    // doesn't export its VideoContent input type, so shape it structurally.
-    const blocks: Array<{ type: "video"; uri: string; mime_type: string }> = [];
-    if (opts.kind === "extend") {
-      if (!opts.sourceClipPath) {
-        throw new Error("extend requires a source clip");
-      }
-      const up = await uploadFileActive(ai, opts.sourceClipPath, "video/mp4");
-      uploadedNames.push(up.name);
-      blocks.push({ type: "video", uri: up.uri, mime_type: up.mimeType });
-    }
-    const refPaths = opts.kind === "generate" ? opts.referencePaths ?? [] : [];
-    for (const path of refPaths) {
-      const up = await uploadFileActive(ai, path, mimeFor(path));
-      uploadedNames.push(up.name);
-      blocks.push({ type: "video", uri: up.uri, mime_type: up.mimeType });
-    }
-
-    const promptText =
-      opts.kind === "generate"
-        ? opts.prompt + referencePreamble(refPaths.length, opts.product)
-        : opts.prompt;
-
-    let interaction = await ai.interactions.create({
-      model: GEMINI_VIDEO_MODEL,
-      input: [{ type: "text", text: promptText }, ...blocks],
-      response_format: {
-        type: "video",
-        aspect_ratio: "9:16",
-        delivery: "uri",
-        // The installed SDK's VideoResponseFormat doesn't type `resolution`
-        // yet; the API accepts it (360p/720p/1080p/4k)
-        resolution: "1080p",
-      } as never,
-      generation_config: {
-        video_config: {
-          task:
-            opts.kind === "extend"
-              ? "extend"
-              : refPaths.length
-                ? "reference_to_video"
-                : "text_to_video",
-        },
-      },
-    });
-
-    // create usually returns a terminal interaction, but poll if queued
-    const deadline = Date.now() + INTERACTION_DEADLINE_MS;
-    while (
-      interaction.status === "queued" ||
-      interaction.status === "in_progress"
-    ) {
-      if (Date.now() > deadline) {
-        throw new Error("Timed out waiting for video generation");
-      }
-      await new Promise((r) => setTimeout(r, 5000));
-      interaction = await ai.interactions.get(interaction.id);
-    }
-
-    if (interaction.status !== "completed") {
-      const detail = (interaction.errors ?? [])
-        .map((e) => (typeof e === "object" ? JSON.stringify(e) : String(e)))
-        .join("; ");
-      throw new Error(
-        `Video generation ${interaction.status}${detail ? `: ${detail}` : ""}`
-      );
-    }
-
-    const video = interaction.output_video;
-    if (!video?.uri && !video?.data) {
-      throw new Error("Generation completed but returned no video");
-    }
-
-    if (video.uri) {
-      // URI delivery: wait for the generated file to finish processing,
-      // then download it
-      const match = video.uri.match(/files\/([\w-]+)/);
-      const name = match ? `files/${match[1]}` : video.uri;
-      const fileDeadline = Date.now() + 120_000;
-      for (;;) {
-        const info = await ai.files.get({ name });
-        if (info.state === "ACTIVE") break;
-        if (info.state === "FAILED") {
-          throw new Error("Generated video failed processing");
-        }
-        if (Date.now() > fileDeadline) {
-          throw new Error("Timed out waiting for the generated video file");
-        }
-        await new Promise((r) => setTimeout(r, 5000));
-      }
-      await ai.files.download({ file: name, downloadPath: outPath });
-    } else {
-      await fs.writeFile(outPath, Buffer.from(video.data!, "base64"));
-    }
-
-    const duration = await probeDurationSeconds(outPath);
-    const usage = interaction.usage
-      ? (JSON.parse(JSON.stringify(interaction.usage)) as Record<
-          string,
-          unknown
-        >)
-      : undefined;
-
-    return {
-      file: filename,
-      duration,
-      interactionId: interaction.id ?? null,
-      usage,
-      videoSeconds: duration,
-    };
-  } finally {
-    for (const name of uploadedNames) {
-      try {
-        await ai.files.delete({ name });
-      } catch (cleanupError) {
-        console.error("Failed to delete Gemini file:", cleanupError);
-      }
-    }
+  // Seedance is text-to-video only — no attached reference clips, no
+  // extending an existing source clip (both were Omni-specific
+  // capabilities; see this file's header comment and generation-prompts.ts's
+  // seedancePreamble for how product grounding is carried instead). Surface
+  // that plainly rather than silently generating something unrelated to
+  // what "extend" was asked to do.
+  if (opts.kind === "extend") {
+    throw new Error(
+      "Extending an existing clip isn't supported with Seedance (text-to-video only) — use Generate instead"
+    );
   }
+
+  const promptText = opts.prompt + seedancePreamble(opts.product);
+  const { videoBytes } = await generateSeedanceVideo(promptText, {
+    durationSeconds: Math.max(1, Math.round(opts.targetSeconds)),
+    resolution: "1080p",
+    aspectRatio: "9:16",
+  });
+  await fs.writeFile(outPath, videoBytes);
+
+  const duration = await probeDurationSeconds(outPath);
+  return {
+    file: filename,
+    duration,
+    interactionId: null,
+    videoSeconds: duration,
+    model: SEEDANCE_TEXT_TO_VIDEO_MODEL,
+  };
 }

@@ -27,6 +27,61 @@ export interface MarketingStudioImageResult {
   mimeType: string;
 }
 
+// Per-shot AI video generation (generate-clip.ts's runGeneration) — swapped
+// from Gemini's Omni model to this. Text-to-video only: unlike Omni, this
+// endpoint takes no reference media (no video refs, no extend-from-source),
+// just a prompt + duration/resolution/aspect ratio — confirmed via a real
+// test call (see the repo-root scratch index.ts this was validated
+// against). Visual grounding that used to come from attached reference
+// clips/product photos now has to be carried entirely in the prompt text
+// (see generation-prompts.ts's seedancePreamble).
+export const SEEDANCE_TEXT_TO_VIDEO_MODEL = "bytedance/seedance-2.5/text-to-video";
+
+export interface SeedanceVideoResult {
+  videoBytes: Buffer;
+  mimeType: string;
+}
+
+export async function generateSeedanceVideo(
+  prompt: string,
+  opts: { durationSeconds?: number; resolution?: "480p" | "720p" | "1080p"; aspectRatio?: string } = {}
+): Promise<SeedanceVideoResult> {
+  ensureConfigured();
+
+  const result = await higgsfield.subscribe(SEEDANCE_TEXT_TO_VIDEO_MODEL, {
+    input: {
+      prompt,
+      duration: opts.durationSeconds ?? 5,
+      resolution: opts.resolution ?? "720p",
+      aspect_ratio: opts.aspectRatio ?? "9:16",
+    },
+    withPolling: true,
+  });
+
+  const videoUrl = result.status === "completed" ? result.video?.url : undefined;
+  if (!videoUrl) {
+    // Same defensive read as generateMarketingStudioImage above — the
+    // SDK's V2Response type doesn't declare `error`, but a failed
+    // generation's real response body includes one.
+    const errorDetail = (result as { error?: string }).error;
+    throw new Error(
+      `Seedance did not return a video — status: "${result.status}"${
+        errorDetail ? `, error: ${errorDetail}` : ""
+      }`
+    );
+  }
+
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download generated video: HTTP ${response.status}`);
+  }
+
+  return {
+    videoBytes: Buffer.from(await response.arrayBuffer()),
+    mimeType: response.headers.get("content-type") || "video/mp4",
+  };
+}
+
 export async function generateMarketingStudioImage(
   prompt: string,
   imageUrls: string[],
