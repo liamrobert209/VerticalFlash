@@ -2,6 +2,9 @@ import { resolveIcp, type ProductLinesConfig } from "./product-lines";
 import { listStaticAdProjects } from "./static-ad-store";
 import { ANGLE_SOURCE_LISTS, type AngleSourceList } from "./icp-angles";
 import { getDb } from "./db";
+import { adnovaConfigured } from "./adnova-db";
+import { listSpendByCategory } from "./adnova-store";
+import { PRODUCT_LINE_TO_ADNOVA_CATEGORY } from "./product-line-category-map";
 
 // How many of OUR OWN generated static ads exist for each real ICP angle
 // item, per product line — a content-gap view, not a competitor one (see
@@ -223,6 +226,54 @@ export interface ProductLineSummary {
   gaps: CoverageGap[];
   overIndexed: OverIndexedItem[];
   topCompetitorsByIntensity: CompetitorIntensity[];
+  // Fraction (0-1) of this product line's ranked ICP items we have at
+  // least one of our own ads for — "problemsSolved" (the deck's literal
+  // "Problems Solved" section) for pain points, "purchaseDrivers" (the
+  // deck's "Matters Most" section — what actually drives the purchase
+  // decision, i.e. the solution's core selling points) for solutions.
+  // null when the product line has no ranked items in that list at all
+  // (nothing to divide by), not the same as 0% covered.
+  painPointCoveragePct: number | null;
+  solutionCoveragePct: number | null;
+}
+
+function coveragePct(category: CategoryCoverage | undefined): number | null {
+  if (!category || category.items.length === 0) return null;
+  const covered = category.items.filter((item) => item.count > 0).length;
+  return covered / category.items.length;
+}
+
+export interface SpendAllocationItem {
+  productLineId: string;
+  productLineLabel: string;
+  spend: number;
+  percentOfTotal: number;
+}
+
+// Real spend, not a proxy — Adnova tracks our own ad-platform spend by its
+// own "product_category" taxonomy, which only maps onto 5 of our 11
+// product lines (see product-line-category-map.ts's header comment for
+// which and why). Product lines with no mapping, or a mapping with zero
+// spend on file, are simply omitted rather than shown at 0% — there's
+// nothing to allocate for them yet, which reads differently from "we
+// spent nothing on purpose."
+export async function getSpendAllocation(cfg: ProductLinesConfig): Promise<SpendAllocationItem[]> {
+  if (!adnovaConfigured()) return [];
+  const categorySpend = await listSpendByCategory();
+  const spendByCategory = new Map(categorySpend.map((c) => [c.productCategory, c.totalSpend]));
+
+  const items = cfg.productLines
+    .map((line) => {
+      const category = PRODUCT_LINE_TO_ADNOVA_CATEGORY[line.id];
+      const spend = category ? (spendByCategory.get(category) ?? 0) : 0;
+      return { productLineId: line.id, productLineLabel: line.label, spend };
+    })
+    .filter((item) => item.spend > 0);
+
+  const total = items.reduce((sum, item) => sum + item.spend, 0);
+  return items
+    .map((item) => ({ ...item, percentOfTotal: total > 0 ? item.spend / total : 0 }))
+    .sort((a, b) => b.spend - a.spend);
 }
 
 const OVER_INDEXED_THRESHOLD = 3;
@@ -279,6 +330,8 @@ export async function getIcpSummary(cfg: ProductLinesConfig): Promise<ProductLin
       gaps,
       overIndexed,
       topCompetitorsByIntensity: intensity.slice(0, TOP_COMPETITORS_SHOWN),
+      painPointCoveragePct: coveragePct(portfolio.categories.find((c) => c.category === "problemsSolved")),
+      solutionCoveragePct: coveragePct(portfolio.categories.find((c) => c.category === "purchaseDrivers")),
     });
   }
 
