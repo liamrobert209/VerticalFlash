@@ -58,11 +58,25 @@ export interface BestWeek extends WeeklyPerformance {
   creativeMakeup: ProductLineCreativeMakeup[];
 }
 
+export type SortMetric = "spend" | "roas" | "mer";
+export const SORT_METRICS: SortMetric[] = ["spend", "roas", "mer"];
+
+export interface AdPerformanceOptions {
+  // Inclusive week-start bounds, "YYYY-MM-DD". Omit either for an open end.
+  from?: string;
+  to?: string;
+  // Which metric ranks "best week" — defaults to roas (see this file's
+  // getAdPerformanceReport). "mer" ranks ascending (lower merPct is better);
+  // the others rank descending.
+  sortBy?: SortMetric;
+}
+
 export interface AdPerformanceReport {
   available: boolean;
   reason?: string;
   dateRange: AdnovaDateRange | null;
   yoyAvailable: boolean;
+  sortBy: SortMetric;
   weeks: BestWeek[];
 }
 
@@ -144,13 +158,26 @@ function sameWeekLastYear(weekStart: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export async function getAdPerformanceReport(productLines: ProductLine[]): Promise<AdPerformanceReport> {
+const SORT_COMPARATORS: Record<SortMetric, (a: WeeklyPerformance, b: WeeklyPerformance) => number> = {
+  spend: (a, b) => b.spend - a.spend,
+  // nulls (no revenue at all) sort last regardless of direction
+  roas: (a, b) => (b.roas ?? -Infinity) - (a.roas ?? -Infinity),
+  mer: (a, b) => (a.merPct ?? Infinity) - (b.merPct ?? Infinity),
+};
+
+export async function getAdPerformanceReport(
+  productLines: ProductLine[],
+  options: AdPerformanceOptions = {}
+): Promise<AdPerformanceReport> {
+  const sortBy = options.sortBy ?? "roas";
+
   if (!adnovaConfigured()) {
     return {
       available: false,
       reason: "Adnova isn't connected — set ADNOVA_DATABASE_URL",
       dateRange: null,
       yoyAvailable: false,
+      sortBy,
       weeks: [],
     };
   }
@@ -162,6 +189,7 @@ export async function getAdPerformanceReport(productLines: ProductLine[]): Promi
       reason: "No ad performance data synced yet",
       dateRange: null,
       yoyAvailable: false,
+      sortBy,
       weeks: [],
     };
   }
@@ -174,7 +202,9 @@ export async function getAdPerformanceReport(productLines: ProductLine[]): Promi
   const byWeekStart = new Map(allWeeks.map((w) => [w.weekStart, w]));
   const candidateWeeks = allWeeks
     .filter((w) => w.spend > 0)
-    .sort((a, b) => b.spend - a.spend)
+    .filter((w) => (options.from ? w.weekStart >= options.from : true))
+    .filter((w) => (options.to ? w.weekStart <= options.to : true))
+    .sort(SORT_COMPARATORS[sortBy])
     .slice(0, TOP_WEEKS_SHOWN);
 
   const weeks: BestWeek[] = [];
@@ -197,5 +227,5 @@ export async function getAdPerformanceReport(productLines: ProductLine[]): Promi
     });
   }
 
-  return { available: true, dateRange, yoyAvailable, weeks };
+  return { available: true, dateRange, yoyAvailable, sortBy, weeks };
 }

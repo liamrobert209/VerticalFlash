@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { TrendingUp } from "lucide-react";
-import type { AdPerformanceReport, BestWeek, ProductLineCreativeMakeup } from "@/lib/ad-performance";
+import type { AdPerformanceReport, BestWeek, ProductLineCreativeMakeup, SortMetric } from "@/lib/ad-performance";
 import { SkeletonChart } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -34,23 +34,50 @@ function formatWeekLabel(weekStart: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
-function WeeklySpendChart({ weeks, selected, onSelect }: { weeks: BestWeek[]; selected: string | null; onSelect: (weekStart: string) => void }) {
-  const data = weeks.map((w) => ({ label: formatWeekLabel(w.weekStart), weekStart: w.weekStart, spend: w.spend }));
+const SORT_OPTIONS: SortMetric[] = ["roas", "mer", "spend"];
+
+const METRIC_CONFIG: Record<
+  SortMetric,
+  { label: string; direction: "highest" | "lowest"; format: (n: number) => string; valueOf: (w: BestWeek) => number | null }
+> = {
+  spend: { label: "Spend", direction: "highest", format: formatMoney, valueOf: (w) => w.spend },
+  roas: { label: "ROAS", direction: "highest", format: (n) => `${n.toFixed(2)}x`, valueOf: (w) => w.roas },
+  mer: { label: "MER", direction: "lowest", format: (n) => `${n.toFixed(1)}%`, valueOf: (w) => w.merPct },
+};
+
+function WeeklyMetricChart({
+  weeks,
+  metric,
+  selected,
+  onSelect,
+}: {
+  weeks: BestWeek[];
+  metric: SortMetric;
+  selected: string | null;
+  onSelect: (weekStart: string) => void;
+}) {
+  const config = METRIC_CONFIG[metric];
+  const data = weeks.map((w) => ({
+    label: formatWeekLabel(w.weekStart),
+    weekStart: w.weekStart,
+    value: config.valueOf(w) ?? 0,
+  }));
   return (
     <div className="space-y-2 rounded-lg border border-border p-4">
-      <h2 className="text-sm font-semibold text-foreground">Weekly spend — highest first</h2>
+      <h2 className="text-sm font-semibold text-foreground">
+        Weekly {config.label} — {config.direction} first
+      </h2>
       <p className="text-xs text-muted-foreground">
-        Click a week to see its top ads and creative makeup. Weeks are the primary &quot;best week&quot;
-        signal (highest spend); MER/ROAS for each is in the table below so you can judge the tradeoff
-        yourself.
+        Click a week to see its top ads and creative makeup. Use the controls above to rank by a
+        different metric or narrow the date range.
       </p>
       <ResponsiveContainer width="100%" height={data.length * WEEK_ROW_HEIGHT_PX + WEEK_CHART_MARGIN_PX}>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 48, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
-          <XAxis type="number" tickFormatter={formatMoney} tick={{ fontSize: 11 }} />
+          <XAxis type="number" tickFormatter={config.format} tick={{ fontSize: 11 }} />
           <YAxis type="category" dataKey="label" width={90} tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(value) => [formatMoney(value as number), "Spend"]} />
-          <Bar dataKey="spend" radius={[0, 4, 4, 0]} cursor="pointer">
+          <Tooltip formatter={(value) => [config.format(value as number), config.label]} />
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} cursor="pointer">
             {data.map((d) => (
               <Cell
                 key={d.weekStart}
@@ -62,6 +89,79 @@ function WeeklySpendChart({ weeks, selected, onSelect }: { weeks: BestWeek[]; se
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function Controls({
+  sortBy,
+  onSortByChange,
+  from,
+  to,
+  onFromChange,
+  onToChange,
+  onReset,
+  minDate,
+  maxDate,
+}: {
+  sortBy: SortMetric;
+  onSortByChange: (m: SortMetric) => void;
+  from: string;
+  to: string;
+  onFromChange: (v: string) => void;
+  onToChange: (v: string) => void;
+  onReset: () => void;
+  minDate?: string;
+  maxDate?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border p-4">
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Rank weeks by</label>
+        <div className="flex gap-1">
+          {SORT_OPTIONS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onSortByChange(m)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                sortBy === m
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input text-foreground hover:bg-muted"
+              }`}
+            >
+              {METRIC_CONFIG[m].label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">From</label>
+        <input
+          type="date"
+          value={from}
+          min={minDate}
+          max={maxDate}
+          onChange={(e) => onFromChange(e.target.value)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">To</label>
+        <input
+          type="date"
+          value={to}
+          min={minDate}
+          max={maxDate}
+          onChange={(e) => onToChange(e.target.value)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+        />
+      </div>
+      {(from || to) && (
+        <button type="button" onClick={onReset} className="h-8 text-xs text-muted-foreground underline hover:text-foreground">
+          Reset to full range
+        </button>
+      )}
     </div>
   );
 }
@@ -176,16 +276,23 @@ export default function AdPerformancePage() {
   const [report, setReport] = useState<AdPerformanceReport | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortMetric>("roas");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   useEffect(() => {
-    fetch("/api/ad-performance", { cache: "no-store" })
+    setLoading(true);
+    const params = new URLSearchParams({ sortBy });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    fetch(`/api/ad-performance?${params.toString()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data: AdPerformanceReport) => {
         setReport(data);
         setSelectedWeek(data.weeks[0]?.weekStart ?? null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [sortBy, from, to]);
 
   const selected = report?.weeks.find((w) => w.weekStart === selectedWeek) ?? null;
 
@@ -194,10 +301,25 @@ export default function AdPerformancePage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Ad performance</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Your best weeks by spend, the specific ads driving them, and the creative makeup — angle,
-          desire, emotion, USP — those winning ads share, per product line.
+          Your best weeks, the specific ads driving them, and the creative makeup — angle, desire,
+          emotion, USP — those winning ads share, per product line.
         </p>
       </header>
+
+      <Controls
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onReset={() => {
+          setFrom("");
+          setTo("");
+        }}
+        minDate={report?.dateRange?.minDate}
+        maxDate={report?.dateRange?.maxDate}
+      />
 
       {loading && <SkeletonChart rows={6} />}
 
@@ -218,10 +340,10 @@ export default function AdPerformancePage() {
           )}
 
           {report.weeks.length === 0 ? (
-            <EmptyState icon={TrendingUp} title="No weeks with spend yet" />
+            <EmptyState icon={TrendingUp} title="No weeks with spend in this range" />
           ) : (
             <>
-              <WeeklySpendChart weeks={report.weeks} selected={selectedWeek} onSelect={setSelectedWeek} />
+              <WeeklyMetricChart weeks={report.weeks} metric={sortBy} selected={selectedWeek} onSelect={setSelectedWeek} />
               <WeeksTable
                 weeks={report.weeks}
                 selected={selectedWeek}
