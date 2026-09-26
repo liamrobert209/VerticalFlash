@@ -95,8 +95,20 @@ export function HistorySidebar() {
   const [files, setFiles] = useState<DownloadEntry[]>([]);
   const [open, setOpen] = useState({
     scans: true, storyboarding: true, editing: true,
-    homeSection: true, createSection: true, librarySection: true, projectsSection: true, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true,
+    homeSection: true, createSection: true, librarySection: true, projectsSection: false, weeklyDigestSection: true, insightsSection: true, icpCoverageSection: true,
   });
+
+  // Projects starts closed every new session (it's the heaviest section —
+  // scan history + every in-progress storyboard/editing project) but once
+  // a user opens it, it should stay open across reloads for the rest of
+  // that session rather than snapping shut again — sessionStorage (not
+  // localStorage) is exactly that scope: cleared when the tab/browser
+  // session ends, kept across a reload within it.
+  useEffect(() => {
+    if (sessionStorage.getItem("sidebar-projects-open") === "true") {
+      setOpen((value) => ({ ...value, projectsSection: true }));
+    }
+  }, []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +204,15 @@ export function HistorySidebar() {
           </CollapsibleSection>
 
           <CollapsibleSection id="projects" label="Projects" open={open.projectsSection}
-            onToggle={() => setOpen((value) => ({ ...value, projectsSection: !value.projectsSection }))}>
+            onToggle={() => setOpen((value) => {
+              const next = !value.projectsSection;
+              try {
+                sessionStorage.setItem("sidebar-projects-open", String(next));
+              } catch {
+                // Private-browsing/storage-blocked — just skip persistence.
+              }
+              return { ...value, projectsSection: next };
+            })}>
           <section>
             <button onClick={() => setOpen((value) => ({ ...value, scans: !value.scans }))}
               aria-expanded={open.scans} aria-controls="sidebar-scans" className="flex w-full items-center gap-2 text-left text-sm font-semibold">
