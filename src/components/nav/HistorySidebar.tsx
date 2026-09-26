@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Lightbulb, Menu, Newspaper, PieChart, RotateCcw, Search, Settings2, TrendingUp, X } from "lucide-react";
+import { BarChart3, Building2, CalendarClock, ChevronRight, ClipboardCheck, FileClock, Film, Hash, History, Home, Lightbulb, LineChart, Menu, Newspaper, PieChart, RotateCcw, Search, Settings2, TrendingUp, X } from "lucide-react";
 import { useScanHistory } from "@/app/context/scan-history";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -308,6 +308,7 @@ export function HistorySidebar() {
             <NavLink href="/icp-coverage/portfolio" pathname={pathname} icon={PieChart}>Our ad portfolio</NavLink>
             <NavLink href="/icp-coverage/competitors" pathname={pathname} icon={Building2}>Competitor analysis</NavLink>
             <NavLink href="/icp-coverage/summary" pathname={pathname} icon={Lightbulb}>Summary</NavLink>
+            <NavLink href="/ad-performance" pathname={pathname} icon={LineChart}>Ad performance</NavLink>
           </CollapsibleSection>
 
           <CollapsibleSection id="library" label="Library" open={open.librarySection}

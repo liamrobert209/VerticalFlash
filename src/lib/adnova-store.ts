@@ -1,5 +1,19 @@
 import { getAdnovaDb } from "./adnova-db";
-import { TagPerformanceZ, CategorySpendZ, type TagPerformance, type CategorySpend } from "./adnova-schema";
+import {
+  TagPerformanceZ,
+  CategorySpendZ,
+  WeeklyPerformanceZ,
+  TopAdZ,
+  type TagPerformance,
+  type CategorySpend,
+  type WeeklyPerformance,
+  type TopAd,
+} from "./adnova-schema";
+
+// Below this, a single day's spend on one ad is treated as noise (a handful
+// of impressions with a lucky purchase can otherwise dominate a per-week
+// ROAS ranking) rather than a real signal to build a "winning formula" from.
+export const TOP_AD_MIN_SPEND = 20;
 
 // postgres.js returns numeric/bigint columns as strings (to avoid silent
 // precision loss on large bigints) — coerce before Zod validation, same
@@ -81,4 +95,95 @@ export async function listSpendByCategory(): Promise<CategorySpend[]> {
       avgCostPerPurchase: r.avgCostPerPurchase == null ? null : Number(r.avgCostPerPurchase),
     })
   );
+}
+
+export interface AdnovaDateRange {
+  minDate: string;
+  maxDate: string;
+  spanDays: number;
+}
+
+// Whether a same-week-last-year comparison is even possible yet — confirmed
+// via direct introspection that the dataset currently spans only ~4 months
+// (all within one calendar year), so spanDays stays well under 365 for now.
+export async function getAdInsightsDateRange(): Promise<AdnovaDateRange | null> {
+  const sql = getAdnovaDb();
+  const rows = await sql`
+    select min(date)::text as min_date, max(date)::text as max_date
+    from adnova_ad_insights_daily
+  `;
+  const row = rows[0];
+  if (!row?.minDate || !row?.maxDate) return null;
+  const spanDays =
+    Math.round(
+      (new Date(row.maxDate as string).getTime() - new Date(row.minDate as string).getTime()) / 86_400_000
+    ) + 1;
+  return { minDate: row.minDate as string, maxDate: row.maxDate as string, spanDays };
+}
+
+// One row per ISO week across the whole dataset, newest first.
+export async function listWeeklyPerformance(): Promise<WeeklyPerformance[]> {
+  const sql = getAdnovaDb();
+  const rows = await sql`
+    select
+      date_trunc('week', date)::date::text as week_start,
+      sum(spend) as spend,
+      sum(purchase_value) as revenue,
+      sum(purchase_count) as purchase_count
+    from adnova_ad_insights_daily
+    group by 1
+    order by 1 desc
+  `;
+  return rows.map((r) => {
+    const spend = Number(r.spend);
+    const revenue = Number(r.revenue);
+    return WeeklyPerformanceZ.parse({
+      weekStart: r.weekStart,
+      spend,
+      revenue,
+      purchaseCount: Number(r.purchaseCount),
+      roas: spend > 0 ? revenue / spend : null,
+      merPct: revenue > 0 ? (spend / revenue) * 100 : null,
+    });
+  });
+}
+
+// Top-performing individual ads active within one Monday-start week,
+// ranked by ROAS. Spend/revenue are summed across the week; ai_tags is
+// taken from the ad's most recent day in that window so one stale earlier
+// tagging pass doesn't get equal weight to how the ad reads today.
+export async function listTopAdsForWeek(weekStart: string, limit: number): Promise<TopAd[]> {
+  const sql = getAdnovaDb();
+  const rows = await sql`
+    with per_ad as (
+      select
+        ad_id,
+        max(ad_name) as ad_name,
+        max(product_category) as product_category,
+        sum(spend) as spend,
+        sum(purchase_value) as revenue,
+        (array_agg(ai_tags order by date desc))[1] as ai_tags
+      from adnova_ad_insights_daily
+      where date >= ${weekStart}::date and date < ${weekStart}::date + 7
+      group by ad_id
+    )
+    select * from per_ad
+    where spend >= ${TOP_AD_MIN_SPEND}
+    order by (case when spend > 0 then revenue / spend else 0 end) desc
+    limit ${limit}
+  `;
+  return rows.map((r) => {
+    const spend = Number(r.spend);
+    const revenue = Number(r.revenue);
+    return TopAdZ.parse({
+      adId: String(r.adId),
+      adName: r.adName ?? null,
+      productCategory: r.productCategory ?? null,
+      spend,
+      revenue,
+      roas: spend > 0 ? revenue / spend : null,
+      merPct: revenue > 0 ? (spend / revenue) * 100 : null,
+      aiTags: r.aiTags ?? null,
+    });
+  });
 }
