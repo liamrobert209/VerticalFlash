@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
 import type { TikTokTrendingVideo } from "@/lib/tiktok-trends-schema";
-import { TIKTOK_TREND_VIDEO_COUNTRIES, TIKTOK_TREND_INDUSTRIES } from "@/lib/tiktok-trends-schema";
+import { TIKTOK_TREND_INDUSTRIES } from "@/lib/tiktok-trends-schema";
 import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
-import { EmptyState } from "@/components/ui/EmptyState";
 
 interface TrendingSection {
   industry: string;
@@ -148,106 +146,48 @@ function VideoDetail({ video }: { video: TikTokTrendingVideo }) {
   );
 }
 
-function SyncPanel({ onSynced }: { onSynced: () => void }) {
-  const [industry, setIndustry] = useState("");
-  const [country, setCountry] = useState<(typeof TIKTOK_TREND_VIDEO_COUNTRIES)[number]>("US");
-  const [period, setPeriod] = useState<"7" | "30">("7");
-  const [organicOnly, setOrganicOnly] = useState(false);
-  const [maxItems, setMaxItems] = useState(20);
-  const [syncing, setSyncing] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+// All 6 content tags refresh automatically every weekday via the daily-sync
+// cron — this button is just a manual "don't want to wait for tonight's
+// run" escape hatch, looping the same per-tag sync endpoint the cron uses
+// instead of making the user pick one category/country/period at a time.
+function RefreshAllButton({ onDone }: { onDone: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const runSync = async () => {
-    setSyncing(true);
+  const runAll = async () => {
+    setRunning(true);
     setError(null);
-    setResult(null);
-    try {
-      const res = await fetch("/api/weekly-trending-content/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry, country, period, organicOnly, maxItems }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Sync failed");
-      setResult(`${data.videosSeen} videos seen${data.errors?.length ? ` · ${data.errors.length} errors` : ""}`);
-      onSynced();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sync failed");
-    } finally {
-      setSyncing(false);
+    setProgress({ done: 0, total: TIKTOK_TREND_INDUSTRIES.length });
+    let sawError = false;
+    for (let i = 0; i < TIKTOK_TREND_INDUSTRIES.length; i++) {
+      try {
+        const res = await fetch("/api/weekly-trending-content/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ industry: TIKTOK_TREND_INDUSTRIES[i].id, country: "US", period: "7", maxItems: 10 }),
+        });
+        if (!res.ok) sawError = true;
+      } catch {
+        sawError = true;
+      }
+      setProgress({ done: i + 1, total: TIKTOK_TREND_INDUSTRIES.length });
     }
+    setRunning(false);
+    if (sawError) setError("Some categories failed to refresh — try again in a bit.");
+    onDone();
   };
 
   return (
-    <div className="rounded-lg border border-dashed border-border p-4">
-      <p className="text-sm font-semibold text-foreground">Sync trending videos</p>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Content tag</span>
-          <select
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            {TIKTOK_TREND_INDUSTRIES.map((i) => (
-              <option key={i.id} value={i.id}>{i.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Country</span>
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value as (typeof TIKTOK_TREND_VIDEO_COUNTRIES)[number])}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            {TIKTOK_TREND_VIDEO_COUNTRIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Period</span>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as "7" | "30")}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-          </select>
-        </label>
-        <label className="text-xs">
-          <span className="mb-1 block font-medium text-muted-foreground">Max items</span>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={maxItems}
-            onChange={(e) => setMaxItems(Number(e.target.value))}
-            className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm"
-          />
-        </label>
-        <label className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={organicOnly}
-            onChange={(e) => setOrganicOnly(e.target.checked)}
-            className="size-3.5 rounded border-input accent-primary"
-          />
-          Organic only
-        </label>
-        <button
-          onClick={runSync}
-          disabled={syncing}
-          className="h-9 rounded-md bg-secondary px-3 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
-        >
-          {syncing ? "Syncing…" : "Sync"}
-        </button>
-      </div>
-      {result && <p className="mt-2 text-xs text-muted-foreground">{result}</p>}
-      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    <div className="flex items-center gap-3">
+      <button
+        onClick={runAll}
+        disabled={running}
+        className="h-9 rounded-md border border-border px-3 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+      >
+        {running ? `Refreshing… (${progress?.done ?? 0}/${progress?.total ?? 0})` : "Refresh all now"}
+      </button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -273,36 +213,40 @@ export default function WeeklyTrendingContentPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-5 py-8 sm:p-10">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Weekly trending content</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          TikTok-wide top videos (not tied to any saved account), pulled by content tag and country. One section per synced combination.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Weekly trending content</h1>
+            <p className="max-w-2xl text-muted-foreground">
+              Top 5 TikTok-wide videos (US, last 7 days) for every tracked content tag — kept fresh automatically
+              by the daily sync, no need to pull each one in yourself.
+            </p>
+          </div>
+          <RefreshAllButton onDone={load} />
+        </div>
       </header>
 
-      <SyncPanel onSynced={load} />
-
       {loading && <SkeletonCardGrid />}
-
-      {!loading && sections.length === 0 && (
-        <EmptyState icon={TrendingUp} title="Nothing synced yet" description={'Expand "Sync trending videos" above to pull some in.'} />
-      )}
 
       {!loading &&
         sections.map((section) => (
           <section key={`${section.industry}::${section.country}`} className="space-y-3 rounded-lg border border-border p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {industryLabel(section.industry)} · {section.country}
+              {industryLabel(section.industry)}
             </h2>
-            <HorizontalCardRow>
-              {section.videos.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  selected={selected?.id === video.id}
-                  onSelect={() => setSelected(video)}
-                />
-              ))}
-            </HorizontalCardRow>
+            {section.videos.length > 0 ? (
+              <HorizontalCardRow>
+                {section.videos.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    selected={selected?.id === video.id}
+                    onSelect={() => setSelected(video)}
+                  />
+                ))}
+              </HorizontalCardRow>
+            ) : (
+              <p className="text-xs text-muted-foreground">Not synced yet — covered by tonight&apos;s daily sync.</p>
+            )}
           </section>
         ))}
 

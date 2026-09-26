@@ -140,6 +140,42 @@ function VideoDetail({ video }: { video: TikTokHashtagVideo }) {
   );
 }
 
+const INITIAL_VISIBLE = 5;
+const LOAD_MORE_BATCH = 5;
+
+function HashtagVideoRow({
+  videos,
+  selectedId,
+  onSelect,
+}: {
+  videos: TikTokHashtagVideo[];
+  selectedId: string | undefined;
+  onSelect: (video: TikTokHashtagVideo) => void;
+}) {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const visible = videos.slice(0, visibleCount);
+  const remaining = videos.length - visibleCount;
+
+  return (
+    <div className="space-y-2">
+      <HorizontalCardRow>
+        {visible.map((video) => (
+          <VideoCard key={video.id} video={video} selected={selectedId === video.id} onSelect={() => onSelect(video)} />
+        ))}
+      </HorizontalCardRow>
+      {remaining > 0 && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((c) => c + LOAD_MORE_BATCH)}
+          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+        >
+          Load 5 more ({remaining} more)
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SearchPanel({ onSynced }: { onSynced: () => void }) {
   const [category, setCategory] = useState(CATEGORY_NAMES[0]);
   const [customHashtag, setCustomHashtag] = useState("");
@@ -270,7 +306,8 @@ export default function WeeklyHashtagSearchPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Search by hashtag</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Pull top TikTok videos for any hashtag on demand. One section per hashtag you&apos;ve searched, most recent first.
+          Your top 25 most active tracked hashtags, kept fresh automatically by the daily sync — 5 videos each,
+          load more as needed. Pick a preset below to track a new one.
         </p>
       </header>
 
@@ -279,7 +316,7 @@ export default function WeeklyHashtagSearchPage() {
       {loading && <SkeletonCardGrid />}
 
       {!loading && sections.length === 0 && (
-        <EmptyState icon={Hash} title="Nothing searched yet" description="Enter a hashtag above to pull some in." />
+        <EmptyState icon={Hash} title="Nothing tracked yet" description="Pick a hashtag above to start tracking it." />
       )}
 
       {!loading &&
@@ -288,16 +325,7 @@ export default function WeeklyHashtagSearchPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               #{section.hashtag}
             </h2>
-            <HorizontalCardRow>
-              {section.videos.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  selected={selected?.id === video.id}
-                  onSelect={() => setSelected(video)}
-                />
-              ))}
-            </HorizontalCardRow>
+            <HashtagVideoRow videos={section.videos} selectedId={selected?.id} onSelect={setSelected} />
           </section>
         ))}
 

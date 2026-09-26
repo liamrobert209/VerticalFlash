@@ -76,13 +76,17 @@ function applyLimit<T>(items: T[], limit: number | undefined, envVarName: string
   return items.slice(0, limit);
 }
 
-// Real measured latency (3 live calls): 13.8s / 18.7s / 25.2s, avg ~19s —
-// 10 hashtags/run keeps even a slow run (10 x 25s = 250s) comfortably under
-// 5 minutes. The hashtag scraper is also the single most expensive piece of
-// this run ($5/1,000 results), so a small daily bucket keeps per-run cost
-// down too, at the cost of taking several weeks (not one week) to cycle
-// through the full tracked list once.
-const HASHTAG_PER_RUN_TARGET = 10;
+// Real measured latency (3 live calls): 13.8s / 18.7s / 25.2s, avg ~19s.
+// Matches Search by Hashtag's "top 25" auto-view (weekly-hashtag-search/
+// page.tsx) so that view can actually reach 25 fresh entries in a
+// reasonable number of days instead of the ~2.5-week crawl a smaller batch
+// would take — 25 x ~20s ≈ 8-9 minutes, fine since this route runs in the
+// background with no request timeout (see /api/cron/weekly-sync). The
+// hashtag scraper is the single most expensive piece of this run ($5/1,000
+// results), so this is a real, deliberate cost increase (~2.5x the
+// previous batch of 10) in exchange for the tracked-list cycle time
+// dropping from several weeks to about a week.
+const HASHTAG_PER_RUN_TARGET = 25;
 
 // A fixed Monday reference point — arbitrary, just needs to be a real
 // anchor for counting weekday runs from.
