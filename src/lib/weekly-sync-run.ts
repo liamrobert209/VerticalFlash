@@ -4,7 +4,10 @@
  * below) — refreshes every weekly-digest data source with a working sync
  * path: Weekly Ads / Weekly Static Ads / Ad Insights category pages (via
  * the shared `ads` table), Weekly Content / Weekly Creators, Weekly
- * Trending Content, and Search by Hashtag.
+ * Trending Content, and Search by Hashtag — plus a cleanup phase that
+ * purges Trending/Hashtag rows whose cover image has permanently expired
+ * on TikTok's CDN (see tiktok-cdn-url.ts), so those feeds don't
+ * accumulate videos with a dead/black thumbnail forever.
  *
  * Runs inside the MAIN app process (via /api/cron/weekly-sync — see that
  * route's header comment for why), not as a separate Railway service.
@@ -46,6 +49,8 @@ import type { CompetitorAccount } from "./competitor-schema";
 import { syncTrendingVideos } from "./tiktok-trends-sync";
 import { TIKTOK_TREND_INDUSTRIES } from "./tiktok-trends-schema";
 import { syncHashtagVideos } from "./tiktok-hashtag-sync";
+import { deleteExpiredHashtagVideos } from "./tiktok-hashtag-store";
+import { deleteExpiredTrendingVideos } from "./tiktok-trends-store";
 import { recordSystemNotice } from "./system-notices-store";
 
 export interface WeeklySyncOptions {
@@ -357,6 +362,23 @@ async function runPhase(name: string, phase: () => Promise<void>): Promise<void>
   }
 }
 
+// TikTok signs cover-image/avatar URLs with a short-lived x-expires token
+// (see tiktok-cdn-url.ts) — once that passes the CDN 403s it permanently,
+// so an old row just sits there rendering a broken thumbnail forever
+// (nothing re-scrapes a sighting that already exists). Purging both tables
+// every run keeps Search by Hashtag / Weekly Trending Content showing only
+// videos with a real preview, instead of accumulating dead ones.
+async function syncCleanup(dryRun: boolean) {
+  if (dryRun) {
+    console.log("[weekly-sync] cleanup: dry run — skipping (would delete expired hashtag/trending rows)");
+    return;
+  }
+  const hashtagDeleted = await deleteExpiredHashtagVideos();
+  console.log(`[weekly-sync] cleanup: deleted ${hashtagDeleted} expired hashtag video(s)`);
+  const trendingDeleted = await deleteExpiredTrendingVideos();
+  console.log(`[weekly-sync] cleanup: deleted ${trendingDeleted} expired trending video(s)`);
+}
+
 export async function runWeeklySync(opts: WeeklySyncOptions = {}): Promise<void> {
   const dryRun = opts.dryRun ?? false;
   const startedAt = Date.now();
@@ -366,6 +388,7 @@ export async function runWeeklySync(opts: WeeklySyncOptions = {}): Promise<void>
   await runPhase("content", () => syncContent(dryRun));
   await runPhase("trending", () => syncTrending(dryRun));
   await runPhase("hashtags", () => syncHashtags(dryRun, opts.bucketOverride));
+  await runPhase("cleanup", () => syncCleanup(dryRun));
 
   console.log(`[weekly-sync] finished in ${Math.round((Date.now() - startedAt) / 1000)}s`);
 }

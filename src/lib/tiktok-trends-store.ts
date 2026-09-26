@@ -5,6 +5,7 @@ import {
   type TikTokTrendingVideo,
   type TikTokTrendingVideoSighting,
 } from "./tiktok-trends-schema";
+import { isTiktokCdnUrlExpired } from "./tiktok-cdn-url";
 
 // postgres.js does not auto-decode jsonb columns into objects — see the
 // identical note in ads-store.ts's parseAd().
@@ -92,4 +93,18 @@ export async function listTrendingVideosGrouped(
     else byGroup.set(key, { industry: video.industry, country: video.country, videos: [video] });
   }
   return Array.from(byGroup.values());
+}
+
+// Purges rows whose cover image has permanently died on TikTok's CDN — see
+// tiktok-hashtag-store.ts's deleteExpiredHashtagVideos for why (same
+// mechanism, same cadence, separate table).
+export async function deleteExpiredTrendingVideos(): Promise<number> {
+  const sql = getDb();
+  const rows = await sql`select id, cover_image_url from tiktok_trending_videos`;
+  const expiredIds = rows
+    .filter((row) => isTiktokCdnUrlExpired(row.coverImageUrl as string | null))
+    .map((row) => row.id as string);
+  if (!expiredIds.length) return 0;
+  await sql`delete from tiktok_trending_videos where id = any(${expiredIds})`;
+  return expiredIds.length;
 }

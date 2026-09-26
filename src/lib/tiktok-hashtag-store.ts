@@ -5,6 +5,7 @@ import {
   type TikTokHashtagVideo,
   type TikTokHashtagVideoSighting,
 } from "./tiktok-hashtag-schema";
+import { isTiktokCdnUrlExpired } from "./tiktok-cdn-url";
 
 // postgres.js does not auto-decode jsonb columns into objects — see the
 // identical note in tiktok-trends-store.ts's parseVideo().
@@ -96,4 +97,20 @@ export async function listHashtagVideosGrouped(limitPerGroup: number): Promise<H
     }
   }
   return order.map((hashtag) => byGroup.get(hashtag)!);
+}
+
+// Purges rows whose cover image has permanently died on TikTok's CDN (see
+// tiktok-cdn-url.ts) — keeping a stale row around just means Search by
+// Hashtag keeps showing a black/broken thumbnail forever, since nothing
+// re-scrapes an old sighting. Checked in JS rather than SQL since the
+// expiry is embedded in the URL string, not a real column.
+export async function deleteExpiredHashtagVideos(): Promise<number> {
+  const sql = getDb();
+  const rows = await sql`select id, cover_image_url from tiktok_hashtag_videos`;
+  const expiredIds = rows
+    .filter((row) => isTiktokCdnUrlExpired(row.coverImageUrl as string | null))
+    .map((row) => row.id as string);
+  if (!expiredIds.length) return 0;
+  await sql`delete from tiktok_hashtag_videos where id = any(${expiredIds})`;
+  return expiredIds.length;
 }
