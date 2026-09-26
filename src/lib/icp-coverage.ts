@@ -100,6 +100,12 @@ export async function getCompetitorCoverage(
     order by c.name
   `;
 
+  // analysis->'icpAngle' being a genuine (not SQL) JSON null — classifyIcpAngle's
+  // explicit "evaluated, no match" result, stored so a re-run of the
+  // backfill script doesn't touch it again — still passes a plain
+  // "is not null" check (a JSON null is a real jsonb value), so this
+  // filters on the extracted category instead to only count ads that
+  // actually matched a real ICP pain point/solution.
   const counts = await sql`
     select
       account_id,
@@ -109,7 +115,7 @@ export async function getCompetitorCoverage(
     from ads
     where product_line_id = ${productLineId}
       and account_id is not null
-      and analysis->'icpAngle' is not null
+      and analysis->'icpAngle'->>'category' is not null
     group by account_id, category, label
   `;
 
