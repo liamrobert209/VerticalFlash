@@ -9,8 +9,9 @@ import {
   listUnanalyzedStaticAds,
 } from "./ads-store";
 import type { AdSighting, Ad } from "./ads-schema";
+import type { AdAnalysis } from "./ad-analysis-schema";
 import { getGeminiClient } from "./gemini";
-import { analyzeStaticAd, classifyIcpAngle, type ProductLineCandidate } from "./ad-analyze";
+import { analyzeStaticAd, analyzeVideoAd, classifyIcpAngle, type ProductLineCandidate } from "./ad-analyze";
 import { addFacebookPageId, recordFlaggedAdLanguage, getCompetitor } from "./competitor-store";
 import { fetchImageBuffer } from "./fetch-image";
 import { ADS_MEDIA_DIR } from "./paths";
@@ -37,6 +38,15 @@ const TIKTOK_ACTOR_ID = "scrapesage/tiktok-ad-library-scraper";
 // (unbounded "get as many as possible"), this one requires an explicit
 // maxItems. Raise or lower freely; this isn't tied to any other decision.
 const FACEBOOK_MAX_ITEMS_PER_TARGET = 30;
+
+// Video analysis (fetch the video + Gemini Files API upload/poll) costs
+// meaningfully more time and tokens per ad than a static image call, so it
+// gets its own, smaller per-call cap — separate from RETRY_LIMIT below and
+// from FACEBOOK_MAX_ITEMS_PER_TARGET. Scoped per processFacebookItems/
+// syncTikTokAds invocation (i.e. per platform per sync run), not globally
+// across a whole weekly-sync run. Any video ad that hits the cap just stays
+// unanalyzed for a future sync, same as any other analysis failure.
+const VIDEO_ANALYSIS_PER_RUN_LIMIT = 15;
 
 export interface SyncTarget {
   accountId: string;
@@ -132,6 +142,24 @@ function isFacebookStaticEligible(snapshot: FacebookSnapshot | undefined): boole
     !!snapshot?.videos?.length || !!snapshot?.cards?.some((c) => c.video_hd_url || c.video_sd_url);
   if (hasVideo) return false;
   return !!snapshot?.images?.length || !!snapshot?.cards?.some((c) => c.original_image_url);
+}
+
+// Whether a persisted ad's raw payload shows a genuine video creative,
+// worth sending through Gemini's Files API — computed from `ad.raw` (not
+// the original Apify item) so both the main sync pass and the retry pass
+// agree on this without needing anything beyond what's already stored.
+// TikTok deliberately requires a real `videoUrl`: when the raw payload only
+// has a coverImageUrl (a poster frame, not independent creative — see
+// syncTikTokAds), this returns false rather than silently sending a single
+// still frame through the video pipeline as if it were the full ad.
+function isVideoEligibleAd(ad: Pick<Ad, "isStaticEligible" | "creativeUrl" | "platformId" | "raw">): boolean {
+  if (ad.isStaticEligible || !ad.creativeUrl || !ad.raw) return false;
+  if (ad.platformId === "tiktok") {
+    const videoUrl = (ad.raw as { videoUrl?: unknown }).videoUrl;
+    return typeof videoUrl === "string" && videoUrl.length > 0;
+  }
+  const snapshot = (ad.raw as { snapshot?: FacebookSnapshot }).snapshot;
+  return !!snapshot?.videos?.length || !!snapshot?.cards?.some((c) => c.video_hd_url || c.video_sd_url);
 }
 
 const CREATIVE_MIME_EXT: Record<string, string> = {
@@ -267,6 +295,7 @@ export interface ProcessFacebookItemsDeps {
   markStaleAdsInactive: typeof markStaleAdsInactive;
   addFacebookPageId: typeof addFacebookPageId;
   analyzeStaticAd: typeof analyzeStaticAd;
+  analyzeVideoAd: typeof analyzeVideoAd;
   classifyIcpAngle: typeof classifyIcpAngle;
   resolveIcp: typeof resolveIcpImpl;
   listUnanalyzedStaticAds: typeof listUnanalyzedStaticAds;
@@ -280,6 +309,7 @@ const defaultDeps: ProcessFacebookItemsDeps = {
   markStaleAdsInactive,
   addFacebookPageId,
   analyzeStaticAd,
+  analyzeVideoAd,
   classifyIcpAngle,
   resolveIcp: resolveIcpImpl,
   listUnanalyzedStaticAds,
@@ -301,29 +331,51 @@ function tryGetGeminiClient(deps: ProcessFacebookItemsDeps, errors: string[]): G
   }
 }
 
+// A shared, mutable per-run budget for video analyses — see
+// VIDEO_ANALYSIS_PER_RUN_LIMIT's comment. Plain object so analyzeIfNeeded's
+// callers (the main sync loop, the retry pass, syncTikTokAds) can share one
+// counter across every call within a single processFacebookItems/
+// syncTikTokAds invocation.
+interface VideoAnalysisBudget {
+  remaining: number;
+}
+
 // Analyzes one newly-eligible, not-yet-analyzed ad (tags/intent/USP/
 // persona/product), optionally resolving its product line via Gemini when
 // `target` is linked to 2+ product lines. Failures are collected, not
 // thrown — one bad ad's creative (an unreachable URL, a Gemini hiccup) must
 // never fail the sync; analyzed_at stays null so it's retried (see the
 // retry pass below, or the next sync of the same accounts).
+//
+// Static ads go inline (analyzeStaticAd); video ads go through Gemini's
+// Files API (analyzeVideoAd) and are gated by videoBudget — see
+// VIDEO_ANALYSIS_PER_RUN_LIMIT — since they cost meaningfully more per ad.
+// A video ad that hits the cap is simply left unanalyzed for next time,
+// same as any other skip/failure here.
 async function analyzeIfNeeded(
   ad: Ad,
   target: SyncTarget | undefined,
   ai: GoogleGenAI | null,
   errors: string[],
-  deps: ProcessFacebookItemsDeps
+  deps: ProcessFacebookItemsDeps,
+  videoBudget: VideoAnalysisBudget
 ): Promise<void> {
-  if (!ai || !ad.isStaticEligible || ad.analyzedAt || !ad.creativeUrl) return;
+  if (!ai || ad.analyzedAt || !ad.creativeUrl) return;
+  const videoEligible = isVideoEligibleAd(ad);
+  if (!ad.isStaticEligible && !videoEligible) return;
+  if (videoEligible && videoBudget.remaining <= 0) return;
+
   try {
     const candidateIds = target?.candidateProductLineIds ?? [];
     const candidates = candidateIds.length > 1 ? buildProductLineCandidates(candidateIds) : undefined;
-    const analysis = await deps.analyzeStaticAd(
-      ai,
-      ad.creativeUrl,
-      { headline: ad.headline, bodyText: ad.bodyText },
-      candidates
-    );
+    const context = { headline: ad.headline, bodyText: ad.bodyText };
+    let analysis: AdAnalysis;
+    if (ad.isStaticEligible) {
+      analysis = await deps.analyzeStaticAd(ai, ad.creativeUrl, context, candidates);
+    } else {
+      videoBudget.remaining--;
+      analysis = await deps.analyzeVideoAd(ai, ad.creativeUrl, context, candidates);
+    }
     const defaultId = target?.productLineId ?? ad.productLineId ?? null;
     const resolvedProductLineId = resolveProductLineId(defaultId, candidateIds, analysis.productLineId);
 
@@ -364,6 +416,7 @@ export async function processFacebookItems(
   const confirmedInactiveByPlatform = new Map<string, number>();
   const errors: string[] = [];
   const ai = tryGetGeminiClient(deps, errors);
+  const videoBudget: VideoAnalysisBudget = { remaining: VIDEO_ANALYSIS_PER_RUN_LIMIT };
   let skippedNonEnglish = 0;
 
   for (const item of items) {
@@ -446,7 +499,7 @@ export async function processFacebookItems(
         if (item.is_active === false) {
           confirmedInactiveByPlatform.set(platformId, (confirmedInactiveByPlatform.get(platformId) ?? 0) + 1);
         }
-        await analyzeIfNeeded(ad, matchedTarget, ai, errors, deps);
+        await analyzeIfNeeded(ad, matchedTarget, ai, errors, deps, videoBudget);
       } catch (err) {
         errors.push(`${item.ad_archive_id} (${platformId}): ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -466,7 +519,7 @@ export async function processFacebookItems(
       const retryAds = await deps.listUnanalyzedStaticAds(RETRY_LIMIT, targetAccountIds);
       for (const ad of retryAds) {
         const target = ad.accountId ? byAccountId.get(ad.accountId) : undefined;
-        await analyzeIfNeeded(ad, target, ai, errors, deps);
+        await analyzeIfNeeded(ad, target, ai, errors, deps, videoBudget);
       }
     } catch (err) {
       errors.push(`Retry pass for unanalyzed ads failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -525,6 +578,18 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
   const errors: string[] = [];
   let skippedNonEnglish = 0;
 
+  // TikTok ads were never eligible for analysis at all before video-ad
+  // support existed (isStaticEligible is always false here) — now a genuine
+  // video (see isVideoEligibleAd) goes through the same analyzeIfNeeded path
+  // Facebook static ads use, via the shared defaultDeps.
+  let ai: GoogleGenAI | null = null;
+  try {
+    ai = getGeminiClient();
+  } catch (err) {
+    errors.push(`Ad analysis skipped for this sync: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const videoBudget: VideoAnalysisBudget = { remaining: VIDEO_ANALYSIS_PER_RUN_LIMIT };
+
   for (const item of items) {
     if (!item.adId) continue;
     const matchedTarget = item.advertiserName ? byName.get(item.advertiserName.toLowerCase()) : undefined;
@@ -545,7 +610,7 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
       continue;
     }
     try {
-      await recordAdSighting({
+      const ad = await recordAdSighting({
         platformId: "tiktok",
         accountId: matchedTarget.accountId,
         productLineId: matchedTarget.productLineId ?? null,
@@ -562,6 +627,7 @@ export async function syncTikTokAds(targets: SyncTarget[]): Promise<SyncResult> 
         isStaticEligible: false,
       });
       seenIds.push(item.adId);
+      await analyzeIfNeeded(ad, matchedTarget, ai, errors, defaultDeps, videoBudget);
     } catch (err) {
       errors.push(`${item.adId}: ${err instanceof Error ? err.message : String(err)}`);
     }

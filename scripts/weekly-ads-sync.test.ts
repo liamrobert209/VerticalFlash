@@ -127,6 +127,10 @@ function makeFakeDeps(opts: {
       analyzeStaticAdCalls.push({ imageUrl, context, candidates });
       return opts.analysis ?? makeAnalysis();
     },
+    analyzeVideoAd: async (_ai, videoUrl, context, candidates) => {
+      analyzeStaticAdCalls.push({ imageUrl: videoUrl, context, candidates });
+      return opts.analysis ?? makeAnalysis();
+    },
     classifyIcpAngle: async () => null,
     resolveIcp: async () => null,
     listUnanalyzedStaticAds: async (limit, accountIds) => {
@@ -248,6 +252,79 @@ test("non-static-eligible ad: saveAdAnalysis is never called", async () => {
 
   assert.equal(analyzeStaticAdCalls.length, 0);
   assert.equal(saveAdAnalysisCalls.length, 0);
+});
+
+test("video-eligible ad (genuine video in raw payload): analyzeVideoAd is called and analysis is saved", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  const { deps, saveAdAnalysisCalls, analyzeStaticAdCalls } = makeFakeDeps({
+    recordedAdOverrides: {
+      isStaticEligible: false,
+      raw: { snapshot: { videos: [{ video_hd_url: "https://cdn.example.test/video.mp4" }] } },
+    },
+  });
+
+  await processFacebookItems([fbItem("ad1", "pg1")], [target], deps);
+
+  // analyzeVideoAd's fake pushes into the same analyzeStaticAdCalls array
+  // (see makeFakeDeps) — one call total confirms the video branch actually
+  // ran instead of being skipped like the "no creative at all" case above.
+  assert.equal(analyzeStaticAdCalls.length, 1);
+  assert.equal(saveAdAnalysisCalls.length, 1);
+});
+
+test("video-eligible ad with only a raw coverImageUrl (no real video): not analyzed at all", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  // TikTok-shaped raw payload with no genuine videoUrl — per product
+  // decision, this must NOT fall back to being analyzed as if it were a
+  // real clip.
+  const { deps, saveAdAnalysisCalls, analyzeStaticAdCalls } = makeFakeDeps({
+    recordedAdOverrides: {
+      platformId: "tiktok",
+      isStaticEligible: false,
+      raw: { coverImageUrl: "https://cdn.example.test/cover.jpg" },
+    },
+  });
+
+  await processFacebookItems([fbItem("ad1", "pg1")], [target], deps);
+
+  assert.equal(analyzeStaticAdCalls.length, 0);
+  assert.equal(saveAdAnalysisCalls.length, 0);
+});
+
+test("video analysis respects the per-run cap: excess video ads are left unanalyzed", async () => {
+  const target: SyncTarget = {
+    accountId: "acct-1",
+    name: "Acme",
+    productLineId: lineA,
+    candidateProductLineIds: [lineA],
+    facebookPageIds: ["pg1"],
+  };
+  const { deps, saveAdAnalysisCalls, analyzeStaticAdCalls } = makeFakeDeps({
+    recordedAdOverrides: {
+      isStaticEligible: false,
+      raw: { snapshot: { videos: [{ video_hd_url: "https://cdn.example.test/video.mp4" }] } },
+    },
+  });
+
+  // VIDEO_ANALYSIS_PER_RUN_LIMIT is 15 (see weekly-ads-sync.ts) — 20 items in
+  // one processFacebookItems call should analyze only the first 15.
+  const items = Array.from({ length: 20 }, (_, i) => fbItem(`ad${i}`, "pg1"));
+  await processFacebookItems(items, [target], deps);
+
+  assert.equal(analyzeStaticAdCalls.length, 15);
+  assert.equal(saveAdAnalysisCalls.length, 15);
 });
 
 test("retry pass: an unanalyzed ad from listUnanalyzedStaticAds goes through the same analysis path", async () => {

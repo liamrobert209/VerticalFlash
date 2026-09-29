@@ -1,5 +1,6 @@
 import {
   createPartFromBase64,
+  createPartFromUri,
   createUserContent,
   Type,
   type GoogleGenAI,
@@ -7,6 +8,7 @@ import {
 import { getGeminiModel } from "./gemini";
 import { AdAnalysisZ, AD_INTENTS, type AdAnalysis } from "./ad-analysis-schema";
 import { fetchImageAsBase64 } from "./fetch-image";
+import { fetchVideoBuffer } from "./fetch-video";
 import { ANGLE_SOURCE_LISTS, ANGLE_SOURCE_LABELS, type AngleSourceList } from "./icp-angles";
 import type { IcpProfile } from "./product-lines";
 
@@ -79,22 +81,26 @@ interface AdContext {
   bodyText: string | null;
 }
 
-function buildPrompt(context: AdContext, candidates?: ProductLineCandidate[]): string {
+function buildPrompt(
+  context: AdContext,
+  candidates: ProductLineCandidate[] | undefined,
+  media: { kind: "image" | "video"; verb: string; noun: string }
+): string {
   const candidateBlock =
     candidates && candidates.length > 0
       ? `\n\nThis competitor sells more than one product line. Based on what's visually shown in
-the image, pick exactly one of the following as the productLineId field:
+the ${media.noun}, pick exactly one of the following as the productLineId field:
 ${candidates.map((c) => `- ${c.id}: ${c.label}`).join("\n")}\n`
       : "";
 
-  return `You are analyzing a competitor's static (still image) ad creative for a
+  return `You are analyzing a competitor's ${media.kind === "video" ? "video" : "static (still image)"} ad creative for a
 marketing team that wants to understand its strategy well enough to make
 their own version with a different product.
 
 Ad headline: ${context.headline ?? "(none)"}
 Ad body text: ${context.bodyText ?? "(none)"}
 ${candidateBlock}
-Look at the attached image and the text above together, then report:
+${media.verb} the attached ${media.noun}${media.kind === "video" ? " (including any audio)" : ""} and the text above together, then report:
 - intent: the ad's primary goal
 - usp: the single unique selling proposition the ad leads with, in plain language
 - persona: who this ad is targeting, in plain language
@@ -123,7 +129,7 @@ export async function analyzeStaticAd(
   candidates?: ProductLineCandidate[]
 ): Promise<AdAnalysis> {
   const { base64, mimeType } = await fetchImageAsBase64(imageUrl);
-  const basePrompt = buildPrompt(context, candidates);
+  const basePrompt = buildPrompt(context, candidates, { kind: "image", verb: "Look at", noun: "image" });
   const responseSchema = buildAdAnalysisResponseSchema(candidates);
   let lastError: unknown;
 
@@ -166,6 +172,99 @@ export async function analyzeStaticAd(
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
+}
+
+// How long to wait for an uploaded video to leave Gemini's PROCESSING state
+// before giving up — mirrors library-analyze.ts's analyzeLibraryClip, the
+// only other place this app uploads video to Gemini.
+const VIDEO_ACTIVE_DEADLINE_MS = 120_000;
+
+// Analyze one video ad's creative + copy. Same output shape and candidate-
+// disambiguation logic as analyzeStaticAd, but video can't go inline as
+// base64 the way an image does — it goes through Gemini's Files API
+// (upload, poll for ACTIVE, reference by URI, then delete), the same
+// pattern already used for library clips and TikTok video analysis
+// elsewhere in this app. Uses an in-memory Blob (no temp file/ffmpeg
+// needed) since ai.files.upload accepts one directly.
+export async function analyzeVideoAd(
+  ai: GoogleGenAI,
+  videoUrl: string,
+  context: AdContext,
+  candidates?: ProductLineCandidate[]
+): Promise<AdAnalysis> {
+  const { buffer, mimeType } = await fetchVideoBuffer(videoUrl);
+  const blob = new Blob([Uint8Array.from(buffer)], { type: mimeType });
+
+  let uploadedName: string | undefined;
+  try {
+    const uploaded = await ai.files.upload({ file: blob, config: { mimeType } });
+    uploadedName = uploaded.name;
+
+    let file = uploaded;
+    const deadline = Date.now() + VIDEO_ACTIVE_DEADLINE_MS;
+    while (file.state !== "ACTIVE") {
+      if (file.state === "FAILED") {
+        throw new Error("Gemini file processing failed");
+      }
+      if (Date.now() > deadline) {
+        throw new Error("Timed out waiting for Gemini file to become ACTIVE");
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+      file = await ai.files.get({ name: uploadedName! });
+    }
+
+    const basePrompt = buildPrompt(context, candidates, { kind: "video", verb: "Watch", noun: "video" });
+    const responseSchema = buildAdAnalysisResponseSchema(candidates);
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prompt =
+        attempt === 0
+          ? basePrompt
+          : `${basePrompt}\n\nIMPORTANT: Your previous response was rejected (${
+              lastError instanceof Error ? lastError.message : "invalid JSON"
+            }). Return ONLY valid JSON matching the provided schema.`;
+
+      const response = await ai.models.generateContent({
+        model: getGeminiModel(ai),
+        contents: createUserContent([
+          createPartFromUri(file.uri!, file.mimeType || mimeType),
+          prompt,
+        ]),
+        config: {
+          responseMimeType: "application/json",
+          responseSchema,
+        },
+      });
+
+      const rawText = response.text ?? "";
+      try {
+        return AdAnalysisZ.parse(JSON.parse(rawText));
+      } catch (error) {
+        lastError = error;
+        console.error(
+          `Gemini video ad-analysis response failed validation (attempt ${attempt + 1}):`,
+          error,
+          "\nraw:",
+          rawText.slice(0, 2000)
+        );
+      }
+    }
+
+    throw new Error(
+      `Gemini returned an invalid ad analysis after retry: ${
+        lastError instanceof Error ? lastError.message : String(lastError)
+      }`
+    );
+  } finally {
+    if (uploadedName) {
+      try {
+        await ai.files.delete({ name: uploadedName });
+      } catch (cleanupError) {
+        console.error("Failed to delete Gemini file:", cleanupError);
+      }
+    }
+  }
 }
 
 export interface IcpAngleMatch {
