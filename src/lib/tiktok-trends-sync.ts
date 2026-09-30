@@ -1,5 +1,6 @@
 import { runApifyActor } from "./apify-client";
 import { recordTrendingVideoSighting } from "./tiktok-trends-store";
+import { cacheTiktokImageLocally, cacheTiktokVideoLocally } from "./tiktok-cdn-url";
 import type { TikTokTrendVideoCountry } from "./tiktok-trends-schema";
 
 // Actor id and I/O shape confirmed via a real (paid) test call before
@@ -70,14 +71,26 @@ export async function syncTrendingVideos(
   for (const item of items) {
     if (!item["Video ID"]) continue;
     try {
+      const coverImageUrl = item.Cover ?? null;
+      const videoFileUrl = item["Video File URL"] ?? null;
+      const filenamePrefix = `trending-${params.industry || "all"}-${params.country}-${item["Video ID"]}`;
+      // Both downloads are best-effort (never throw) and independent of
+      // each other — a failed video download shouldn't block caching the
+      // (much smaller, faster) cover image, and vice versa.
+      const [coverImageLocalFile, videoFileLocalFile] = await Promise.all([
+        coverImageUrl ? cacheTiktokImageLocally(coverImageUrl, filenamePrefix) : Promise.resolve(null),
+        videoFileUrl ? cacheTiktokVideoLocally(videoFileUrl, filenamePrefix) : Promise.resolve(null),
+      ]);
       await recordTrendingVideoSighting({
         industry: params.industry,
         country: params.country,
         externalVideoId: item["Video ID"],
         rank: item["Video Rank"] ?? null,
         tiktokUrl: item["Video TikTok URL"] ?? null,
-        videoFileUrl: item["Video File URL"] ?? null,
-        coverImageUrl: item.Cover ?? null,
+        videoFileUrl,
+        videoFileLocalFile,
+        coverImageUrl,
+        coverImageLocalFile,
         creatorName: item.Author ?? null,
         creatorHandle: item["Author Handle"] ?? null,
         creatorAvatarUrl: item.Avatar ?? null,

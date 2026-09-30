@@ -54,6 +54,13 @@ export const ADS_MEDIA_DIR = join(DATA_ROOT, "ads-media");
 // above. See scraped-content-schema.ts's thumbnailLocalFile.
 export const COMPETITOR_CONTENT_MEDIA_DIR = join(DATA_ROOT, "competitor-content-media");
 
+// Locally-cached cover images (Search by Hashtag) and cover images/video
+// files (Weekly Trending Content) — same dead-CDN-URL resilience reasoning
+// as ADS_MEDIA_DIR/COMPETITOR_CONTENT_MEDIA_DIR above, for TikTok's own
+// x-expires-signed CDN specifically (see tiktok-cdn-url.ts). See
+// tiktok-hashtag-schema.ts's/tiktok-trends-schema.ts's *LocalFile fields.
+export const TIKTOK_MEDIA_DIR = join(DATA_ROOT, "tiktok-media");
+
 // Static Ad Generator projects — a fresh root dir rather than the
 // video-keyed ANALYSIS_DIR convention, since a static ad project isn't
 // keyed to a downloaded video at all.
@@ -75,6 +82,7 @@ export const DATA_DIRS = [
   STATIC_ADS_DIR,
   ADS_MEDIA_DIR,
   COMPETITOR_CONTENT_MEDIA_DIR,
+  TIKTOK_MEDIA_DIR,
 ] as const;
 
 // Per-video sidecar files under analysis/

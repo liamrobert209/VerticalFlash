@@ -24,13 +24,14 @@ export async function recordHashtagVideoSighting(
   const sql = getDb();
   const rows = await sql`
     insert into tiktok_hashtag_videos (
-      hashtag, external_video_id, tiktok_url, cover_image_url, creator_name,
+      hashtag, external_video_id, tiktok_url, cover_image_url, cover_image_local_file, creator_name,
       creator_handle, creator_avatar_url, creator_follower_count, caption,
       view_count, like_count, comment_count, share_count, collect_count,
       is_ad, content_hashtags, published_at, raw
     ) values (
       ${sighting.hashtag}, ${sighting.externalVideoId}, ${sighting.tiktokUrl ?? null},
-      ${sighting.coverImageUrl ?? null}, ${sighting.creatorName ?? null}, ${sighting.creatorHandle ?? null},
+      ${sighting.coverImageUrl ?? null}, ${sighting.coverImageLocalFile ?? null},
+      ${sighting.creatorName ?? null}, ${sighting.creatorHandle ?? null},
       ${sighting.creatorAvatarUrl ?? null}, ${sighting.creatorFollowerCount ?? null}, ${sighting.caption ?? null},
       ${sighting.viewCount ?? null}, ${sighting.likeCount ?? null}, ${sighting.commentCount ?? null},
       ${sighting.shareCount ?? null}, ${sighting.collectCount ?? null}, ${sighting.isAd ?? false},
@@ -40,6 +41,7 @@ export async function recordHashtagVideoSighting(
     on conflict (hashtag, external_video_id) do update set
       tiktok_url = coalesce(excluded.tiktok_url, tiktok_hashtag_videos.tiktok_url),
       cover_image_url = coalesce(excluded.cover_image_url, tiktok_hashtag_videos.cover_image_url),
+      cover_image_local_file = coalesce(excluded.cover_image_local_file, tiktok_hashtag_videos.cover_image_local_file),
       creator_name = coalesce(excluded.creator_name, tiktok_hashtag_videos.creator_name),
       creator_handle = coalesce(excluded.creator_handle, tiktok_hashtag_videos.creator_handle),
       creator_avatar_url = coalesce(excluded.creator_avatar_url, tiktok_hashtag_videos.creator_avatar_url),
@@ -99,14 +101,24 @@ export async function listHashtagVideosGrouped(limitPerGroup: number): Promise<H
   return order.map((hashtag) => byGroup.get(hashtag)!);
 }
 
+export async function getHashtagVideo(id: string): Promise<TikTokHashtagVideo | null> {
+  const sql = getDb();
+  const rows = await sql`select * from tiktok_hashtag_videos where id = ${id}`;
+  return rows[0] ? parseVideo(rows[0]) : null;
+}
+
 // Purges rows whose cover image has permanently died on TikTok's CDN (see
-// tiktok-cdn-url.ts) — keeping a stale row around just means Search by
-// Hashtag keeps showing a black/broken thumbnail forever, since nothing
-// re-scrapes an old sighting. Checked in JS rather than SQL since the
-// expiry is embedded in the URL string, not a real column.
+// tiktok-cdn-url.ts) AND have no locally-cached copy either — a row with a
+// local file is fine regardless of the remote URL's fate (see
+// recordHashtagVideoSighting/tiktok-hashtag-sync.ts, which cache it while
+// still fresh), so this is now a last-resort safety net for rows that
+// predate local caching, or whose download failed at sync time, rather
+// than the primary defense against a black/broken thumbnail.
 export async function deleteExpiredHashtagVideos(): Promise<number> {
   const sql = getDb();
-  const rows = await sql`select id, cover_image_url from tiktok_hashtag_videos`;
+  const rows = await sql`
+    select id, cover_image_url from tiktok_hashtag_videos where cover_image_local_file is null
+  `;
   const expiredIds = rows
     .filter((row) => isTiktokCdnUrlExpired(row.coverImageUrl as string | null))
     .map((row) => row.id as string);

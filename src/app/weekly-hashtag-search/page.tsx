@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Hash } from "lucide-react";
 import type { TikTokHashtagVideo } from "@/lib/tiktok-hashtag-schema";
 import { HASHTAG_CATEGORIES } from "@/lib/tiktok-hashtag-categories";
-import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import { MediaThumb, HorizontalCardRow, DockedDetailPanel, hashtagVideoCoverSrc } from "@/components/weekly-digest/shared";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -40,7 +40,7 @@ function VideoCard({
       }`}
     >
       <div className="flex gap-3">
-        <MediaThumb url={video.coverImageUrl} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
+        <MediaThumb url={hashtagVideoCoverSrc(video)} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
         <div className="min-w-0 flex-1 space-y-1 text-xs">
           {video.isAd && (
             <span className="inline-block rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
@@ -72,7 +72,7 @@ function VideoDetail({ video }: { video: TikTokHashtagVideo }) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-      <MediaThumb url={video.coverImageUrl} className="h-48 w-full rounded-md" />
+      <MediaThumb url={hashtagVideoCoverSrc(video)} className="h-48 w-full rounded-md" />
       <div>
         <p className="text-sm text-foreground">{video.caption || "(no caption)"}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">

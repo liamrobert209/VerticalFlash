@@ -24,14 +24,16 @@ export async function recordTrendingVideoSighting(
   const sql = getDb();
   const rows = await sql`
     insert into tiktok_trending_videos (
-      industry, country, external_video_id, rank, tiktok_url, video_file_url,
-      cover_image_url, creator_name, creator_handle, creator_avatar_url,
+      industry, country, external_video_id, rank, tiktok_url, video_file_url, video_file_local_file,
+      cover_image_url, cover_image_local_file, creator_name, creator_handle, creator_avatar_url,
       creator_follower_count, caption, view_count, engagement_rate,
       view_through_rate, content_tags, published_at, raw
     ) values (
       ${sighting.industry}, ${sighting.country}, ${sighting.externalVideoId},
       ${sighting.rank ?? null}, ${sighting.tiktokUrl ?? null}, ${sighting.videoFileUrl ?? null},
-      ${sighting.coverImageUrl ?? null}, ${sighting.creatorName ?? null}, ${sighting.creatorHandle ?? null},
+      ${sighting.videoFileLocalFile ?? null},
+      ${sighting.coverImageUrl ?? null}, ${sighting.coverImageLocalFile ?? null},
+      ${sighting.creatorName ?? null}, ${sighting.creatorHandle ?? null},
       ${sighting.creatorAvatarUrl ?? null}, ${sighting.creatorFollowerCount ?? null},
       ${sighting.caption ?? null}, ${sighting.viewCount ?? null}, ${sighting.engagementRate ?? null},
       ${sighting.viewThroughRate ?? null}, ${sighting.contentTags},
@@ -41,7 +43,9 @@ export async function recordTrendingVideoSighting(
       rank = excluded.rank,
       tiktok_url = coalesce(excluded.tiktok_url, tiktok_trending_videos.tiktok_url),
       video_file_url = coalesce(excluded.video_file_url, tiktok_trending_videos.video_file_url),
+      video_file_local_file = coalesce(excluded.video_file_local_file, tiktok_trending_videos.video_file_local_file),
       cover_image_url = coalesce(excluded.cover_image_url, tiktok_trending_videos.cover_image_url),
+      cover_image_local_file = coalesce(excluded.cover_image_local_file, tiktok_trending_videos.cover_image_local_file),
       creator_name = coalesce(excluded.creator_name, tiktok_trending_videos.creator_name),
       creator_handle = coalesce(excluded.creator_handle, tiktok_trending_videos.creator_handle),
       creator_avatar_url = coalesce(excluded.creator_avatar_url, tiktok_trending_videos.creator_avatar_url),
@@ -95,12 +99,21 @@ export async function listTrendingVideosGrouped(
   return Array.from(byGroup.values());
 }
 
-// Purges rows whose cover image has permanently died on TikTok's CDN — see
-// tiktok-hashtag-store.ts's deleteExpiredHashtagVideos for why (same
-// mechanism, same cadence, separate table).
+export async function getTrendingVideo(id: string): Promise<TikTokTrendingVideo | null> {
+  const sql = getDb();
+  const rows = await sql`select * from tiktok_trending_videos where id = ${id}`;
+  return rows[0] ? parseVideo(rows[0]) : null;
+}
+
+// Purges rows whose cover image has permanently died on TikTok's CDN AND
+// have no locally-cached copy either — see tiktok-hashtag-store.ts's
+// deleteExpiredHashtagVideos for why (same mechanism, same cadence,
+// separate table).
 export async function deleteExpiredTrendingVideos(): Promise<number> {
   const sql = getDb();
-  const rows = await sql`select id, cover_image_url from tiktok_trending_videos`;
+  const rows = await sql`
+    select id, cover_image_url from tiktok_trending_videos where cover_image_local_file is null
+  `;
   const expiredIds = rows
     .filter((row) => isTiktokCdnUrlExpired(row.coverImageUrl as string | null))
     .map((row) => row.id as string);

@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { TikTokTrendingVideo } from "@/lib/tiktok-trends-schema";
 import { TIKTOK_TREND_INDUSTRIES } from "@/lib/tiktok-trends-schema";
-import { MediaThumb, HorizontalCardRow, DockedDetailPanel } from "@/components/weekly-digest/shared";
+import {
+  MediaThumb,
+  HorizontalCardRow,
+  DockedDetailPanel,
+  trendingVideoCoverSrc,
+  trendingVideoFileSrc,
+} from "@/components/weekly-digest/shared";
 import { SkeletonCardGrid } from "@/components/ui/Skeleton";
 
 interface TrendingSection {
@@ -46,7 +52,7 @@ function VideoCard({
       }`}
     >
       <div className="flex gap-3">
-        <MediaThumb url={video.coverImageUrl} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
+        <MediaThumb url={trendingVideoCoverSrc(video)} className="h-24 w-24 shrink-0 rounded-md" showControls={false} />
         <div className="min-w-0 flex-1 space-y-1 text-xs">
           {video.rank != null && (
             <span className="inline-block rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
@@ -86,7 +92,7 @@ function VideoDetail({ video }: { video: TikTokTrendingVideo }) {
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-      <MediaThumb url={video.videoFileUrl ?? video.coverImageUrl} className="h-48 w-full rounded-md" />
+      <MediaThumb url={trendingVideoFileSrc(video) ?? trendingVideoCoverSrc(video)} className="h-48 w-full rounded-md" />
       <div>
         <p className="text-sm text-foreground">{video.caption || "(no caption)"}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">

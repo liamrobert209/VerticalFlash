@@ -28,7 +28,13 @@ export const TikTokTrendingVideoZ = z.object({
   rank: z.number().int().nullable(),
   tiktokUrl: z.string().nullable(),
   videoFileUrl: z.string().nullable(),
+  // Locally-cached filenames (tiktok-media/) — downloaded once at sync
+  // time while the remote URLs are still fresh, since TikTok's CDN signs
+  // them with an x-expires param that goes dead within days (see
+  // tiktok-cdn-url.ts).
+  videoFileLocalFile: z.string().nullable().default(null),
   coverImageUrl: z.string().nullable(),
+  coverImageLocalFile: z.string().nullable().default(null),
   creatorName: z.string().nullable(),
   creatorHandle: z.string().nullable(),
   creatorAvatarUrl: z.string().nullable(),
@@ -60,7 +66,9 @@ export const TikTokTrendingVideoSightingZ = z.object({
   rank: z.number().int().nullable().optional(),
   tiktokUrl: z.string().nullable().optional(),
   videoFileUrl: z.string().nullable().optional(),
+  videoFileLocalFile: z.string().nullable().optional(),
   coverImageUrl: z.string().nullable().optional(),
+  coverImageLocalFile: z.string().nullable().optional(),
   creatorName: z.string().nullable().optional(),
   creatorHandle: z.string().nullable().optional(),
   creatorAvatarUrl: z.string().nullable().optional(),

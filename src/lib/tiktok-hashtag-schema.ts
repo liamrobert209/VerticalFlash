@@ -12,6 +12,10 @@ export const TikTokHashtagVideoZ = z.object({
   externalVideoId: z.string(),
   tiktokUrl: z.string().nullable(),
   coverImageUrl: z.string().nullable(),
+  // Locally-cached filename (tiktok-media/) — downloaded once at sync time
+  // while coverImageUrl is still fresh, since TikTok's CDN signs it with an
+  // x-expires param that goes dead within days (see tiktok-cdn-url.ts).
+  coverImageLocalFile: z.string().nullable().default(null),
   creatorName: z.string().nullable(),
   creatorHandle: z.string().nullable(),
   creatorAvatarUrl: z.string().nullable(),
@@ -43,6 +47,7 @@ export const TikTokHashtagVideoSightingZ = z.object({
   externalVideoId: z.string().min(1),
   tiktokUrl: z.string().nullable().optional(),
   coverImageUrl: z.string().nullable().optional(),
+  coverImageLocalFile: z.string().nullable().optional(),
   creatorName: z.string().nullable().optional(),
   creatorHandle: z.string().nullable().optional(),
   creatorAvatarUrl: z.string().nullable().optional(),

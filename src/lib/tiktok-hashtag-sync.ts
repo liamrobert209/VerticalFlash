@@ -1,5 +1,6 @@
 import { runApifyActor } from "./apify-client";
 import { recordHashtagVideoSighting } from "./tiktok-hashtag-store";
+import { cacheTiktokImageLocally } from "./tiktok-cdn-url";
 
 // Actor id and I/O shape confirmed via a real test call before writing this
 // (three real items pulled for "bluelight") — same discipline as
@@ -63,11 +64,16 @@ export async function syncHashtagVideos(params: SyncHashtagVideosParams): Promis
   for (const item of items) {
     if (!item.id) continue;
     try {
+      const coverImageUrl = item.videoMeta?.coverUrl ?? null;
+      const coverImageLocalFile = coverImageUrl
+        ? await cacheTiktokImageLocally(coverImageUrl, `hashtag-${item.id}`)
+        : null;
       await recordHashtagVideoSighting({
         hashtag: normalizedHashtag,
         externalVideoId: item.id,
         tiktokUrl: item.webVideoUrl ?? null,
-        coverImageUrl: item.videoMeta?.coverUrl ?? null,
+        coverImageUrl,
+        coverImageLocalFile,
         creatorName: item.authorMeta?.name ?? null,
         creatorHandle: item.authorMeta?.nickName ?? null,
         creatorAvatarUrl: item.authorMeta?.avatar ?? null,

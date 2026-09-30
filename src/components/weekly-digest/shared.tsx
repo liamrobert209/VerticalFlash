@@ -18,6 +18,22 @@ export function adCreativeSrc(ad: { id: string; creativeUrl: string | null }): s
   return ad.creativeUrl ? `/api/ads/${ad.id}/creative` : null;
 }
 
+// Same stable-URL pattern as adCreativeSrc, for Search by Hashtag's videos.
+export function hashtagVideoCoverSrc(video: { id: string; coverImageUrl: string | null }): string | null {
+  return video.coverImageUrl ? `/api/tiktok-hashtag-videos/${video.id}/cover` : null;
+}
+
+// Same pattern, for Weekly Trending Content's videos — two separate stable
+// URLs since a trending video can have a cached cover image, a cached full
+// video file, both, or neither.
+export function trendingVideoCoverSrc(video: { id: string; coverImageUrl: string | null }): string | null {
+  return video.coverImageUrl ? `/api/tiktok-trending-videos/${video.id}/cover` : null;
+}
+
+export function trendingVideoFileSrc(video: { id: string; videoFileUrl: string | null }): string | null {
+  return video.videoFileUrl ? `/api/tiktok-trending-videos/${video.id}/video` : null;
+}
+
 // The creative URL can point at either a still image or an mp4 (CDN paths
 // from Meta/TikTok are opaque, no reliable extension to branch on ahead of
 // time), so this renders optimistically as an image and swaps to a native
