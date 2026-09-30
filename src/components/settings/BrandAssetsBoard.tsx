@@ -17,6 +17,7 @@ import {
 const KIND_LABELS: Record<BrandAssetKind, string> = {
   guideline: "Branding guideline",
   logo: "Logo",
+  trust_badge: "Trust badge",
   illustration: "Illustration",
   typography: "Typography",
   color_palette_primary: "Primary color palette",
@@ -32,6 +33,7 @@ const KIND_LABELS: Record<BrandAssetKind, string> = {
 const KIND_HINTS: Record<BrandAssetKind, string> = {
   guideline: "Style guide, tone-of-voice doc, or any other branding reference file.",
   logo: "The brand mark, in whatever formats you have on hand.",
+  trust_badge: "\"As seen in\", review/rating, certification, or security badges — applied onto ads during the overlay step, alongside the logo.",
   illustration: "A brand illustration or an example of one in use. Real source files may live in an external asset library — these can be reference crops.",
   typography: "A typeface used in brand communications — name/weight/license go in the description, tagged by use case, with an optional specimen image.",
   color_palette_primary: "Hex codes for the primary palette — read by the static-ad overlay compositor for on-brand text.",

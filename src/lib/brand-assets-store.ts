@@ -172,6 +172,26 @@ export async function getShieldUsageExamples(limit: number): Promise<BrandAsset[
   return rows.map((r) => BrandAssetZ.parse(r));
 }
 
+// Every uploaded "trust_badge"-kind asset (up to `limit`) — unlike
+// getLatestLogo, this is a multi-row read: trust badges (as-seen-in, review/
+// rating, certification marks) are typically applied as a set, not one
+// "latest wins" mark. Read by the AI text-overlay path when
+// overlay.trustBadges.include is set (see static-ad-ai-overlay.ts).
+export async function getTrustBadgeAssets(limit: number): Promise<{ id: string; filename: string; mimeType: string }[]> {
+  const sql = getDb();
+  const rows = await sql`
+    select id, filename, mime_type from brand_assets
+    where kind = 'trust_badge' and filename is not null
+    order by uploaded_at desc
+    limit ${limit}
+  `;
+  return rows.map((row) => ({
+    id: row.id as string,
+    filename: row.filename as string,
+    mimeType: (row.mimeType as string | null) ?? "image/png",
+  }));
+}
+
 // Same "latest logo" lookup as getLatestLogo, but keeps id/filename apart
 // instead of resolving straight to an on-disk path — needed by callers
 // (e.g. the AI text-overlay path) that hand the file to an external API via

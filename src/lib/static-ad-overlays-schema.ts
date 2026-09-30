@@ -76,12 +76,31 @@ export function defaultLogoMark(): StaticAdLogoMark {
   return { include: false, corner: "bottom-right" };
 }
 
+// Trust badges (as-seen-in, review/rating, certification marks — see
+// brand-assets-schema.ts's "trust_badge" kind) share the logo mark's shape:
+// a corner anchor, no text content. Kept as a distinct field (not folded
+// into logoMark) since a project may want the logo in one corner and trust
+// badges in another. Which actual badge image(s) to use isn't stored here —
+// same "resolved at render time from Settings" pattern as logoMark, via
+// getTrustBadgeAssets (brand-assets-store.ts).
+export const StaticAdTrustBadgesZ = z.object({
+  include: z.boolean(),
+  corner: z.enum(LOGO_CORNERS),
+});
+
+export type StaticAdTrustBadges = z.infer<typeof StaticAdTrustBadgesZ>;
+
+export function defaultTrustBadges(): StaticAdTrustBadges {
+  return { include: false, corner: "bottom-left" };
+}
+
 export const StaticAdTextOverlayZ = z.object({
   elements: z.array(StaticAdOverlayElementZ),
   layout: z.enum(OVERLAY_LAYOUTS).default("stacked"),
   // Optional/defaulted so existing project.json overlays without this
   // field (every one applied before this existed) keep parsing.
   logoMark: StaticAdLogoMarkZ.default(defaultLogoMark),
+  trustBadges: StaticAdTrustBadgesZ.default(defaultTrustBadges),
 });
 
 export type StaticAdTextOverlay = z.infer<typeof StaticAdTextOverlayZ>;
@@ -103,5 +122,6 @@ export function defaultTextOverlay(): StaticAdTextOverlay {
     ],
     layout: "stacked",
     logoMark: defaultLogoMark(),
+    trustBadges: defaultTrustBadges(),
   };
 }

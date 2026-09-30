@@ -16,6 +16,53 @@ interface ProductLineOption {
   label: string;
 }
 
+function UploadReferenceButton({
+  productLineId,
+  onUploaded,
+}: {
+  productLineId: string;
+  onUploaded: (ad: Ad) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("productLineId", productLineId);
+      const res = await fetch("/api/ads/upload-reference", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      onUploaded(data.ad as Ad);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Or upload your own reference image (PNG/JPEG)</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg"
+          disabled={uploading}
+          onChange={(e) => handleFile(e.target.files?.[0])}
+          className="text-xs"
+        />
+      </label>
+      {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 function ReferencePicker({
   productLineId,
   selected,
@@ -37,34 +84,37 @@ function ReferencePicker({
       .finally(() => setLoading(false));
   }, [productLineId]);
 
-  if (loading) return <p className="text-sm text-muted-foreground">Loading eligible ads…</p>;
-  if (ads.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No static-eligible competitor ads for this product line yet — sync some from Weekly ads first.
-      </p>
-    );
-  }
-
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {ads.map((ad) => (
-        <button
-          key={ad.id}
-          onClick={() => onSelect(ad)}
-          className={`text-left rounded-lg border overflow-hidden transition-colors ${
-            selected?.id === ad.id ? "border-primary" : "border-border hover:border-primary/60"
-          }`}
-        >
-          {ad.creativeUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={`/api/ads/${ad.id}/creative`} alt={ad.headline ?? "Reference ad"} className="w-full aspect-square object-cover bg-muted" />
-          ) : (
-            <div className="w-full aspect-square bg-muted" />
-          )}
-          <p className="p-2 text-xs text-foreground line-clamp-2">{ad.headline || ad.bodyText || "(no headline)"}</p>
-        </button>
-      ))}
+    <div className="space-y-3">
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading eligible ads…</p>
+      ) : ads.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No static-eligible competitor ads for this product line yet — sync some from Weekly ads, or upload your own
+          below.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {ads.map((ad) => (
+            <button
+              key={ad.id}
+              onClick={() => onSelect(ad)}
+              className={`text-left rounded-lg border overflow-hidden transition-colors ${
+                selected?.id === ad.id ? "border-primary" : "border-border hover:border-primary/60"
+              }`}
+            >
+              {ad.creativeUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/api/ads/${ad.id}/creative`} alt={ad.headline ?? "Reference ad"} className="w-full aspect-square object-cover bg-muted" />
+              ) : (
+                <div className="w-full aspect-square bg-muted" />
+              )}
+              <p className="p-2 text-xs text-foreground line-clamp-2">{ad.headline || ad.bodyText || "(no headline)"}</p>
+            </button>
+          ))}
+        </div>
+      )}
+      <UploadReferenceButton productLineId={productLineId} onUploaded={onSelect} />
     </div>
   );
 }

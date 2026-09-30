@@ -7,6 +7,7 @@ import { z } from "zod";
 export const BRAND_ASSET_KINDS = [
   "guideline",
   "logo",
+  "trust_badge",
   "illustration",
   "typography",
   "color_palette_primary",

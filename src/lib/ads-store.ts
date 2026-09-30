@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import { extname, join } from "path";
+import { randomUUID } from "crypto";
 import type postgres from "postgres";
 import { getDb } from "./db";
 import {
@@ -88,6 +89,46 @@ export async function recordAdSighting(sighting: AdSighting): Promise<Ad> {
     returning *
   `;
   return parseAd(rows[0]);
+}
+
+// A user's own uploaded PNG/JPEG, used as a Static Ad Generator reference —
+// the alternative to picking one of the synced competitor ads via
+// ReferencePicker. Synthesized as a real `ads` row (platform_id "upload",
+// a random external_ad_id so it never collides) purely so the rest of the
+// reference pipeline — CreateBodyZ.referenceAdId, loadAdCreativeImageBytes,
+// the generate route's isStaticEligible/creativeUrl checks — needs zero
+// changes to treat it exactly like any other reference ad. creativeUrl is
+// a non-fetchable marker (not a real remote URL): loadAdCreativeImageBytes
+// always prefers creativeLocalFile, which is the only thing this ad
+// actually has, and the generate route only checks creativeUrl for
+// truthiness, never fetches it directly.
+export async function createUploadedReferenceAd(opts: {
+  productLineId: string | null;
+  originalFilename: string;
+  mimeType: string;
+  buffer: Buffer;
+}): Promise<Ad> {
+  const ext = extname(opts.originalFilename).toLowerCase() || (opts.mimeType === "image/png" ? ".png" : ".jpg");
+  const externalAdId = `upload-${randomUUID()}`;
+  const localFilename = `${externalAdId}${ext}`;
+  await fs.mkdir(ADS_MEDIA_DIR, { recursive: true });
+  await fs.writeFile(join(ADS_MEDIA_DIR, localFilename), opts.buffer);
+  return recordAdSighting({
+    platformId: "upload",
+    accountId: null,
+    productLineId: opts.productLineId,
+    externalAdId,
+    headline: "Uploaded reference image",
+    bodyText: null,
+    creativeUrl: `local-upload://${localFilename}`,
+    creativeLocalFile: localFilename,
+    landingUrl: null,
+    launchDate: null,
+    tags: [],
+    raw: null,
+    isStaticEligible: true,
+    isActive: true,
+  });
 }
 
 // Call once per platform after a sync batch completes: any ad belonging to

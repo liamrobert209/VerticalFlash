@@ -30,10 +30,16 @@ export interface StaticAdLogoMark {
   corner: LogoCorner;
 }
 
+export interface StaticAdTrustBadges {
+  include: boolean;
+  corner: LogoCorner;
+}
+
 export interface StaticAdTextOverlay {
   elements: StaticAdOverlayElement[];
   layout: OverlayLayout;
   logoMark: StaticAdLogoMark;
+  trustBadges: StaticAdTrustBadges;
 }
 
 const ROLE_LABELS: Record<OverlayRole, string> = {
@@ -73,6 +79,7 @@ function defaultOverlay(copy: { headline: string; subhead: string; cta: string }
     ],
     layout: "stacked",
     logoMark: { include: false, corner: "bottom-right" },
+    trustBadges: { include: false, corner: "bottom-left" },
   };
 }
 
@@ -280,6 +287,37 @@ export function OverlayEditor({ projectId, initialOverlay, initialCopy, finalIma
           ))}
         </select>
       </div>
+
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1.5 w-8 shrink-0">
+          <input
+            type="checkbox"
+            checked={overlay.trustBadges.include}
+            onChange={(e) =>
+              setOverlay((prev) => ({ ...prev, trustBadges: { ...prev.trustBadges, include: e.target.checked } }))
+            }
+            className="size-3.5 rounded border-input accent-primary"
+          />
+        </label>
+        <span className="w-28 shrink-0 text-xs font-semibold text-muted-foreground">Trust badges</span>
+        <select
+          value={overlay.trustBadges.corner}
+          onChange={(e) =>
+            setOverlay((prev) => ({ ...prev, trustBadges: { ...prev.trustBadges, corner: e.target.value as LogoCorner } }))
+          }
+          disabled={!overlay.trustBadges.include}
+          className="h-8 rounded-md border border-input bg-background px-1.5 text-xs disabled:opacity-50"
+        >
+          {CORNERS.map((c) => (
+            <option key={c} value={c}>
+              {CORNER_LABELS[c]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="ml-10 text-[11px] text-muted-foreground">
+        Uses whatever &quot;Trust badge&quot; images are uploaded in Settings → Brand assets.
+      </p>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 

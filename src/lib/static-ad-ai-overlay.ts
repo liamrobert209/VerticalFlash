@@ -4,6 +4,7 @@ import { signAssetUrl } from "./signed-url";
 import { generateMarketingStudioImage, type MarketingStudioImageResult } from "./higgsfield";
 import {
   getLatestLogoAsset,
+  getTrustBadgeAssets,
   getAdExamplesByStyleTemplate,
   getShieldUsageExamples,
   getFullColorPalette,
@@ -11,7 +12,7 @@ import {
 import { staticAdAttemptImagePath } from "./static-ad-run";
 import { getGeminiClient } from "./gemini";
 import { suggestTextPlacement, type PlacementSuggestion } from "./static-ad-placement";
-import type { StaticAdTextOverlay, OverlayRole } from "./static-ad-overlays-schema";
+import type { StaticAdTextOverlay, OverlayRole, LogoCorner } from "./static-ad-overlays-schema";
 import type { AdStyleTemplate } from "./brand-assets-schema";
 import type { AdAnalysis } from "./ad-analysis-schema";
 import type { ImageBytes } from "./fetch-image";
@@ -29,6 +30,17 @@ const STYLE_EXAMPLES_PER_GENERATION = 2;
 // Shield-compositing guidance is a narrower, single question ("how does
 // the mark actually sit on a photo") — one real example answers it.
 const SHIELD_EXAMPLES_PER_GENERATION = 1;
+// How many uploaded trust-badge images to bake in at once — more than a
+// handful crowds a single corner and dilutes the model's attention across
+// too many reference images for one generation call.
+const MAX_TRUST_BADGES_PER_GENERATION = 4;
+
+const CORNER_PHRASES: Record<LogoCorner, string> = {
+  "top-left": "top-left corner",
+  "top-right": "top-right corner",
+  "bottom-left": "bottom-left corner",
+  "bottom-right": "bottom-right corner",
+};
 
 const IMAGE_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -208,8 +220,17 @@ export async function generateAiTextOverlay(
     if (logo) {
       images.push({
         url: signAssetUrl(`brand-assets/${logo.id}/${logo.filename}`, SIGNED_URL_TTL_SECONDS).url,
-        description:
-          "our brand logo — include it small, in one corner, matching this image exactly; do not redraw, recolor, or reinterpret it",
+        description: `our brand logo — include it small, in the ${CORNER_PHRASES[overlay.logoMark.corner]}, matching this image exactly; do not redraw, recolor, or reinterpret it`,
+      });
+    }
+  }
+
+  if (overlay.trustBadges.include) {
+    const badges = await getTrustBadgeAssets(MAX_TRUST_BADGES_PER_GENERATION);
+    for (const badge of badges) {
+      images.push({
+        url: signAssetUrl(`brand-assets/${badge.id}/${badge.filename}`, SIGNED_URL_TTL_SECONDS).url,
+        description: `a trust badge (as-seen-in, review/rating, or certification mark) — include it small, in the ${CORNER_PHRASES[overlay.trustBadges.corner]}${badges.length > 1 ? ", arranged in a row with the other trust badge image(s) referenced" : ""}, matching this image exactly; do not redraw, recolor, or reinterpret it`,
       });
     }
   }
