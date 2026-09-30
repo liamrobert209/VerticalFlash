@@ -23,11 +23,12 @@ export default defineRailway(() => {
   // Content, and Search by Hashtag — the actual sync logic lives in
   // src/lib/weekly-sync-run.ts and runs inside the MAIN app process (see
   // /api/cron/weekly-sync), not here. This service is now just the cron
-  // trigger: one authenticated curl to that route. Renamed from
-  // "weekly-sync" to "daily-sync" to stop misdescribing the cadence — the
-  // route path/internal function names still say "weekly" (a route rename
-  // needs coordinating with this curl target in the same deploy, and
-  // wasn't worth the extra risk for a display-name-only ask).
+  // trigger: one authenticated request to that route (see the `start`
+  // comment below for why that's `node -e`, not `curl`). A rename to
+  // "daily-sync" (to stop misdescribing the cadence) was proposed once but
+  // never applied — the route path/internal function names still say
+  // "weekly", and coordinating a rename with that would be its own separate
+  // change; this file keeps the live name until that's actually done.
   //
   // Previously ran the sync itself as its own standalone script, with its
   // own copy of every credential the logic needs (DB, Apify) and no access
@@ -42,15 +43,22 @@ export default defineRailway(() => {
   // app instead means there's only one place with real credentials and
   // volume access, so nothing to keep in sync a second time.
   //
-  // The curl itself returns almost immediately (the route kicks the run
+  // The request itself returns almost immediately (the route kicks the run
   // off in the background rather than blocking the response — see its
   // header comment) — restartPolicyType stays NEVER since this container's
-  // job is done the moment curl exits, regardless of how long the actual
-  // sync takes in the main service.
-  const dailySync = service("daily-sync", {
+  // job is done the moment that request completes, regardless of how long
+  // the actual sync takes in the main service.
+  //
+  // `start` uses `node -e` rather than `curl` because curl isn't installed
+  // in this service's container — confirmed directly: every scheduled run
+  // was silently crashing on "curl: command not found", meaning the sync
+  // hadn't actually been running at all. Node itself is present since this
+  // service builds from the same Railpack/Node image as the main app. Same
+  // fix applied to deadman-check below for the same reason.
+  const dailySync = service("weekly-sync", {
     replicas: { "ams": 1 },
     start:
-      'curl -sf -X POST -u "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" https://verticalflash-production.up.railway.app/api/cron/weekly-sync',
+      `node -e "fetch('https://verticalflash-production.up.railway.app/api/cron/weekly-sync',{method:'POST',headers:{Authorization:'Basic '+Buffer.from(process.env.BASIC_AUTH_USER+':'+process.env.BASIC_AUTH_PASSWORD).toString('base64')}}).then(r=>{if(!r.ok){console.error('HTTP '+r.status);process.exit(1)}console.log('OK')}).catch(e=>{console.error(e);process.exit(1)})"`,
     deploy: { cronSchedule: "0 2 * * 1-5", restartPolicyType: "NEVER" },
     env: { BASIC_AUTH_USER: preserve(), BASIC_AUTH_PASSWORD: preserve() },
   });
@@ -63,7 +71,7 @@ export default defineRailway(() => {
   const deadmanCheck = service("deadman-check", {
     replicas: { "ams": 1 },
     start:
-      'curl -sf -X POST -u "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" https://verticalflash-production.up.railway.app/api/cron/deadman-check',
+      `node -e "fetch('https://verticalflash-production.up.railway.app/api/cron/deadman-check',{method:'POST',headers:{Authorization:'Basic '+Buffer.from(process.env.BASIC_AUTH_USER+':'+process.env.BASIC_AUTH_PASSWORD).toString('base64')}}).then(r=>{if(!r.ok){console.error('HTTP '+r.status);process.exit(1)}console.log('OK')}).catch(e=>{console.error(e);process.exit(1)})"`,
     deploy: { cronSchedule: "30 2 * * *", restartPolicyType: "NEVER" },
     env: { BASIC_AUTH_USER: preserve(), BASIC_AUTH_PASSWORD: preserve() },
   });
